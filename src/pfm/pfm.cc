@@ -65,6 +65,10 @@ namespace PeterDB {
         return rc;
     }
 
+    bool FileHandle::isOpen() {
+        return fs && fs->is_open();
+    }
+
     FileHandle::FileHandle() {
         readPageCounter = 0;
         writePageCounter = 0;
@@ -94,7 +98,7 @@ namespace PeterDB {
     }
 
     RC FileHandle::readMetadata() {
-        if(!fs || !fs->is_open()) return -1;
+        if(!isOpen()) return -1;
 
         fs->seekg(fs->beg);
         int counterNum = PeterDB::FileHandle::getCounterNum();
@@ -108,7 +112,7 @@ namespace PeterDB {
     }
 
     RC FileHandle::flushMetadata() {
-        if(!fs || !fs->is_open()) return -1;
+        if(!isOpen()) return -1;
 
         fs->seekp(fs->beg);
         int counterNum = PeterDB::FileHandle::getCounterNum();
@@ -124,7 +128,7 @@ namespace PeterDB {
 
     RC FileHandle::open(const std::string& tmpFileName, std::fstream* tmpFS) {
         // Already bound to a file
-        if(fs && fs->is_open()) {
+        if(isOpen()) {
             return 2;
         }
 
@@ -137,7 +141,7 @@ namespace PeterDB {
     }
 
     RC FileHandle::close() {
-        if(!fs || !fs->is_open()) {
+        if(!isOpen()) {
             return 2;
         }
 
@@ -150,7 +154,7 @@ namespace PeterDB {
 
     RC FileHandle::readPage(PageNum pageNum, void *data) {
         // Not Bound to a file
-        if(!fs || !fs->is_open())
+        if(!isOpen())
             return 1;
         // Page Not Exist
         if(pageNum >= pageCounter)
@@ -168,7 +172,7 @@ namespace PeterDB {
 
     RC FileHandle::writePage(PageNum pageNum, const void *data) {
         // Not Bound to a file
-        if(!fs || !fs->is_open())
+        if(!isOpen())
             return 1;
         // Page Not Exist
         if(pageNum >= pageCounter)
@@ -187,7 +191,7 @@ namespace PeterDB {
 
     RC FileHandle::appendPage(const void *data) {
         // Not Bound to a file
-        if(!fs || !fs->is_open())
+        if(!isOpen())
             return 1;
         fs->seekp((pageCounter + 1) * PAGE_SIZE);
         fs->write((char *)data, PAGE_SIZE);

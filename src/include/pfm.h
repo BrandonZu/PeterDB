@@ -51,6 +51,7 @@ namespace PeterDB {
         static int getCounterNum(); // Get Number of Counters
         void setCounters(const unsigned counters[]);
         void getCounters(unsigned counters[]) const;
+        bool isOpen();
 
     public:
         FileHandle();                                                       // Default constructor
