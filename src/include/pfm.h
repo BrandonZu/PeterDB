@@ -4,6 +4,10 @@
 #define PAGE_SIZE 4096
 
 #include <string>
+#include <fstream>
+#include <cstdio>
+#include <memory>
+#include <vector>
 
 namespace PeterDB {
 
@@ -32,12 +36,28 @@ namespace PeterDB {
     class FileHandle {
     public:
         // variables to keep the counter for each operation
+        // Stored in the hidden page, i.e. 1st page
         unsigned readPageCounter;
         unsigned writePageCounter;
         unsigned appendPageCounter;
+        unsigned pageCounter;
 
+        std::string fileName;
+        std::fstream* fs;
+
+        RC readMetadata();
+        RC flushMetadata();
+
+        static int getCounterNum(); // Get Number of Counters
+        void setCounters(const unsigned counters[]);
+        void getCounters(unsigned counters[]) const;
+
+    public:
         FileHandle();                                                       // Default constructor
         ~FileHandle();                                                      // Destructor
+
+        RC open(const std::string& tmpFileName, std::fstream* fs);
+        RC close();
 
         RC readPage(PageNum pageNum, void *data);                           // Get a specific page
         RC writePage(PageNum pageNum, const void *data);                    // Write a specific page
