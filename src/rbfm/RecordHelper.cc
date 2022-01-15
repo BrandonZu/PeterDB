@@ -6,7 +6,7 @@ namespace PeterDB {
     RC RecordHelper::rawDataToRecordByteSeq(char* rawData, const std::vector<Attribute> &attrs,
                                             char* byteSeq, RecordLen& recordLen) {
         // 0. Write Mask(Reserved)
-        short mask = 0;
+        short mask = 0x0;
         memcpy(byteSeq, &mask, sizeof(mask));
         // 1. Write Attribute Number
         short attrNum = attrs.size();
@@ -20,10 +20,9 @@ namespace PeterDB {
 
         // Fill each attribute's dict
         for(short i = 0; i < attrNum; i++, dictPos += sizeof(short)) {
-            short attrEndPos = 0;
             if(isAttrNull(rawData, i)) {
-                attrEndPos = -1;
-                memcpy(&dictPos, &attrEndPos, sizeof(attrEndPos));
+                short attrEndPos = -1;
+                memcpy(byteSeq + dictPos, &attrEndPos, sizeof(attrEndPos));
                 continue;
             }
             switch(attrs[i].type) {
@@ -81,7 +80,7 @@ namespace PeterDB {
         short curAttrEndPos;
         for(int i = 0; i < attrNum; i++, attrDictPos += sizeof(short)) {
             // Get Attr End Pos
-            memcpy(&curAttrEndPos, rawData + attrDictPos, sizeof(short));
+            memcpy(&curAttrEndPos, record + attrDictPos, sizeof(short));
             // Write Attr Data
             // NUll - Don't Write
             if(curAttrEndPos < 0) {
@@ -120,6 +119,7 @@ namespace PeterDB {
                 prevAttrEndPos = curAttrEndPos;
             }
         }
+        return 0;
     }
 
     bool RecordHelper::isAttrNull(char* data, unsigned index) {
