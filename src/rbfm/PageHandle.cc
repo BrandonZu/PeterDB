@@ -24,11 +24,11 @@ namespace PeterDB {
         // Update Total Slot Counter
         slotCounter++;
         memcpy(data + getSlotCounterOffset(), &slotCounter, sizeof(short));
-        // Add Slot
+        // Add a Slot to the end
         memcpy(data + getSlotOffset(slotCounter), &freeBytePointer, sizeof(short));
         memcpy(data + getSlotOffset(slotCounter) + sizeof(short), &recordLen, sizeof(short));
 
-        // Insert Byte Seq
+        // Write Byte Seq
         memcpy(data + freeBytePointer, byteSeq, recordLen);
         // Update Free Space Pointer
         freeBytePointer += recordLen;
@@ -52,6 +52,7 @@ namespace PeterDB {
         short slotOffset = getSlotOffset(slotNum);
         short recordOffset;
 
+        // Get Record Start Position and Length
         memcpy(&recordOffset, data + slotOffset, sizeof(short));
         memcpy(&recordLen, data + slotOffset + sizeof(short), sizeof(short));
 
