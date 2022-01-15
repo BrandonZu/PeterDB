@@ -24,7 +24,7 @@ namespace PeterDB {
         ifstream in_fs(fileName, ios::binary);
         if(in_fs.is_open()) {
             in_fs.close();
-            return 1;
+            return 2;
         }
         // Create the file using ofstream
         ofstream out_fs(fileName, ios::binary);
@@ -47,6 +47,7 @@ namespace PeterDB {
     }
 
     RC PagedFileManager::openFile(const std::string &fileName, FileHandle &fileHandle) {
+        RC ret = 0;
         // Check if this file exists
         fstream* tmp_fs = new fstream;
         tmp_fs->open(fileName, ios::in | ios::out | ios::binary);
@@ -55,9 +56,11 @@ namespace PeterDB {
             return 1;
         }
 
-        RC rc = fileHandle.open(fileName, tmp_fs);
-
-        return rc;
+        ret = fileHandle.open(fileName, tmp_fs);
+        if(ret) {
+            return ret;
+        }
+        return 0;
     }
 
     RC PagedFileManager::closeFile(FileHandle &fileHandle) {
@@ -98,7 +101,8 @@ namespace PeterDB {
     }
 
     RC FileHandle::readMetadata() {
-        if(!isOpen()) return -1;
+        if(!isOpen())
+            return 1;
 
         fs->seekg(fs->beg);
         int counterNum = PeterDB::FileHandle::getCounterNum();
@@ -112,7 +116,8 @@ namespace PeterDB {
     }
 
     RC FileHandle::flushMetadata() {
-        if(!isOpen()) return -1;
+        if(!isOpen())
+            return 1;
 
         fs->seekp(fs->beg);
         int counterNum = PeterDB::FileHandle::getCounterNum();
