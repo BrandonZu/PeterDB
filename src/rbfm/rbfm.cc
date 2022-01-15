@@ -15,29 +15,84 @@ namespace PeterDB {
     RecordBasedFileManager &RecordBasedFileManager::operator=(const RecordBasedFileManager &) = default;
 
     RC RecordBasedFileManager::createFile(const std::string &fileName) {
-        return -1;
+        return PagedFileManager::instance().createFile(fileName);
     }
 
     RC RecordBasedFileManager::destroyFile(const std::string &fileName) {
-        return -1;
+        return PagedFileManager::instance().destroyFile(fileName);
     }
 
     RC RecordBasedFileManager::openFile(const std::string &fileName, FileHandle &fileHandle) {
-        return -1;
+        return PagedFileManager::instance().openFile(fileName, fileHandle);
     }
 
     RC RecordBasedFileManager::closeFile(FileHandle &fileHandle) {
-        return -1;
+        return PagedFileManager::instance().closeFile(fileHandle);
     }
 
     RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                             const void *data, RID &rid) {
-        return -1;
+        RC ret = 0;
+        if(!fileHandle.isOpen())
+            return 1;
+
+        // 1. Transform Record to Byte Sequence
+        RecordLen recordLen = 0;
+        char buffer[PAGE_SIZE] = {};
+        ret = RecordHelper::rawDataToRecordByteSeq((char *) data, recordDescriptor, buffer, recordLen);
+        if(ret) {
+            std::cout << "Fail to Transform Record to Byte Seq @ RecordBasedFileManager::insertRecord" << std::endl;
+            return ret;
+        }
+        char byteSeq[recordLen];
+        memcpy(byteSeq, buffer, recordLen);
+
+        // 2. Find an available page
+        PageNum pageIndex;
+        ret = findAvailPage(fileHandle, recordLen, pageIndex);
+        if(ret) {
+            std::cout << "Fail to find AvailPage! @ RecordBasedFileManager::insertRecord" << std::endl;
+            return ret;
+        }
+
+        // 3. Insert Record via Page Handle
+        PageHandle pageHandle(fileHandle, pageIndex);
+        ret = pageHandle.insertRecordByteSeq(byteSeq, recordLen, rid);
+        if(ret) {
+            std::cout << "Fail to insert record's byte sequence via PageHandle @ RecordBasedFileManager::insertRecord" << std::endl;
+            return ret;
+        }
+        return 0;
     }
 
     RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                           const RID &rid, void *data) {
-        return -1;
+        RC ret = 0;
+        if(!fileHandle.isOpen()) {
+            std::cout << "FileHandle NOT bound to a file!" << std::endl;
+            return 1;
+        }
+        if(rid.pageNum >= fileHandle.getNumberOfPages()) {
+            std::cout << "Target Page not exist!" << std::endl;
+            return 2;
+        }
+
+        // 1. Get Record Byte Seq from page via PageHandle
+        PageHandle pageHandle(fileHandle, rid.pageNum);
+        char recordBuffer[PAGE_SIZE] = {};
+        short recordLen = 0;
+        ret = pageHandle.getRecordByteSeq(rid.slotNum, recordBuffer, recordLen);
+        if(ret) {
+            std::cout << "Fail to Get Record Byte Seq @ RecordBasedFileManager::readRecord" << std::endl;
+            return ret;
+        }
+        // 2. Transform Record Byte Seq to output format
+        ret = RecordHelper::recordByteSeqToRawData(recordBuffer, recordLen, recordDescriptor, (char*)data);
+        if(ret) {
+            std::cout << "Fail to Transform Record to Raw Data @ RecordBasedFileManager::readRecord" << std::endl;
+            return ret;
+        }
+        return 0;
     }
 
     RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
@@ -47,7 +102,55 @@ namespace PeterDB {
 
     RC RecordBasedFileManager::printRecord(const std::vector<Attribute> &recordDescriptor, const void *data,
                                            std::ostream &out) {
-        return -1;
+        RC ret = 0;
+        const std::string deli = " ";
+        char strBuffer[PAGE_SIZE] = {};
+        unsigned dataPos = ceil(recordDescriptor.size() / 8.0);
+        for(short i = 0; i < recordDescriptor.size(); i++) {
+            // Print Name
+            out << recordDescriptor[i].name << ":" << deli;
+            // Print Value
+            if(RecordHelper::isAttrNull((char*)data, i)) {
+                out << "NULL";
+            }
+            else {
+                switch (recordDescriptor[i].type) {
+                    case TypeInt:
+                        int intVal;
+                        memcpy(&intVal, (char *)data + dataPos, sizeof(int));
+                        dataPos += sizeof(int);
+                        out << intVal;
+                        break;
+                    case TypeReal:
+                        float floatVal;
+                        memcpy(&floatVal, (char *)data + dataPos, sizeof(float));
+                        dataPos += sizeof(float);
+                        out << floatVal;
+                        break;
+                    case TypeVarChar:
+                        unsigned strLen;
+                        // Get String Len
+                        memcpy(&strLen, (char *)data + dataPos, sizeof(unsigned));
+                        dataPos += sizeof(unsigned);
+                        memcpy(strBuffer, (char *)data + dataPos, strLen);
+                        strBuffer[strLen] = '\0';
+                        dataPos += strLen;
+                        out << strBuffer;
+                        break;
+                    default:
+                        std::cout << "DataType not supported @ RecordBasedFileManager::printRecord" << std::endl;
+                        break;
+                }
+            }
+            // Print Deli or Endl
+            if(i != recordDescriptor.size() - 1) {
+                out << ',' << deli;
+            }
+            else {
+                out << std::endl;
+            }
+        }
+        return 0;
     }
 
     RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
@@ -65,6 +168,39 @@ namespace PeterDB {
                                     const std::vector<std::string> &attributeNames,
                                     RBFM_ScanIterator &rbfm_ScanIterator) {
         return -1;
+    }
+
+    // Page Organizer Functions
+    RC RecordBasedFileManager::findAvailPage(FileHandle& fileHandle, RecordLen recordLen, PageNum& availPageIndex) {
+        RC ret = 0;
+        char buffer[PAGE_SIZE] = {};
+        unsigned pageCount = fileHandle.getNumberOfPages();
+
+        if(pageCount > 0) {
+            // Try to insert into the lastest page
+            PageHandle lastPage(fileHandle, pageCount - 1);
+            if (lastPage.hasEnoughSpaceForRecord(recordLen)) {
+                availPageIndex = pageCount - 1;
+                return 0;
+            }
+
+            // Traverse all pages to find an available page
+            for (PageNum i = 0; i < pageCount - 1; i++) {
+                PageHandle page(fileHandle, i);
+                // Find an available page
+                if (page.hasEnoughSpaceForRecord(recordLen)) {
+                    availPageIndex = i;
+                    return 0;
+                }
+            }
+        }
+
+        // No available page. Append a new page
+        ret = fileHandle.appendPage(buffer);
+        if(ret)
+            return ret;
+        availPageIndex = fileHandle.getNumberOfPages() - 1;
+        return 0;
     }
 
 } // namespace PeterDB

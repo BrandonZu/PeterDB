@@ -2,6 +2,8 @@
 #define _rbfm_h_
 
 #include <vector>
+#include <cmath>
+#include <iostream>
 
 #include "pfm.h"
 
@@ -36,6 +38,7 @@ namespace PeterDB {
         NO_OP       // no condition
     } CompOp;
 
+    typedef short RecordLen;
 
     /********************************************************************
     * The scan iterator is NOT required to be implemented for Project 1 *
@@ -138,6 +141,47 @@ namespace PeterDB {
         ~RecordBasedFileManager();                                                  // Prevent unwanted destruction
         RecordBasedFileManager(const RecordBasedFileManager &);                     // Prevent construction by copying
         RecordBasedFileManager &operator=(const RecordBasedFileManager &);          // Prevent assignment
+
+    private:
+        // Future TODO: Create a PageOrganizer class to organize pages
+        RC findAvailPage(FileHandle& fileHandle, RecordLen recordLen, PageNum& availPageIndex);
+    };
+
+    class PageHandle {
+    public:
+        FileHandle& fh;
+        PageNum pageNum;
+
+        short freeBytePointer;
+        short slotNum;
+        char data[PAGE_SIZE];
+
+        PageHandle(FileHandle& fileHandle, PageNum pageNum);
+        ~PageHandle();
+
+        short getFreeSpace();
+        bool hasEnoughSpaceForRecord(int recordLen);
+
+        RC insertRecordByteSeq(char byteSeq[], RecordLen recordLen, RID& rid);
+        RC getRecordByteSeq(unsigned short slotNum, char recordByteSeq[], short& recordLen);
+
+    private:
+        short getHeaderLen();
+        short getSlotLen();
+
+        short getSlotNumOffset();
+        short getFreeBytePointerOffset();
+        // Slot Num start from 1 !!!
+        short getSlotOffset(unsigned short slotNum);
+    };
+
+    class RecordHelper {
+    public:
+        static RC rawDataToRecordByteSeq(char* rawData, const std::vector<Attribute> &attrs, char* byteSeq, RecordLen& recordLen);
+        static RC recordByteSeqToRawData(char record[], const short recordLen, const std::vector<Attribute> &recordDescriptor, char* data);
+
+        static bool isAttrNull(char* data, unsigned index);
+        static void setAttrNull(char* data, unsigned index);
 
     };
 
