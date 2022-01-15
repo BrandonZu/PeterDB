@@ -3,14 +3,14 @@
 namespace PeterDB {
     PageHandle::PageHandle(FileHandle& fileHandle, PageNum pageNum):fh(fileHandle), pageNum(pageNum) {
         fileHandle.readPage(pageNum, data);
-        memcpy(&freeBytePointer, data + PAGE_SIZE - sizeof(short), sizeof(short));
-        memcpy(&slotNum, data + PAGE_SIZE - sizeof(short) * 2, sizeof(short));
+        memcpy(&freeBytePointer, data + getFreeBytePointerOffset(), sizeof(short));
+        memcpy(&slotCounter, data + getSlotCounterOffset(), sizeof(short));
     }
 
     PageHandle::~PageHandle() = default;
 
     short PageHandle::getFreeSpace() {
-        return PAGE_SIZE - freeBytePointer - getSlotLen() - getHeaderLen();
+        return PAGE_SIZE - freeBytePointer - getSlotListLen() - getHeaderLen();
     }
 
     bool PageHandle::hasEnoughSpaceForRecord(int recordLen) {
@@ -21,12 +21,12 @@ namespace PeterDB {
     RC PageHandle::insertRecordByteSeq(char byteSeq[], RecordLen recordLen, RID& rid) {
         RC ret = 0;
 
-        // Update Total Slot Num
-        slotNum++;
-        memcpy(data + getSlotNumOffset(), &slotNum, sizeof(short));
+        // Update Total Slot Counter
+        slotCounter++;
+        memcpy(data + getSlotCounterOffset(), &slotCounter, sizeof(short));
         // Add Slot
-        memcpy(data + getSlotOffset(slotNum), &freeBytePointer, sizeof(short));
-        memcpy(data + getSlotOffset(slotNum) + sizeof(short), &recordLen, sizeof(short));
+        memcpy(data + getSlotOffset(slotCounter), &freeBytePointer, sizeof(short));
+        memcpy(data + getSlotOffset(slotCounter) + sizeof(short), &recordLen, sizeof(short));
 
         // Insert Byte Seq
         memcpy(data + freeBytePointer, byteSeq, recordLen);
@@ -38,7 +38,7 @@ namespace PeterDB {
         ret = fh.writePage(pageNum, data);
 
         rid.pageNum = this->pageNum;
-        rid.slotNum = this->slotNum;
+        rid.slotNum = this->slotCounter;
 
         if(ret) {
             std::cout << "Fail to write new data into file while inserting record! @ PageHandle::insertRecordByteSeq" << std::endl;
@@ -47,7 +47,7 @@ namespace PeterDB {
         return 0;
     }
 
-    RC PageHandle::getRecordByteSeq(unsigned short slotNum, char *recordByteSeq, short& recordLen) {
+    RC PageHandle::getRecordByteSeq(short slotNum, char *recordByteSeq, short& recordLen) {
         RC ret = 0;
         short slotOffset = getSlotOffset(slotNum);
         short recordOffset;
@@ -61,17 +61,15 @@ namespace PeterDB {
         return 0;
     }
 
-
-
     short PageHandle::getHeaderLen() {
         return 2 * sizeof(short);
     }
 
-    short PageHandle::getSlotLen() {
-        return slotNum * sizeof(short);
+    short PageHandle::getSlotListLen() {
+        return 2 * sizeof(short) * slotCounter;
     }
 
-    short PageHandle::getSlotNumOffset() {
+    short PageHandle::getSlotCounterOffset() {
         return PAGE_SIZE - 2 * sizeof(short);
     }
 
@@ -79,7 +77,7 @@ namespace PeterDB {
         return PAGE_SIZE - sizeof(short);
     }
 
-    short PageHandle::getSlotOffset(unsigned short slotNum) {
-        return getSlotNumOffset() - 2 * sizeof(short) * slotNum;
+    short PageHandle::getSlotOffset(short slotNum) {
+        return getSlotCounterOffset() - 2 * sizeof(short) * slotNum;
     }
 }

@@ -153,8 +153,8 @@ namespace PeterDB {
         PageNum pageNum;
 
         short freeBytePointer;
-        short slotNum;
-        char data[PAGE_SIZE];
+        short slotCounter;
+        char data[PAGE_SIZE] = {};
 
         PageHandle(FileHandle& fileHandle, PageNum pageNum);
         ~PageHandle();
@@ -163,16 +163,16 @@ namespace PeterDB {
         bool hasEnoughSpaceForRecord(int recordLen);
 
         RC insertRecordByteSeq(char byteSeq[], RecordLen recordLen, RID& rid);
-        RC getRecordByteSeq(unsigned short slotNum, char recordByteSeq[], short& recordLen);
+        RC getRecordByteSeq(short slotNum, char recordByteSeq[], short& recordLen);
 
     private:
         short getHeaderLen();
-        short getSlotLen();
+        short getSlotListLen();
 
-        short getSlotNumOffset();
+        short getSlotCounterOffset();
         short getFreeBytePointerOffset();
         // Slot Num start from 1 !!!
-        short getSlotOffset(unsigned short slotNum);
+        short getSlotOffset(short slotNum);
     };
 
     class RecordHelper {
