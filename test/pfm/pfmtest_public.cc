@@ -1,5 +1,5 @@
 #include "src/include/pfm.h"
-#include "pfm_test_utils.h"
+#include "test/utils/pfm_test_utils.h"
 
 namespace PeterDBTesting {
 
@@ -153,6 +153,7 @@ namespace PeterDBTesting {
         ASSERT_LT(readPageCount, updatedReadPageCount) << "The readPageCount should have been increased.";
 
         // Check the integrity of the page
+        free(inBuffer);
         inBuffer = malloc(PAGE_SIZE);
         generateData(inBuffer, PAGE_SIZE);
         ASSERT_EQ(memcmp(inBuffer, outBuffer, PAGE_SIZE), 0)
@@ -194,6 +195,7 @@ namespace PeterDBTesting {
 
         // Update and write the first page
         size_t fileSizeBeforeWrite = getFileSize(fileName);
+        free(inBuffer);
         inBuffer = malloc(PAGE_SIZE);
         generateData(inBuffer, PAGE_SIZE, 10);
         ASSERT_EQ(fileHandle.writePage(0, inBuffer), success) << "Writing a page should succeed.";
