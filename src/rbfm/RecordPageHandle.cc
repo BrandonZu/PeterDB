@@ -21,12 +21,12 @@ namespace PeterDB {
     RC RecordPageHandle::insertRecordByteSeq(char byteSeq[], RecordLen recordLen, RID& rid) {
         RC ret = 0;
 
-        // Update Total Slot Counter
-        slotCounter++;
-        memcpy(data + getSlotCounterOffset(), &slotCounter, sizeof(short));
-        // Add a Slot to the end
-        memcpy(data + getSlotOffset(slotCounter), &freeBytePointer, sizeof(short));
-        memcpy(data + getSlotOffset(slotCounter) + sizeof(short), &recordLen, sizeof(short));
+        // Get Slot Index
+        short slotIndex = getAvailSlot();
+
+        // Append a slot(pointer + length) to the end
+        memcpy(data + getSlotOffset(slotIndex), &freeBytePointer, sizeof(short));
+        memcpy(data + getSlotOffset(slotIndex) + sizeof(short), &recordLen, sizeof(short));
 
         // Write Byte Seq
         memcpy(data + freeBytePointer, byteSeq, recordLen);
@@ -38,7 +38,7 @@ namespace PeterDB {
         ret = fh.writePage(pageNum, data);
 
         rid.pageNum = this->pageNum;
-        rid.slotNum = this->slotCounter;
+        rid.slotNum = slotIndex;
 
         if(ret) {
             std::cout << "Fail to write new data into file while inserting record! @ RecordPageHandle::insertRecordByteSeq" << std::endl;
@@ -60,6 +60,28 @@ namespace PeterDB {
         memcpy(recordByteSeq, data + recordOffset, recordLen);
 
         return 0;
+    }
+
+    short RecordPageHandle::getAvailSlot() {
+        // Traverse through all existing slots searching for an empty slot
+        short curSlotPtr;
+        short index = 0;
+        for(short i = 1; i <= slotCounter; i++) {
+            memcpy(&curSlotPtr, data + getSlotOffset(i), sizeof(short));
+            if(curSlotPtr < 0) {
+                index = i;
+                break;
+            }
+        }
+
+        if(index > 0) {     // Find an empty slot
+            return index;
+        }
+        else {      // Allocate a new slot
+            slotCounter++;
+            memcpy(data + getSlotCounterOffset(), &slotCounter, sizeof(short));
+            return slotCounter;
+        }
     }
 
     short RecordPageHandle::getHeaderLen() {

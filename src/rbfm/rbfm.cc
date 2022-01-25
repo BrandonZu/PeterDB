@@ -57,9 +57,9 @@ namespace PeterDB {
             return ret;
         }
 
-        // 3. Insert Record via Page Handle
-        RecordPageHandle pageHandle(fileHandle, pageIndex);
-        ret = pageHandle.insertRecordByteSeq(byteSeq, recordLen, rid);
+        // 3. Insert Record via Record Page Handle
+        RecordPageHandle recordPageHandle(fileHandle, pageIndex);
+        ret = recordPageHandle.insertRecordByteSeq(byteSeq, recordLen, rid);
         if(ret) {
             std::cout << "Fail to insert record's byte sequence via RecordPageHandle @ RecordBasedFileManager::insertRecord" << std::endl;
             return ret;
@@ -101,10 +101,10 @@ namespace PeterDB {
                                             const RID &rid) {
         RC ret = 0;
         if(!fileHandle.isOpen()) {
-            std::cout << "FileHandle NOT bound to a file! @ RecordBasedFileManager::deleteRecord" << std::endl;
+            LOG(ERROR) << "FileHandle NOT bound to a file! @ RecordBasedFileManager::deleteRecord" << std::endl;
             return 1;
         }
-        // Get Page Handle
+        // Get Record Page Handle
 
         return 0;
     }

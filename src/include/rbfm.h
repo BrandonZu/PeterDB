@@ -166,6 +166,8 @@ namespace PeterDB {
         RC getRecordByteSeq(short slotNum, char recordByteSeq[], short& recordLen);
 
     private:
+        short getAvailSlot();
+
         short getHeaderLen();
         short getSlotListLen();
 
