@@ -147,7 +147,7 @@ namespace PeterDB {
         RC findAvailPage(FileHandle& fileHandle, RecordLen recordLen, PageNum& availPageIndex);
     };
 
-    class PageHandle {
+    class RecordPageHandle {
     public:
         FileHandle& fh;
         PageNum pageNum;
@@ -156,8 +156,8 @@ namespace PeterDB {
         short slotCounter;
         char data[PAGE_SIZE] = {};
 
-        PageHandle(FileHandle& fileHandle, PageNum pageNum);
-        ~PageHandle();
+        RecordPageHandle(FileHandle& fileHandle, PageNum pageNum);
+        ~RecordPageHandle();
 
         short getFreeSpace();
         bool hasEnoughSpaceForRecord(int recordLen);

@@ -70,12 +70,12 @@ The first page is the hidden page, which stores the meta data, for example, all 
 ### 5. Implementation Detail
 - Other implementation details goes here.
 
-I designed a PageHandle class to deal with the page format.
+I designed a RecordPageHandle class to deal with the page format.
 Each instance of this class is bound to a specific page, providing some useful functions with regard to insert and read
 record from the page.
 
 
-    class PageHandle {
+    class RecordPageHandle {
     public:
         FileHandle& fh;
         PageNum pageNum;
@@ -84,8 +84,8 @@ record from the page.
         short slotCounter;
         char data[PAGE_SIZE] = {};
         
-        PageHandle(FileHandle& fileHandle, PageNum pageNum);
-        ~PageHandle();
+        RecordPageHandle(FileHandle& fileHandle, PageNum pageNum);
+        RecordPageHandleHandle();
         
         short getFreeSpace();
         bool hasEnoughSpaceForRecord(int recordLen);

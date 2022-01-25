@@ -10,6 +10,8 @@
 #include <vector>
 #include <cstring>
 
+#include <glog/logging.h>
+
 namespace PeterDB {
 
     typedef unsigned PageNum;

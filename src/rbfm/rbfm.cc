@@ -58,10 +58,10 @@ namespace PeterDB {
         }
 
         // 3. Insert Record via Page Handle
-        PageHandle pageHandle(fileHandle, pageIndex);
+        RecordPageHandle pageHandle(fileHandle, pageIndex);
         ret = pageHandle.insertRecordByteSeq(byteSeq, recordLen, rid);
         if(ret) {
-            std::cout << "Fail to insert record's byte sequence via PageHandle @ RecordBasedFileManager::insertRecord" << std::endl;
+            std::cout << "Fail to insert record's byte sequence via RecordPageHandle @ RecordBasedFileManager::insertRecord" << std::endl;
             return ret;
         }
         return 0;
@@ -79,13 +79,13 @@ namespace PeterDB {
             return 2;
         }
 
-        // 1. Get Record Byte Seq via PageHandle
-        PageHandle pageHandle(fileHandle, rid.pageNum);
+        // 1. Get Record Byte Seq via RecordPageHandle
+        RecordPageHandle pageHandle(fileHandle, rid.pageNum);
         char recordBuffer[PAGE_SIZE] = {};
         short recordLen = 0;
         ret = pageHandle.getRecordByteSeq(rid.slotNum, recordBuffer, recordLen);
         if(ret) {
-            std::cout << "Fail to Get Record Byte Seq via PageHandle @ RecordBasedFileManager::readRecord" << std::endl;
+            std::cout << "Fail to Get Record Byte Seq via RecordPageHandle @ RecordBasedFileManager::readRecord" << std::endl;
             return ret;
         }
         // 2. Transform Record Byte Seq to raw data(output format)
@@ -99,7 +99,14 @@ namespace PeterDB {
 
     RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                             const RID &rid) {
-        return -1;
+        RC ret = 0;
+        if(!fileHandle.isOpen()) {
+            std::cout << "FileHandle NOT bound to a file! @ RecordBasedFileManager::deleteRecord" << std::endl;
+            return 1;
+        }
+        // Get Page Handle
+
+        return 0;
     }
 
     RC RecordBasedFileManager::printRecord(const std::vector<Attribute> &recordDescriptor, const void *data,
@@ -180,7 +187,7 @@ namespace PeterDB {
 
         if(pageCount > 0) {
             // Try to insert into the lastest page
-            PageHandle lastPage(fileHandle, pageCount - 1);
+            RecordPageHandle lastPage(fileHandle, pageCount - 1);
             if (lastPage.hasEnoughSpaceForRecord(recordLen)) {
                 availPageIndex = pageCount - 1;
                 return 0;
@@ -188,7 +195,7 @@ namespace PeterDB {
 
             // Traverse all pages to find an available page
             for (PageNum i = 0; i < pageCount - 1; i++) {
-                PageHandle page(fileHandle, i);
+                RecordPageHandle page(fileHandle, i);
                 // Find an available page
                 if (page.hasEnoughSpaceForRecord(recordLen)) {
                     availPageIndex = i;
