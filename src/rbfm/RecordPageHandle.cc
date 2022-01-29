@@ -41,7 +41,7 @@ namespace PeterDB {
         rid.slotNum = slotIndex;
 
         if(ret) {
-            std::cout << "Fail to write new data into file while inserting record! @ RecordPageHandle::insertRecordByteSeq" << std::endl;
+            LOG(ERROR) << "Fail to write new data into file while inserting record! @ RecordPageHandle::insertRecordByteSeq" << std::endl;
             return ret;
         }
         return 0;

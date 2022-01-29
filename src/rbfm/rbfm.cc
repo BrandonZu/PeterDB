@@ -34,7 +34,7 @@ namespace PeterDB {
                                             const void *data, RID &rid) {
         RC ret = 0;
         if(!fileHandle.isOpen()) {
-            std::cout << "FileHandle NOT bound to a file! @ RecordBasedFileManager::insertRecord" << std::endl;
+            LOG(ERROR) << "FileHandle NOT bound to a file! @ RecordBasedFileManager::insertRecord" << std::endl;
             return 1;
         }
 
@@ -43,7 +43,7 @@ namespace PeterDB {
         char buffer[PAGE_SIZE] = {};
         ret = RecordHelper::rawDataToRecordByteSeq((char *) data, recordDescriptor, buffer, recordLen);
         if(ret) {
-            std::cout << "Fail to Transform Record to Byte Seq @ RecordBasedFileManager::insertRecord" << std::endl;
+            LOG(ERROR) << "Fail to Transform Record to Byte Seq @ RecordBasedFileManager::insertRecord" << std::endl;
             return ret;
         }
         char byteSeq[recordLen];
@@ -53,7 +53,7 @@ namespace PeterDB {
         PageNum pageIndex;
         ret = findAvailPage(fileHandle, recordLen, pageIndex);
         if(ret) {
-            std::cout << "Fail to find an Available Page! @ RecordBasedFileManager::insertRecord" << std::endl;
+            LOG(ERROR) << "Fail to find an Available Page! @ RecordBasedFileManager::insertRecord" << std::endl;
             return ret;
         }
 
@@ -61,7 +61,7 @@ namespace PeterDB {
         RecordPageHandle recordPageHandle(fileHandle, pageIndex);
         ret = recordPageHandle.insertRecordByteSeq(byteSeq, recordLen, rid);
         if(ret) {
-            std::cout << "Fail to insert record's byte sequence via RecordPageHandle @ RecordBasedFileManager::insertRecord" << std::endl;
+            LOG(ERROR) << "Fail to insert record's byte sequence via RecordPageHandle @ RecordBasedFileManager::insertRecord" << std::endl;
             return ret;
         }
         return 0;
@@ -71,11 +71,11 @@ namespace PeterDB {
                                           const RID &rid, void *data) {
         RC ret = 0;
         if(!fileHandle.isOpen()) {
-            std::cout << "FileHandle NOT bound to a file! @ RecordBasedFileManager::readRecord" << std::endl;
+            LOG(ERROR) << "FileHandle NOT bound to a file! @ RecordBasedFileManager::readRecord" << std::endl;
             return 1;
         }
         if(rid.pageNum >= fileHandle.getNumberOfPages()) {
-            std::cout << "Target Page not exist! @ RecordBasedFileManager::readRecord" << std::endl;
+            LOG(ERROR) << "Target Page not exist! @ RecordBasedFileManager::readRecord" << std::endl;
             return 2;
         }
 
@@ -85,13 +85,13 @@ namespace PeterDB {
         short recordLen = 0;
         ret = pageHandle.getRecordByteSeq(rid.slotNum, recordBuffer, recordLen);
         if(ret) {
-            std::cout << "Fail to Get Record Byte Seq via RecordPageHandle @ RecordBasedFileManager::readRecord" << std::endl;
+            LOG(ERROR) << "Fail to Get Record Byte Seq via RecordPageHandle @ RecordBasedFileManager::readRecord" << std::endl;
             return ret;
         }
         // 2. Transform Record Byte Seq to raw data(output format)
         ret = RecordHelper::recordByteSeqToRawData(recordBuffer, recordLen, recordDescriptor, (char*)data);
         if(ret) {
-            std::cout << "Fail to transform Record to Raw Data @ RecordBasedFileManager::readRecord" << std::endl;
+            LOG(ERROR) << "Fail to transform Record to Raw Data @ RecordBasedFileManager::readRecord" << std::endl;
             return ret;
         }
         return 0;
@@ -151,7 +151,7 @@ namespace PeterDB {
                         out << strBuffer;
                         break;
                     default:
-                        std::cout << "DataType not supported @ RecordBasedFileManager::printRecord" << std::endl;
+                        LOG(ERROR) << "DataType not supported @ RecordBasedFileManager::printRecord" << std::endl;
                         break;
                 }
             }
@@ -211,7 +211,7 @@ namespace PeterDB {
         // No available page. Append a new page
         ret = fileHandle.appendPage(buffer);
         if(ret) {
-            std::cout << "Fail to append a new page @ RecordBasedFileManager::findAvailPage" << std::endl;
+            LOG(ERROR) << "Fail to append a new page @ RecordBasedFileManager::findAvailPage" << std::endl;
             return ret;
         }
         availPageIndex = fileHandle.getNumberOfPages() - 1;

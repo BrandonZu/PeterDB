@@ -50,7 +50,7 @@ namespace PeterDB {
                     break;
 
                 default:
-                    std::cout << "Attribute Type not supported." << std::endl;
+                    LOG(ERROR) << "Attribute Type not supported." << std::endl;
                     return -1;
             }
         }
@@ -110,7 +110,7 @@ namespace PeterDB {
                         rawDataPos += strLen;
                         break;
                     default:
-                        std::cout << "Data Type Not Supported" << std::endl;
+                        LOG(ERROR) << "Data Type Not Supported" << std::endl;
                         break;
                 }
             }
