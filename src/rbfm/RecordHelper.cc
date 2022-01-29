@@ -5,7 +5,7 @@ namespace PeterDB {
     // Mask(short) | AttrNum(short) | Directory:Attr Offsets, 2 * AttrNum | Attr1 | Attr2 | Attr3 | ... | AttrN |
     RC RecordHelper::rawDataToRecordByteSeq(char* rawData, const std::vector<Attribute> &attrs,
                                             char* byteSeq, RecordLen& recordLen) {
-        // 0. Write Mask(Reserved)
+        // 0. Write Mask: 0x00 Record; 0x01 Pointer
         short mask = 0x0;
         memcpy(byteSeq, &mask, sizeof(mask));
         // 1. Write Attribute Number

@@ -159,10 +159,15 @@ namespace PeterDB {
         RecordPageHandle(FileHandle& fileHandle, PageNum pageNum);
         ~RecordPageHandle();
 
+        // Insert Record
         short getFreeSpace();
         bool hasEnoughSpaceForRecord(int recordLen);
-
         RC insertRecordByteSeq(char byteSeq[], RecordLen recordLen, RID& rid);
+
+        // Delete Record
+        RC deleteRecord(const std::vector<Attribute> &recordDescriptor, const RID &rid);
+
+        // Read Record
         RC getRecordByteSeq(short slotNum, char recordByteSeq[], short& recordLen);
 
     private:

@@ -47,6 +47,15 @@ namespace PeterDB {
         return 0;
     }
 
+    RC RecordPageHandle::deleteRecord(const std::vector<Attribute> &recordDescriptor, const RID &rid) {
+        RC ret = 0;
+
+        char pageData[PAGE_SIZE];
+
+
+        return 0;
+    }
+
     RC RecordPageHandle::getRecordByteSeq(short slotNum, char *recordByteSeq, short& recordLen) {
         RC ret = 0;
         short slotOffset = getSlotOffset(slotNum);

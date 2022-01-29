@@ -105,7 +105,11 @@ namespace PeterDB {
             return 1;
         }
         // Get Record Page Handle
-
+        RecordPageHandle recordPageHandle(fileHandle, rid.pageNum);
+        ret = recordPageHandle.deleteRecord(recordDescriptor, rid);
+        if(ret) {
+            LOG(ERROR) << "Fail to delete record via RecordPageHandle @ RecordBasedFileManager::deleteRecord" << std::endl;
+        }
         return 0;
     }
 
