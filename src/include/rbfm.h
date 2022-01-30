@@ -143,7 +143,7 @@ namespace PeterDB {
         RecordBasedFileManager &operator=(const RecordBasedFileManager &);          // Prevent assignment
 
     private:
-        // Future TODO: Create a PageOrganizer class to organize pages
+        // TODO: Create a PageOrganizer class to organize pages
         RC findAvailPage(FileHandle& fileHandle, RecordLen recordLen, PageNum& availPageIndex);
     };
 
@@ -162,21 +162,25 @@ namespace PeterDB {
         // Read Record
         // Record Format Described in report
         RC getRecordByteSeq(short slotNum, char recordByteSeq[], short& recordLen);
+        RC getRecordPointer(short slotNum, int& ptrPageNum, short& ptrSlotNum);
+        bool isRecordPointer(short slotNum);
 
         // Insert Record
-        short getFreeSpace();
-        bool hasEnoughSpaceForRecord(int recordLen);
         RC insertRecordByteSeq(char byteSeq[], RecordLen recordLen, RID& rid);
 
         // Delete Record
-        RC deleteRecord(const std::vector<Attribute> &recordDescriptor, const int slotIndex);
+        RC deleteRecord(int slotIndex);
+        bool isRecordDeleted(short slotIndex);
 
         // Update Record
         RC updateRecord();
 
-    private:
+        // Helper Functions
         // Compress records to avoid empty holes between records
-        RC compress(int startPos, int len);
+        RC compress(short slotIndex, short startPos, short len);
+
+        short getFreeSpace();
+        bool hasEnoughSpaceForRecord(int recordLen);
 
         short getAvailSlot();
 
@@ -194,6 +198,7 @@ namespace PeterDB {
         short getRecordLen(short slotIndex);
     };
 
+    // Based on Record Format
     class RecordHelper {
     public:
         static RC rawDataToRecordByteSeq(char* rawData, const std::vector<Attribute> &attrs, char* byteSeq, RecordLen& recordLen);
@@ -201,7 +206,6 @@ namespace PeterDB {
 
         static bool isAttrNull(char* data, unsigned index);
         static void setAttrNull(char* data, unsigned index);
-
     };
 
 } // namespace PeterDB

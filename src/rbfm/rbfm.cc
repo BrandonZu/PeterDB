@@ -78,17 +78,34 @@ namespace PeterDB {
             LOG(ERROR) << "Target Page not exist! @ RecordBasedFileManager::readRecord" << std::endl;
             return 2;
         }
+        // 1. Follow the pointer to find the real record
+        int curPage = rid.pageNum;
+        short curSlot = rid.slotNum;
+        while(true) {
+            RecordPageHandle curPageHandle(fileHandle, curPage);
+            if(curPageHandle.isRecordDeleted(curSlot)) {
+                LOG(INFO) << "Fail to read deleted record @ RecordBasedFileManager::readRecord" << std::endl;
+                return 3;
+            }
+            // Break the loop when real record is found
+            if(curPageHandle.isRecordPointer(curSlot) == false) {
+                break;
+            }
+            curPageHandle.getRecordPointer(curSlot, curPage, curSlot);
+        }
 
-        // 1. Get Record Byte Seq via RecordPageHandle
-        RecordPageHandle pageHandle(fileHandle, rid.pageNum);
+        // 2. Read Record Byte Seq
+        RecordPageHandle pageHandle(fileHandle, curPage);
         char recordBuffer[PAGE_SIZE] = {};
         short recordLen = 0;
-        ret = pageHandle.getRecordByteSeq(rid.slotNum, recordBuffer, recordLen);
+        
+        ret = pageHandle.getRecordByteSeq(curSlot, recordBuffer, recordLen);
         if(ret) {
-            LOG(ERROR) << "Fail to Get Record Byte Seq via RecordPageHandle @ RecordBasedFileManager::readRecord" << std::endl;
+            LOG(ERROR) << "Fail to Get Record Byte Seq @ RecordBasedFileManager::readRecord" << std::endl;
             return ret;
         }
-        // 2. Transform Record Byte Seq to raw data(output format)
+
+        // 3. Transform Record Byte Seq to raw data(output format)
         ret = RecordHelper::recordByteSeqToRawData(recordBuffer, recordLen, recordDescriptor, (char*)data);
         if(ret) {
             LOG(ERROR) << "Fail to transform Record to Raw Data @ RecordBasedFileManager::readRecord" << std::endl;
@@ -105,16 +122,37 @@ namespace PeterDB {
             return 1;
         }
 
+        int curPage = rid.pageNum;
+        short curSlot = rid.slotNum;
 
+        // Follow the pointer to find the actual record
+        while(true) {
+            RecordPageHandle curPageHandle(fileHandle, curPage);
+            if(curPageHandle.isRecordDeleted(curSlot)) {
+                LOG(INFO) << "Record already deleted @ RecordBasedFileManager::deleteRecord" << std::endl;
+                return 2;
+            }
+            // Break the loop when real record is found
+            if(curPageHandle.isRecordPointer(curSlot) == false) {
+                break;
+            }
+            curPageHandle.getRecordPointer(curSlot, curPage, curSlot);
+            ret = curPageHandle.deleteRecord(curSlot);
+            if(ret) {
+                LOG(ERROR) << "Fail to delete record @ RecordBasedFileManager::deleteRecord" << std::endl;
+                return ret;
+            }
+        }
 
-        // Get Record Page Handle
-        RecordPageHandle recordPageHandle(fileHandle, rid.pageNum);
-        ret = recordPageHandle.deleteRecord(recordDescriptor, rid.slotNum);
+        // Delete the real record
+        RecordPageHandle pageContainTargetRecord(fileHandle, curPage);
+        ret = pageContainTargetRecord.deleteRecord(curSlot);
+
         if(ret) {
             LOG(ERROR) << "Fail to delete record via RecordPageHandle @ RecordBasedFileManager::deleteRecord" << std::endl;
             return ret;
         }
-        return 0;
+        return ret;
     }
 
     RC RecordBasedFileManager::printRecord(const std::vector<Attribute> &recordDescriptor, const void *data,

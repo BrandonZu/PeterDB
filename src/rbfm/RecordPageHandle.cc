@@ -7,17 +7,49 @@ namespace PeterDB {
         memcpy(&slotCounter, data + getSlotCounterOffset(), sizeof(short));
     }
 
-    RecordPageHandle::~RecordPageHandle() = default;
-
-    short RecordPageHandle::getFreeSpace() {
-        return PAGE_SIZE - freeBytePointer - getSlotListLen() - getHeaderLen();
+    RecordPageHandle::~RecordPageHandle() {
+        fh.writePage(pageNum, data);
     }
 
-    bool RecordPageHandle::hasEnoughSpaceForRecord(int recordLen) {
-        short freeSpace = getFreeSpace();
-        return freeSpace >= (recordLen + 2 * sizeof(short));
+    /*
+     * Read Record
+     */
+
+    RC RecordPageHandle::getRecordByteSeq(short slotNum, char *recordByteSeq, short& recordLen) {
+        RC ret = 0;
+
+        short recordOffset = getRecordOffset(slotNum);
+        recordLen = getRecordLen(slotNum);
+
+        // Read Record Byte Seq
+        memcpy(recordByteSeq, data + recordOffset, recordLen);
+
+        return 0;
     }
 
+    RC RecordPageHandle::getRecordPointer(short slotNum, int& ptrPageNum, short& ptrSlotNum) {
+        short recordOffset = getRecordOffset(slotNum);
+        short mask;
+        memcpy(&mask, data + recordOffset, sizeof(short));
+        if(mask != 0x1) {
+            LOG(ERROR) << "Record is not a pointer!" << std::endl;
+            return -1;
+        }
+        memcpy(&ptrPageNum, data + recordOffset + sizeof(short), sizeof(int));
+        memcpy(&ptrSlotNum, data + recordOffset + sizeof(short) + sizeof(int), sizeof(short));
+        return 0;
+    }
+
+    bool RecordPageHandle::isRecordPointer(short slotNum) {
+        short recordOffset = getRecordOffset(slotNum);
+        short mask;
+        memcpy(&mask, data + recordOffset, sizeof(short));
+        return mask == 0x1;
+    }
+
+    /*
+     * Insert Record
+     */
     RC RecordPageHandle::insertRecordByteSeq(char byteSeq[], RecordLen recordLen, RID& rid) {
         RC ret = 0;
 
@@ -36,77 +68,116 @@ namespace PeterDB {
 
         // Flush page
         ret = fh.writePage(pageNum, data);
+        if(ret) {
+            LOG(ERROR) << "Fail to flush page data into file! @ RecordPageHandle::insertRecordByteSeq" << std::endl;
+            return ret;
+        }
 
         rid.pageNum = this->pageNum;
         rid.slotNum = slotIndex;
 
-        if(ret) {
-            LOG(ERROR) << "Fail to write new data into file while inserting record! @ RecordPageHandle::insertRecordByteSeq" << std::endl;
-            return ret;
-        }
         return 0;
     }
 
-    RC RecordPageHandle::deleteRecord(const std::vector<Attribute> &recordDescriptor, const int slotIndex) {
+    /*
+     * Delete Record
+     */
+    RC RecordPageHandle::deleteRecord(const int slotIndex) {
         RC ret = 0;
         if(slotIndex > slotCounter) {
-            LOG(ERROR) << "Slot not exist! @ RecordPageHandle::deleteRecord" << std::endl;
+            LOG(ERROR) << "Slot not exist! SlotIndex: " << slotIndex << ", SlotCounter: " << slotCounter << " @ RecordPageHandle::deleteRecord" << std::endl;
             return 1;
         }
 
         // Get Record Offset and Length
-        int startPos = getRecordOffset(slotIndex);
-        int recordLen = getRecordLen(slotIndex);
+        short recordOffset = getRecordOffset(slotIndex);
+        short recordLen = getRecordLen(slotIndex);
 
-        // Compress records
-        ret = compress(startPos, recordLen);
+        if(recordOffset < 0) {
+            LOG(ERROR) << "Record is already deleted @ RecordPageHandle::deleteRecord" << std::endl;
+            return -1;
+        }
+
+        // Compress records to fill the hole
+        ret = compress(slotIndex, recordOffset, recordLen);
         if(ret) {
             LOG(ERROR) << "Fail to compress records @ RecordPageHandle::deleteRecord" << std::endl;
             return ret;
         }
 
-        // Update slot to make it empty
-        startPos = -1;
+        // Update current slot to make it empty
+        recordOffset = -1;
         recordLen = 0;
-        memcpy(data + getSlotOffset(slotIndex), &startPos, sizeof(short));
+        memcpy(data + getSlotOffset(slotIndex), &recordOffset, sizeof(short));
         memcpy(data + getSlotOffset(slotIndex) + sizeof(short), &recordLen, sizeof(short));
 
-        // Flush page to disk, actually OS handle it
+        // Flush page to disk, actually OS handle it, may not flush to disk immediately
         ret = fh.writePage(pageNum, data);
+        if(ret) {
+            LOG(ERROR) << "Fail to flush page data into file @ RecordPageHandle::deleteRecord" << std::endl;
+        }
+        return ret;
+    }
+
+    bool RecordPageHandle::isRecordDeleted(short slotIndex) {
+        short recordOffset = getRecordOffset(slotIndex);
+        return recordOffset < 0;
+    }
+
+    /*
+     * Update Record
+     */
+    RC RecordPageHandle::updateRecord() {
+        RC ret = 0;
 
         return ret;
     }
 
+    /*
+     * Helper Functions
+     */
 
-    RC RecordPageHandle::compress(int startPos, int len) {
-        int dataNeedMove = freeBytePointer - (startPos + len);
-        memcpy(data + startPos, data + startPos + len, dataNeedMove);
-        // TODO Adjust records' Start Pointers
-        for(int i = 1; i <= slotCounter; i++) {
+    // Slots whose index > slotIndex will be updated
+    // Free byte pointer will be updated
+    RC RecordPageHandle::compress(short slotIndex, short recordOffset, short recordLen) {
+        int dataNeedMoveLen = freeBytePointer - (recordOffset + recordLen);
 
+        // Must Use Memmove! Source and Destination May Overlap
+        memmove(data + recordOffset, data + recordOffset + recordLen, dataNeedMoveLen);
+
+        // Update latter slots' start pointer
+        for(int i = slotIndex + 1; i <= slotCounter; i++) {
+            // Empty Slot
+            if(isRecordDeleted(i)) {
+                continue;
+            }
+
+            memcpy(&recordOffset, data + getSlotOffset(i), sizeof(short));
+            recordOffset -= recordLen;
+            memcpy(data + getSlotOffset(i), &recordOffset, sizeof(short));
         }
+
+        // Update free byte pointer
+        freeBytePointer -= recordLen;
+        memcpy(data + getFreeBytePointerOffset(), &freeBytePointer, sizeof(short));
+
         return 0;
     }
 
-    RC RecordPageHandle::getRecordByteSeq(short slotNum, char *recordByteSeq, short& recordLen) {
-        RC ret = 0;
+    short RecordPageHandle::getFreeSpace() {
+        return PAGE_SIZE - freeBytePointer - getSlotListLen() - getHeaderLen();
+    }
 
-        short recordOffset = getRecordOffset(slotNum);
-        recordLen = getRecordLen(slotNum);
-
-        // Read Record Byte Seq
-        memcpy(recordByteSeq, data + recordOffset, recordLen);
-
-        return 0;
+    bool RecordPageHandle::hasEnoughSpaceForRecord(int recordLen) {
+        short freeSpace = getFreeSpace();
+        return freeSpace >= (recordLen + 2 * sizeof(short));
     }
 
     short RecordPageHandle::getAvailSlot() {
         // Traverse through all existing slots searching for an empty slot
-        short curSlotPtr;
         short index = 0;
         for(short i = 1; i <= slotCounter; i++) {
-            memcpy(&curSlotPtr, data + getSlotOffset(i), sizeof(short));
-            if(curSlotPtr < 0) {
+            if(isRecordDeleted(i)) {
                 index = i;
                 break;
             }
