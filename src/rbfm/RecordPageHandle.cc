@@ -81,17 +81,18 @@ namespace PeterDB {
     RC RecordPageHandle::compress(int startPos, int len) {
         int dataNeedMove = freeBytePointer - (startPos + len);
         memcpy(data + startPos, data + startPos + len, dataNeedMove);
+        // TODO Adjust records' Start Pointers
+        for(int i = 1; i <= slotCounter; i++) {
+
+        }
         return 0;
     }
 
     RC RecordPageHandle::getRecordByteSeq(short slotNum, char *recordByteSeq, short& recordLen) {
         RC ret = 0;
-        short slotOffset = getSlotOffset(slotNum);
-        short recordOffset;
 
-        // Get Record Start Position and Length
-        memcpy(&recordOffset, data + slotOffset, sizeof(short));
-        memcpy(&recordLen, data + slotOffset + sizeof(short), sizeof(short));
+        short recordOffset = getRecordOffset(slotNum);
+        recordLen = getRecordLen(slotNum);
 
         // Read Record Byte Seq
         memcpy(recordByteSeq, data + recordOffset, recordLen);

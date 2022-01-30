@@ -160,6 +160,7 @@ namespace PeterDB {
         ~RecordPageHandle();
 
         // Read Record
+        // Record Format Described in report
         RC getRecordByteSeq(short slotNum, char recordByteSeq[], short& recordLen);
 
         // Insert Record
