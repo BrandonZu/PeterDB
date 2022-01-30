@@ -21,7 +21,7 @@ namespace PeterDB {
     RC RecordPageHandle::insertRecordByteSeq(char byteSeq[], RecordLen recordLen, RID& rid) {
         RC ret = 0;
 
-        // Get Slot Index
+        // Get Slot Index while maintaining SlotCounter
         short slotIndex = getAvailSlot();
 
         // Append a slot(pointer + length) to the end
@@ -47,12 +47,40 @@ namespace PeterDB {
         return 0;
     }
 
-    RC RecordPageHandle::deleteRecord(const std::vector<Attribute> &recordDescriptor, const RID &rid) {
+    RC RecordPageHandle::deleteRecord(const std::vector<Attribute> &recordDescriptor, const int slotIndex) {
         RC ret = 0;
+        if(slotIndex > slotCounter) {
+            LOG(ERROR) << "Slot not exist! @ RecordPageHandle::deleteRecord" << std::endl;
+            return 1;
+        }
 
-        char pageData[PAGE_SIZE];
+        // Get Record Offset and Length
+        int startPos = getRecordOffset(slotIndex);
+        int recordLen = getRecordLen(slotIndex);
+
+        // Compress records
+        ret = compress(startPos, recordLen);
+        if(ret) {
+            LOG(ERROR) << "Fail to compress records @ RecordPageHandle::deleteRecord" << std::endl;
+            return ret;
+        }
+
+        // Update slot to make it empty
+        startPos = -1;
+        recordLen = 0;
+        memcpy(data + getSlotOffset(slotIndex), &startPos, sizeof(short));
+        memcpy(data + getSlotOffset(slotIndex) + sizeof(short), &recordLen, sizeof(short));
+
+        // Flush page to disk, actually OS handle it
+        ret = fh.writePage(pageNum, data);
+
+        return ret;
+    }
 
 
+    RC RecordPageHandle::compress(int startPos, int len) {
+        int dataNeedMove = freeBytePointer - (startPos + len);
+        memcpy(data + startPos, data + startPos + len, dataNeedMove);
         return 0;
     }
 
@@ -109,7 +137,19 @@ namespace PeterDB {
         return PAGE_SIZE - sizeof(short);
     }
 
-    short RecordPageHandle::getSlotOffset(short slotNum) {
-        return getSlotCounterOffset() - 2 * sizeof(short) * slotNum;
+    short RecordPageHandle::getSlotOffset(short slotIndex) {
+        return getSlotCounterOffset() - 2 * sizeof(short) * slotIndex;
+    }
+
+    short RecordPageHandle::getRecordOffset(short slotIndex) {
+        short offset;
+        memcpy(&offset, data + getSlotOffset(slotIndex), sizeof(short));
+        return offset;
+    }
+
+    short RecordPageHandle::getRecordLen(short slotIndex) {
+        short recordLen;
+        memcpy(&recordLen, data + getSlotOffset(slotIndex) + sizeof(short), sizeof(short));
+        return recordLen;
     }
 }

@@ -104,11 +104,15 @@ namespace PeterDB {
             LOG(ERROR) << "FileHandle NOT bound to a file! @ RecordBasedFileManager::deleteRecord" << std::endl;
             return 1;
         }
+
+
+
         // Get Record Page Handle
         RecordPageHandle recordPageHandle(fileHandle, rid.pageNum);
-        ret = recordPageHandle.deleteRecord(recordDescriptor, rid);
+        ret = recordPageHandle.deleteRecord(recordDescriptor, rid.slotNum);
         if(ret) {
             LOG(ERROR) << "Fail to delete record via RecordPageHandle @ RecordBasedFileManager::deleteRecord" << std::endl;
+            return ret;
         }
         return 0;
     }

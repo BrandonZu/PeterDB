@@ -159,18 +159,24 @@ namespace PeterDB {
         RecordPageHandle(FileHandle& fileHandle, PageNum pageNum);
         ~RecordPageHandle();
 
+        // Read Record
+        RC getRecordByteSeq(short slotNum, char recordByteSeq[], short& recordLen);
+
         // Insert Record
         short getFreeSpace();
         bool hasEnoughSpaceForRecord(int recordLen);
         RC insertRecordByteSeq(char byteSeq[], RecordLen recordLen, RID& rid);
 
         // Delete Record
-        RC deleteRecord(const std::vector<Attribute> &recordDescriptor, const RID &rid);
+        RC deleteRecord(const std::vector<Attribute> &recordDescriptor, const int slotIndex);
 
-        // Read Record
-        RC getRecordByteSeq(short slotNum, char recordByteSeq[], short& recordLen);
+        // Update Record
+        RC updateRecord();
 
     private:
+        // Compress records to avoid empty holes between records
+        RC compress(int startPos, int len);
+
         short getAvailSlot();
 
         short getHeaderLen();
@@ -178,8 +184,13 @@ namespace PeterDB {
 
         short getSlotCounterOffset();
         short getFreeBytePointerOffset();
-        // Slot Num start from 1 !!!
-        short getSlotOffset(short slotNum);
+
+        // For Specific Record
+        // Slot Index start from 1 !!!
+        short getSlotOffset(short slotIndex);
+
+        short getRecordOffset(short slotIndex);
+        short getRecordLen(short slotIndex);
     };
 
     class RecordHelper {
