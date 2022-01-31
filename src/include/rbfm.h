@@ -161,7 +161,8 @@ namespace PeterDB {
         // Record Format Described in report
         RC getRecordByteSeq(short slotNum, char recordByteSeq[], short& recordLen);
         RC getRecordPointerTarget(short curSlotNum, int& ptrPageNum, short& ptrSlotNum);
-        bool isRecordPointer(short slotNum);
+        RC isRecordPointer(short slotNum, bool& isPointer);
+        RC getRecordAttr(short slotNum, short attrIndex, char* attrData);
 
         // Insert Record
         RC insertRecordByteSeq(char byteSeq[], short recordLen, RID& rid);
@@ -195,6 +196,10 @@ namespace PeterDB {
 
         short getRecordOffset(short slotIndex);
         short getRecordLen(short slotIndex);
+
+        short getAttrNum(short slotIndex);  // Attr offset relative to the start point of record
+        short getAttrOffset(short slotIndex, short attrIndex);   // Based on record format
+        short getAttrLen(short slotIndex, short attrIndex);     // Based on record format
     };
 
     // Based on Record Format

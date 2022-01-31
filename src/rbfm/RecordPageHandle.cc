@@ -16,7 +16,10 @@ namespace PeterDB {
      */
 
     RC RecordPageHandle::getRecordByteSeq(short slotNum, char *recordByteSeq, short& recordLen) {
-        RC ret = 0;
+        if(slotNum > slotCounter || isRecordDeleted(slotNum)) {
+            LOG(ERROR) << "Slot not exist or deleted! SlotIndex: " << slotNum << ", SlotCounter: " << slotCounter << " @ RecordPageHandle::getRecordByteSeq" << std::endl;
+            return 1;
+        }
 
         short recordOffset = getRecordOffset(slotNum);
         recordLen = getRecordLen(slotNum);
@@ -28,6 +31,11 @@ namespace PeterDB {
     }
 
     RC RecordPageHandle::getRecordPointerTarget(const short curSlotNum, int& ptrPageNum, short& ptrSlotNum) {
+        if(curSlotNum > slotCounter || isRecordDeleted(curSlotNum)) {
+            LOG(ERROR) << "Slot not exist or deleted! SlotIndex: " << curSlotNum << ", SlotCounter: " << slotCounter << " @ RecordPageHandle::getRecordPointerTarget" << std::endl;
+            return 1;
+        }
+
         short recordOffset = getRecordOffset(curSlotNum);
         short mask;
         memcpy(&mask, data + recordOffset, sizeof(short));
@@ -40,11 +48,31 @@ namespace PeterDB {
         return 0;
     }
 
-    bool RecordPageHandle::isRecordPointer(short slotNum) {
+    RC RecordPageHandle::isRecordPointer(short slotNum, bool& isPointer) {
+        if(slotNum > slotCounter || isRecordDeleted(slotNum)) {
+            LOG(ERROR) << "Slot not exist or deleted! SlotIndex: " << slotNum << ", SlotCounter: " << slotCounter << " @ RecordPageHandle::getRecordByteSeq" << std::endl;
+            return 1;
+        }
+
         short recordOffset = getRecordOffset(slotNum);
         short mask;
         memcpy(&mask, data + recordOffset, sizeof(short));
-        return mask == 0x1;
+        isPointer = mask == 0x1;
+        return 0;
+    }
+
+    RC RecordPageHandle::getRecordAttr(short slotNum, short attrIndex, char* attrData) {
+        if(slotNum > slotCounter || isRecordDeleted(slotNum)) {
+            LOG(ERROR) << "Slot not exist or deleted! SlotIndex: " << slotNum << ", SlotCounter: " << slotCounter << " @ RecordPageHandle::getRecordAttr" << std::endl;
+            return 1;
+        }
+
+        short recordOffset = getRecordOffset(slotNum);
+        short attrOffset = getAttrOffset(slotNum, attrIndex);
+        short attrLen = getAttrLen(slotNum, attrIndex);
+        memcpy(attrData, data + recordOffset + attrOffset, attrLen);
+
+        return 0;
     }
 
     /*
@@ -88,15 +116,14 @@ namespace PeterDB {
             LOG(ERROR) << "Slot not exist! SlotIndex: " << slotIndex << ", SlotCounter: " << slotCounter << " @ RecordPageHandle::deleteRecord" << std::endl;
             return 1;
         }
+        if(isRecordDeleted(slotIndex)) {
+            LOG(ERROR) << "Record is already deleted @ RecordPageHandle::deleteRecord" << std::endl;
+            return 0;
+        }
 
         // Get Record Offset and Length
         short recordOffset = getRecordOffset(slotIndex);
         short recordLen = getRecordLen(slotIndex);
-
-        if(recordOffset < 0) {
-            LOG(ERROR) << "Record is already deleted @ RecordPageHandle::deleteRecord" << std::endl;
-            return -1;
-        }
 
         // Shift records left to fill the emtpy hole
         ret = shiftRecord(recordOffset + recordLen, recordLen, true, slotIndex + 1);
@@ -128,7 +155,10 @@ namespace PeterDB {
      * Update Record
      */
     RC RecordPageHandle::updateRecord(short slotIndex, char byteSeq[], short recordLen) {
-        RC ret = 0;
+        if(slotIndex > slotCounter || isRecordDeleted(slotIndex)) {
+            LOG(ERROR) << "Slot not exist or deleted! SlotIndex: " << slotIndex << ", SlotCounter: " << slotCounter << " @ RecordPageHandle::deleteRecord" << std::endl;
+            return 1;
+        }
 
         short recordOffset = getRecordOffset(slotIndex);
         short oldRecordLen = getRecordLen(slotIndex);
@@ -147,7 +177,7 @@ namespace PeterDB {
         // Update Record Length in slot
         memcpy(data + getSlotOffset(slotIndex) + sizeof(short), &recordLen, sizeof(short));
 
-        return ret;
+        return 0;
     }
 
     // Record Pointer Format
@@ -274,5 +304,39 @@ namespace PeterDB {
         short recordLen;
         memcpy(&recordLen, data + getSlotOffset(slotIndex) + sizeof(short), sizeof(short));
         return recordLen;
+    }
+
+    short RecordPageHandle::getAttrNum(short slotIndex) {
+        short recordOffset = getRecordOffset(slotIndex);
+        short attrNum;
+        memcpy(&attrNum, data + recordOffset + sizeof(short), sizeof(short));
+        return attrNum;
+    }
+
+    short RecordPageHandle::getAttrOffset(short slotIndex, short attrIndex) {
+        short recordOffset = getRecordOffset(slotIndex);
+        short dictOffset = sizeof(short) * 2 + attrIndex * sizeof(short);
+        short attrOffset;
+        memcpy(&attrOffset, data + recordOffset + dictOffset, sizeof(short));
+        return attrOffset;
+    }
+
+    short RecordPageHandle::getAttrLen(short slotIndex, short attrIndex) {
+        short curOffset = getAttrOffset(slotIndex, attrIndex);
+        if(curOffset == -1) {   // Null attribute
+            return -1;
+        }
+        short prevOffset = -1;
+        // Looking for previous attribute that is not null
+        for(int i = slotIndex - 1; i >= 0; i--) {
+            prevOffset = getAttrOffset(slotIndex, i);
+            if(prevOffset != -1) {
+                break;
+            }
+        }
+        if(prevOffset == -1) {
+            prevOffset = (2 + getAttrNum(slotIndex)) * sizeof(short);
+        }
+        return curOffset - prevOffset;
     }
 }

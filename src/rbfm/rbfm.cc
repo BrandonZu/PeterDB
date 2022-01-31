@@ -78,19 +78,20 @@ namespace PeterDB {
             LOG(ERROR) << "Target Page not exist! @ RecordBasedFileManager::readRecord" << std::endl;
             return 2;
         }
+
         // 1. Follow the pointer to find the real record
         int curPage = rid.pageNum;
         short curSlot = rid.slotNum;
         while(true) {
             RecordPageHandle curPageHandle(fileHandle, curPage);
-            if(curPageHandle.isRecordDeleted(curSlot)) {
-                LOG(INFO) << "Fail to read deleted record @ RecordBasedFileManager::readRecord" << std::endl;
+            bool isPointer;
+            ret = curPageHandle.isRecordPointer(curSlot, isPointer);
+            if(ret) {
+                LOG(ERROR) << "Fail to read record @ RecordBasedFileManager::readRecord" << std::endl;
                 return 3;
             }
-            // Break the loop when real record is found
-            if(curPageHandle.isRecordPointer(curSlot) == false) {
+            if(!isPointer)
                 break;
-            }
             curPageHandle.getRecordPointerTarget(curSlot, curPage, curSlot);
         }
 
@@ -121,20 +122,26 @@ namespace PeterDB {
             LOG(ERROR) << "FileHandle NOT bound to a file! @ RecordBasedFileManager::deleteRecord" << std::endl;
             return 1;
         }
+        if(rid.pageNum >= fileHandle.getNumberOfPages()) {
+            LOG(ERROR) << "Page not exist in this file @ RecordBasedFileManager::deleteRecord" << std::endl;
+            return 2;
+        }
 
         // 1. Follow the pointer to find the real record
         int curPage = rid.pageNum;
         short curSlot = rid.slotNum;
         while(true) {
             RecordPageHandle curPageHandle(fileHandle, curPage);
-            if(curPageHandle.isRecordDeleted(curSlot)) {
-                LOG(INFO) << "Record already deleted @ RecordBasedFileManager::deleteRecord" << std::endl;
-                return 2;
-            }
             // Break the loop when real record is found
-            if(curPageHandle.isRecordPointer(curSlot) == false) {
-                break;
+            bool isPointer;
+            ret = curPageHandle.isRecordPointer(curSlot, isPointer);
+            if(ret) {
+                LOG(ERROR) << "Fail to read record @ RecordBasedFileManager::deleteRecord" << std::endl;
+                return 3;
             }
+            if(!isPointer)
+                break;
+
             curPageHandle.getRecordPointerTarget(curSlot, curPage, curSlot);
             ret = curPageHandle.deleteRecord(curSlot);
             if(ret) {
@@ -214,20 +221,24 @@ namespace PeterDB {
             LOG(ERROR) << "FileHandle NOT bound to a file! @ RecordBasedFileManager::updateRecord" << std::endl;
             return 1;
         }
+        if(rid.pageNum >= fileHandle.getNumberOfPages()) {
+            LOG(ERROR) << "Page not exist in this file @ RecordBasedFileManager::updateRecord" << std::endl;
+            return 2;
+        }
 
         // 1. Follow the pointer to find real record
         int curPageIndex = rid.pageNum;
         short curSlotIndex = rid.slotNum;
         while(true) {
             RecordPageHandle curPageHandle(fileHandle, curPageIndex);
-            if(curPageHandle.isRecordDeleted(curSlotIndex)) {
-                LOG(ERROR) << "Record already deleted @ RecordBasedFileManager::updateRecord" << std::endl;
-                return 2;
+            bool isPointer;
+            ret = curPageHandle.isRecordPointer(curSlotIndex, isPointer);
+            if(ret) {
+                LOG(ERROR) << "Fail to read record @ RecordBasedFileManager::updateRecord" << std::endl;
+                return 3;
             }
-            // Break the loop when real record is found
-            if(curPageHandle.isRecordPointer(curSlotIndex) == false) {
+            if(!isPointer)
                 break;
-            }
             curPageHandle.getRecordPointerTarget(curSlotIndex, curPageIndex, curSlotIndex);
         }
 
@@ -284,14 +295,42 @@ namespace PeterDB {
 
     RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                              const RID &rid, const std::string &attributeName, void *data) {
-        return -1;
+        RC ret = 0;
+        if(!fileHandle.isOpen()) {
+            LOG(ERROR) << "FileHandle NOT bound to a file! @ RecordBasedFileManager::readAttribute" << std::endl;
+            return 1;
+        }
+        if(rid.pageNum >= fileHandle.getNumberOfPages()) {
+            LOG(ERROR) << "Page not exist in this file @ RecordBasedFileManager::readAttribute" << std::endl;
+            return 2;
+        }
+
+        int attrIndex;
+        for(attrIndex = 0; attrIndex < recordDescriptor.size(); attrIndex++) {
+            if(recordDescriptor[attrIndex].name == attributeName) {
+                break;
+            }
+        }
+        if(attrIndex >= recordDescriptor.size()) {
+            LOG(ERROR) << "Attribute not exist in recordDescripter @ RecordBasedFileManager::readAttribute" << std::endl;
+            return 3;
+        }
+
+        RecordPageHandle pageHandle(fileHandle, rid.pageNum);
+
+
+        return ret;
     }
 
     RC RecordBasedFileManager::scan(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                     const std::string &conditionAttribute, const CompOp compOp, const void *value,
                                     const std::vector<std::string> &attributeNames,
                                     RBFM_ScanIterator &rbfm_ScanIterator) {
-        return -1;
+        RC ret = 0;
+
+
+
+        return 0;
     }
 
     // Page Organizer Functions
