@@ -27,8 +27,8 @@ namespace PeterDB {
         return 0;
     }
 
-    RC RecordPageHandle::getRecordPointer(short slotNum, int& ptrPageNum, short& ptrSlotNum) {
-        short recordOffset = getRecordOffset(slotNum);
+    RC RecordPageHandle::getRecordPointerTarget(const short curSlotNum, int& ptrPageNum, short& ptrSlotNum) {
+        short recordOffset = getRecordOffset(curSlotNum);
         short mask;
         memcpy(&mask, data + recordOffset, sizeof(short));
         if(mask != 0x1) {
@@ -50,7 +50,7 @@ namespace PeterDB {
     /*
      * Insert Record
      */
-    RC RecordPageHandle::insertRecordByteSeq(char byteSeq[], RecordLen recordLen, RID& rid) {
+    RC RecordPageHandle::insertRecordByteSeq(char byteSeq[], short recordLen, RID& rid) {
         RC ret = 0;
 
         // Get Slot Index while maintaining SlotCounter
@@ -98,10 +98,10 @@ namespace PeterDB {
             return -1;
         }
 
-        // Compress records to fill the hole
-        ret = compress(slotIndex, recordOffset, recordLen);
+        // Shift records left to fill the emtpy hole
+        ret = shiftRecord(recordOffset + recordLen, recordLen, true, slotIndex + 1);
         if(ret) {
-            LOG(ERROR) << "Fail to compress records @ RecordPageHandle::deleteRecord" << std::endl;
+            LOG(ERROR) << "Fail to shift records left @ RecordPageHandle::deleteRecord" << std::endl;
             return ret;
         }
 
@@ -127,38 +127,89 @@ namespace PeterDB {
     /*
      * Update Record
      */
-    RC RecordPageHandle::updateRecord() {
+    RC RecordPageHandle::updateRecord(short slotIndex, char byteSeq[], short recordLen) {
         RC ret = 0;
 
+        short recordOffset = getRecordOffset(slotIndex);
+        short oldRecordLen = getRecordLen(slotIndex);
+
+        // Shift record left or right based on current and former record length
+        if(recordLen <= oldRecordLen) {
+            shiftRecord(recordOffset + oldRecordLen, oldRecordLen - recordLen, true, slotIndex + 1);
+        }
+        else {
+            shiftRecord(recordOffset + oldRecordLen, recordLen - oldRecordLen, false, slotIndex + 1);
+        }
+
+        // Write Record Data
+        memcpy(data + recordOffset, byteSeq, recordLen);
+
+        // Update Record Length in slot
+        memcpy(data + getSlotOffset(slotIndex) + sizeof(short), &recordLen, sizeof(short));
+
         return ret;
+    }
+
+    // Record Pointer Format
+    // | Mask | Page Index | SlotIndex|
+    // | 2 |   4   | 2 |
+    RC RecordPageHandle::setRecordPointToNewRecord(short curSlotIndex, const RID& newRecordPos) {
+        short recordOffset = getRecordOffset(curSlotIndex);
+        short oldRecordLen = getRecordLen(curSlotIndex);
+
+        // Write Mask
+        short mask = 0x1;
+        memcpy(data + recordOffset, &mask, sizeof(short));
+        // Write page index
+        memcpy(data + recordOffset + sizeof(short), &newRecordPos.pageNum, sizeof(unsigned));
+        // Write slot index
+        memcpy(data + recordOffset + sizeof(short) + sizeof(unsigned), &newRecordPos.slotNum, sizeof(short));
+
+        // Update Record Length
+        short newRecordLen = sizeof(short) + sizeof(unsigned) + sizeof(short);
+        memcpy(data + getSlotOffset(newRecordPos.slotNum) + sizeof(short), &newRecordLen, sizeof(short));
+        // Shift records left
+        short dist = oldRecordLen - newRecordLen;
+        shiftRecord(recordOffset + oldRecordLen, dist, true, newRecordPos.slotNum + 1);
     }
 
     /*
      * Helper Functions
      */
 
-    // Slots whose index > slotIndex will be updated
+    // Slots whose index > slotNeedUpdate will be updated
     // Free byte pointer will be updated
-    RC RecordPageHandle::compress(short slotIndex, short recordOffset, short recordLen) {
-        int dataNeedMoveLen = freeBytePointer - (recordOffset + recordLen);
+    RC RecordPageHandle::shiftRecord(short dataNeedShiftStartPos, short dist, bool shiftLeft, short slotNeedUpdate){
+        short dataNeedMoveLen = freeBytePointer - dataNeedShiftStartPos;
 
-        // Must Use Memmove! Source and Destination May Overlap
-        memmove(data + recordOffset, data + recordOffset + recordLen, dataNeedMoveLen);
+        if(dataNeedMoveLen != 0) {
+            // Must Use Memmove! Source and Destination May Overlap
+            if(shiftLeft)
+                memmove(data + dataNeedShiftStartPos - dist, data + dataNeedShiftStartPos, dataNeedMoveLen);
+            else
+                memmove(data + dataNeedShiftStartPos + dist, data + dataNeedShiftStartPos, dataNeedMoveLen);
 
-        // Update latter slots' start pointer
-        for(int i = slotIndex + 1; i <= slotCounter; i++) {
-            // Empty Slot
-            if(isRecordDeleted(i)) {
-                continue;
+            // Update following slots' start pointer
+            for (int i = slotNeedUpdate; i <= slotCounter; i++) {
+                // Empty Slot
+                if (isRecordDeleted(i)) {
+                    continue;
+                }
+
+                memcpy(&dataNeedShiftStartPos, data + getSlotOffset(i), sizeof(short));
+                if(shiftLeft)
+                    dataNeedShiftStartPos -= dist;
+                else
+                    dataNeedShiftStartPos += dist;
+                memcpy(data + getSlotOffset(i), &dataNeedShiftStartPos, sizeof(short));
             }
-
-            memcpy(&recordOffset, data + getSlotOffset(i), sizeof(short));
-            recordOffset -= recordLen;
-            memcpy(data + getSlotOffset(i), &recordOffset, sizeof(short));
         }
 
         // Update free byte pointer
-        freeBytePointer -= recordLen;
+        if(shiftLeft)
+            freeBytePointer -= dist;
+        else
+            freeBytePointer += dist;
         memcpy(data + getFreeBytePointerOffset(), &freeBytePointer, sizeof(short));
 
         return 0;

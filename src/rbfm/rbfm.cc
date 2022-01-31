@@ -39,7 +39,7 @@ namespace PeterDB {
         }
 
         // 1. Transform Record to Byte Sequence
-        RecordLen recordLen = 0;
+        short recordLen = 0;
         char buffer[PAGE_SIZE] = {};
         ret = RecordHelper::rawDataToRecordByteSeq((char *) data, recordDescriptor, buffer, recordLen);
         if(ret) {
@@ -91,14 +91,14 @@ namespace PeterDB {
             if(curPageHandle.isRecordPointer(curSlot) == false) {
                 break;
             }
-            curPageHandle.getRecordPointer(curSlot, curPage, curSlot);
+            curPageHandle.getRecordPointerTarget(curSlot, curPage, curSlot);
         }
 
         // 2. Read Record Byte Seq
         RecordPageHandle pageHandle(fileHandle, curPage);
         char recordBuffer[PAGE_SIZE] = {};
         short recordLen = 0;
-        
+
         ret = pageHandle.getRecordByteSeq(curSlot, recordBuffer, recordLen);
         if(ret) {
             LOG(ERROR) << "Fail to Get Record Byte Seq @ RecordBasedFileManager::readRecord" << std::endl;
@@ -122,10 +122,9 @@ namespace PeterDB {
             return 1;
         }
 
+        // 1. Follow the pointer to find the real record
         int curPage = rid.pageNum;
         short curSlot = rid.slotNum;
-
-        // Follow the pointer to find the actual record
         while(true) {
             RecordPageHandle curPageHandle(fileHandle, curPage);
             if(curPageHandle.isRecordDeleted(curSlot)) {
@@ -136,7 +135,7 @@ namespace PeterDB {
             if(curPageHandle.isRecordPointer(curSlot) == false) {
                 break;
             }
-            curPageHandle.getRecordPointer(curSlot, curPage, curSlot);
+            curPageHandle.getRecordPointerTarget(curSlot, curPage, curSlot);
             ret = curPageHandle.deleteRecord(curSlot);
             if(ret) {
                 LOG(ERROR) << "Fail to delete record @ RecordBasedFileManager::deleteRecord" << std::endl;
@@ -144,7 +143,7 @@ namespace PeterDB {
             }
         }
 
-        // Delete the real record
+        // 2. Delete the real record
         RecordPageHandle pageContainTargetRecord(fileHandle, curPage);
         ret = pageContainTargetRecord.deleteRecord(curSlot);
 
@@ -210,7 +209,77 @@ namespace PeterDB {
 
     RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                             const void *data, const RID &rid) {
-        return -1;
+        RC ret = 0;
+        if(!fileHandle.isOpen()) {
+            LOG(ERROR) << "FileHandle NOT bound to a file! @ RecordBasedFileManager::updateRecord" << std::endl;
+            return 1;
+        }
+
+        // 1. Follow the pointer to find real record
+        int curPageIndex = rid.pageNum;
+        short curSlotIndex = rid.slotNum;
+        while(true) {
+            RecordPageHandle curPageHandle(fileHandle, curPageIndex);
+            if(curPageHandle.isRecordDeleted(curSlotIndex)) {
+                LOG(ERROR) << "Record already deleted @ RecordBasedFileManager::updateRecord" << std::endl;
+                return 2;
+            }
+            // Break the loop when real record is found
+            if(curPageHandle.isRecordPointer(curSlotIndex) == false) {
+                break;
+            }
+            curPageHandle.getRecordPointerTarget(curSlotIndex, curPageIndex, curSlotIndex);
+        }
+
+        // 2. Transform Record Data to Byte Sequence
+        short recordLen = 0;
+        char buffer[PAGE_SIZE] = {};
+        ret = RecordHelper::rawDataToRecordByteSeq((char *) data, recordDescriptor, buffer, recordLen);
+        if(ret) {
+            LOG(ERROR) << "Fail to Transform Record to Byte Seq @ RecordBasedFileManager::insertRecord" << std::endl;
+            return ret;
+        }
+        char byteSeq[recordLen];
+        memcpy(byteSeq, buffer, recordLen);
+
+        // 3. Find available space to store new record and update
+        // Case 1: new byte seq is shorter -> shift records left && update slots and free byte pointer
+        // Case 2: new byte seq is longer, cur page has enough space -> shift records right && update slots and free byte pointer
+        // Case 3: new byte seq is longer, no enough space in cur page -> insert record in a new page && update old record to a pointer
+        PageNum pageToStore;
+        RecordPageHandle curPageHandle(fileHandle, curPageIndex);
+        short oldRecordOffset = curPageHandle.getRecordOffset(curSlotIndex);
+        short oldRecordLen = curPageHandle.getRecordLen(curSlotIndex);
+
+        if(oldRecordLen >= recordLen ||
+           (recordLen > oldRecordLen && (recordLen - oldRecordLen) <= curPageHandle.getFreeSpace())) {
+            // Current Page can store new record
+            ret = curPageHandle.updateRecord(curSlotIndex, byteSeq, recordLen);
+            if(ret) {
+                LOG(ERROR) << "Fail to update record @ RecordBasedFileManager::updateRecord"<< std::endl;
+                return ret;
+            }
+        }
+        else {
+            // No enough space in current page
+            // Fina an available page and insert new record to it
+            ret = findAvailPage(fileHandle, recordLen, pageToStore);
+            if(ret) {
+                LOG(ERROR) << "Fail to find an available page @ RecordBasedFileManager::updateRecord" << std::endl;
+                return ret;
+            }
+            RecordPageHandle newPageHandle(fileHandle, pageToStore);
+            RID newRecordRID;
+            ret = newPageHandle.insertRecordByteSeq(byteSeq, recordLen, newRecordRID);
+            if(ret) {
+                LOG(ERROR) << "Fail to store new record's byte sequence @ RecordBasedFileManager::updateRecord" << std::endl;
+                return ret;
+            }
+            // Update old record to a record pointer
+            curPageHandle.setRecordPointToNewRecord(curSlotIndex, newRecordRID);
+        }
+
+        return ret;
     }
 
     RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
@@ -226,7 +295,7 @@ namespace PeterDB {
     }
 
     // Page Organizer Functions
-    RC RecordBasedFileManager::findAvailPage(FileHandle& fileHandle, RecordLen recordLen, PageNum& availPageIndex) {
+    RC RecordBasedFileManager::findAvailPage(FileHandle& fileHandle, short recordLen, PageNum& availPageIndex) {
         RC ret = 0;
         char buffer[PAGE_SIZE] = {};
         unsigned pageCount = fileHandle.getNumberOfPages();

@@ -38,8 +38,6 @@ namespace PeterDB {
         NO_OP       // no condition
     } CompOp;
 
-    typedef short RecordLen;
-
     /********************************************************************
     * The scan iterator is NOT required to be implemented for Project 1 *
     ********************************************************************/
@@ -144,7 +142,7 @@ namespace PeterDB {
 
     private:
         // TODO: Create a PageOrganizer class to organize pages
-        RC findAvailPage(FileHandle& fileHandle, RecordLen recordLen, PageNum& availPageIndex);
+        RC findAvailPage(FileHandle& fileHandle, short recordLen, PageNum& availPageIndex);
     };
 
     class RecordPageHandle {
@@ -162,22 +160,23 @@ namespace PeterDB {
         // Read Record
         // Record Format Described in report
         RC getRecordByteSeq(short slotNum, char recordByteSeq[], short& recordLen);
-        RC getRecordPointer(short slotNum, int& ptrPageNum, short& ptrSlotNum);
+        RC getRecordPointerTarget(short curSlotNum, int& ptrPageNum, short& ptrSlotNum);
         bool isRecordPointer(short slotNum);
 
         // Insert Record
-        RC insertRecordByteSeq(char byteSeq[], RecordLen recordLen, RID& rid);
+        RC insertRecordByteSeq(char byteSeq[], short recordLen, RID& rid);
 
         // Delete Record
         RC deleteRecord(int slotIndex);
         bool isRecordDeleted(short slotIndex);
 
         // Update Record
-        RC updateRecord();
+        RC updateRecord(short slotIndex, char byteSeq[], short recordLen);
+        RC setRecordPointToNewRecord(short curSlotIndex, const RID& newRecordPos);
 
         // Helper Functions
-        // Compress records to avoid empty holes between records
-        RC compress(short slotIndex, short startPos, short len);
+        // Shift records left to avoid empty holes between records
+        RC shiftRecord(short dataNeedShiftStartPos, short dist, bool shiftLeft, short slotNeedUpdate);
 
         short getFreeSpace();
         bool hasEnoughSpaceForRecord(int recordLen);
@@ -201,7 +200,7 @@ namespace PeterDB {
     // Based on Record Format
     class RecordHelper {
     public:
-        static RC rawDataToRecordByteSeq(char* rawData, const std::vector<Attribute> &attrs, char* byteSeq, RecordLen& recordLen);
+        static RC rawDataToRecordByteSeq(char* rawData, const std::vector<Attribute> &attrs, char* byteSeq, short & recordLen);
         static RC recordByteSeqToRawData(char record[], const short recordLen, const std::vector<Attribute> &recordDescriptor, char* data);
 
         static bool isAttrNull(char* data, unsigned index);
