@@ -811,8 +811,17 @@ namespace PeterDBTesting {
 
         // There should be at least three attributes: table-id, table-name, file-name
         ASSERT_GE(attrs.size(), 3) << "Tables table should have at least 3 attributes.";
-        ASSERT_FALSE(attrs[0].name != "table-id" || attrs[1].name != "table-name" || attrs[2].name != "file-name")
-                                    << "Tables table's schema is not correct.";
+
+        std::vector<std::string> expectedAttrs {"table-id", "table-name", "file-name"};
+        std::vector<std::string> actualAttrs;
+        std::for_each(attrs.begin(), attrs.end(),
+                      [&](const PeterDB::Attribute& attr){actualAttrs.push_back(attr.name);});
+        std::sort(expectedAttrs.begin(), expectedAttrs.end());
+        std::sort(actualAttrs.begin(), actualAttrs.end());
+
+        ASSERT_TRUE(std::includes(actualAttrs.begin(), actualAttrs.end(),
+                                  expectedAttrs.begin(), expectedAttrs.end()))
+                                  << "Tables table's schema is not correct.";
 
         PeterDB::RID rid;
         bufSize = 1000;
@@ -862,10 +871,17 @@ namespace PeterDBTesting {
                                     << "RelationManager::getAttributes() should succeed.";
 
         // There should be at least five attributes: table-id, column-name, column-type, column-length, column-position
+        std::vector<std::string> expectedAttrs {"table-id", "column-name", "column-type", "column-length", "column-position"};
+        std::vector<std::string> actualAttrs;
+        std::for_each(attrs.begin(), attrs.end(),
+                      [&](const PeterDB::Attribute& attr){actualAttrs.push_back(attr.name);});
+        std::sort(expectedAttrs.begin(), expectedAttrs.end());
+        std::sort(actualAttrs.begin(), actualAttrs.end());
+
         ASSERT_GE(attrs.size(), 5) << "Columns table should have at least 5 attributes.";
-        ASSERT_FALSE(attrs[0].name != "table-id" || attrs[1].name != "column-name" ||
-                     attrs[2].name != "column-type" || attrs[3].name != "column-length" ||
-                     attrs[4].name != "column-position") << "Columns table's schema is not correct.";
+        ASSERT_TRUE(std::includes(actualAttrs.begin(), actualAttrs.end(),
+                                  expectedAttrs.begin(), expectedAttrs.end()))
+                                    << "Columns table's schema is not correct.";
 
         bufSize = 1000;
         outBuffer = malloc(bufSize);

@@ -3,6 +3,7 @@
 
 #include <string>
 #include <cstring>
+#include <cctype>
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <sstream>
@@ -97,6 +98,12 @@ namespace PeterDBTesting {
         return s;
     }
 
+    static inline std::string to_lower(std::string s) {
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char c){ return std::tolower(c); });
+        return s;
+    }
+
     static void
     convertToMap(const std::string &keyValuePairsStr, tsl::ordered_map<std::string, std::string> &outMap) {
 
@@ -110,8 +117,10 @@ namespace PeterDBTesting {
                 break;
 
             val_end = keyValuePairsStr.find(',', val_pos);
-            outMap.emplace(trim_copy(keyValuePairsStr.substr(key_pos, key_end - key_pos)),
-                           trim_copy(keyValuePairsStr.substr(val_pos, val_end - val_pos)));
+            // make attrName all lower case to perform case-insensitive check on attribute names
+            auto attrName = to_lower(trim_copy(keyValuePairsStr.substr(key_pos, key_end - key_pos)));
+            auto value = trim_copy(keyValuePairsStr.substr(val_pos, val_end - val_pos));
+            outMap.emplace(attrName, value);
             key_pos = val_end;
             if (key_pos != std::string::npos)
                 ++key_pos;
