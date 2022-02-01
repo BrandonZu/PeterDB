@@ -78,18 +78,20 @@ namespace PeterDB {
     /*
      * Insert Record
      */
-    RC RecordPageHandle::insertRecordByteSeq(char byteSeq[], short recordLen, RID& rid) {
+    RC RecordPageHandle::insertRecord(char byteSeq[], short byteSeqLen, RID& rid) {
         RC ret = 0;
 
         // Get Slot Index while maintaining SlotCounter
-        short slotIndex = getAvailSlot();
+        int16_t slotIndex = getAvailSlot();
 
-        // Append a slot(pointer + length) to the end
-        memcpy(data + getSlotOffset(slotIndex), &freeBytePointer, sizeof(short));
-        memcpy(data + getSlotOffset(slotIndex) + sizeof(short), &recordLen, sizeof(short));
+        // Pad the data if necessary and append padded record data to the end
+        uint16_t recordLen = std::max(byteSeqLen, MIN_RECORD_LEN);
+        memcpy(data + freeBytePointer, byteSeq, byteSeqLen);
 
-        // Write Byte Seq
-        memcpy(data + freeBytePointer, byteSeq, recordLen);
+        // Fill in offset and length of record
+        memcpy(data + getSlotOffset(slotIndex), &freeBytePointer, sizeof(int16_t));
+        memcpy(data + getSlotOffset(slotIndex) + sizeof(int16_t), &recordLen, sizeof(int16_t));
+
         // Update Free Space Pointer
         freeBytePointer += recordLen;
         memcpy(data + getFreeBytePointerOffset(), &freeBytePointer, sizeof(short));
@@ -97,7 +99,7 @@ namespace PeterDB {
         // Flush page
         ret = fh.writePage(pageNum, data);
         if(ret) {
-            LOG(ERROR) << "Fail to flush page data into file! @ RecordPageHandle::insertRecordByteSeq" << std::endl;
+            LOG(ERROR) << "Fail to flush page data into file! @ RecordPageHandle::insertRecord" << std::endl;
             return ret;
         }
 
@@ -126,7 +128,7 @@ namespace PeterDB {
         short recordLen = getRecordLen(slotIndex);
 
         // Shift records left to fill the emtpy hole
-        ret = shiftRecord(recordOffset + recordLen, recordLen, true, slotIndex + 1);
+        ret = shiftRecord(recordOffset + recordLen, recordLen, true);
         if(ret) {
             LOG(ERROR) << "Fail to shift records left @ RecordPageHandle::deleteRecord" << std::endl;
             return ret;
@@ -165,10 +167,10 @@ namespace PeterDB {
 
         // Shift record left or right based on current and former record length
         if(recordLen <= oldRecordLen) {
-            shiftRecord(recordOffset + oldRecordLen, oldRecordLen - recordLen, true, slotIndex + 1);
+            shiftRecord(recordOffset + oldRecordLen, oldRecordLen - recordLen, true);
         }
         else {
-            shiftRecord(recordOffset + oldRecordLen, recordLen - oldRecordLen, false, slotIndex + 1);
+            shiftRecord(recordOffset + oldRecordLen, recordLen - oldRecordLen, false);
         }
 
         // Write Record Data
@@ -200,7 +202,7 @@ namespace PeterDB {
         memcpy(data + getSlotOffset(newRecordPos.slotNum) + sizeof(short), &newRecordLen, sizeof(short));
         // Shift records left
         short dist = oldRecordLen - newRecordLen;
-        shiftRecord(recordOffset + oldRecordLen, dist, true, newRecordPos.slotNum + 1);
+        shiftRecord(recordOffset + oldRecordLen, dist, true);
     }
 
     /*
@@ -209,7 +211,7 @@ namespace PeterDB {
 
     // Slots whose index > slotNeedUpdate will be updated
     // Free byte pointer will be updated
-    RC RecordPageHandle::shiftRecord(short dataNeedShiftStartPos, short dist, bool shiftLeft, short slotNeedUpdate){
+    RC RecordPageHandle::shiftRecord(short dataNeedShiftStartPos, short dist, bool shiftLeft){
         short dataNeedMoveLen = freeBytePointer - dataNeedShiftStartPos;
 
         if(dataNeedMoveLen != 0) {
@@ -219,19 +221,18 @@ namespace PeterDB {
             else
                 memmove(data + dataNeedShiftStartPos + dist, data + dataNeedShiftStartPos, dataNeedMoveLen);
 
-            // Update following slots' start pointer
-            for (int i = slotNeedUpdate; i <= slotCounter; i++) {
-                // Empty Slot
-                if (isRecordDeleted(i)) {
+            // Update the slots of record that follows dataNeedShift
+            short curRecordOffset;
+            for (int i = 1; i <= slotCounter; i++) {
+                memcpy(&curRecordOffset, data + getSlotOffset(i), sizeof(short));
+                if(curRecordOffset == SLOT_EMPTY || curRecordOffset < dataNeedShiftStartPos) {
                     continue;
                 }
-
-                memcpy(&dataNeedShiftStartPos, data + getSlotOffset(i), sizeof(short));
                 if(shiftLeft)
-                    dataNeedShiftStartPos -= dist;
+                    curRecordOffset -= dist;
                 else
-                    dataNeedShiftStartPos += dist;
-                memcpy(data + getSlotOffset(i), &dataNeedShiftStartPos, sizeof(short));
+                    curRecordOffset += dist;
+                memcpy(data + getSlotOffset(i), &curRecordOffset, sizeof(short));
             }
         }
 

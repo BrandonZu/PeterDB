@@ -90,7 +90,7 @@ record from the page.
         short getFreeSpace();
         bool hasEnoughSpaceForRecord(int recordLen);
         
-        RC insertRecordByteSeq(char byteSeq[], RecordLen recordLen, RID& rid);
+        RC insertRecord(char byteSeq[], RecordLen recordLen, RID& rid);
         RC getRecordByteSeq(short slotNum, char recordByteSeq[], short& recordLen);
     
     private:

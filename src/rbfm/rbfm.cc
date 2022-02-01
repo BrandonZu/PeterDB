@@ -59,7 +59,7 @@ namespace PeterDB {
 
         // 3. Insert Record via Record Page Handle
         RecordPageHandle recordPageHandle(fileHandle, pageIndex);
-        ret = recordPageHandle.insertRecordByteSeq(byteSeq, recordLen, rid);
+        ret = recordPageHandle.insertRecord(byteSeq, recordLen, rid);
         if(ret) {
             LOG(ERROR) << "Fail to insert record's byte sequence via RecordPageHandle @ RecordBasedFileManager::insertRecord" << std::endl;
             return ret;
@@ -281,7 +281,7 @@ namespace PeterDB {
             }
             RecordPageHandle newPageHandle(fileHandle, pageToStore);
             RID newRecordRID;
-            ret = newPageHandle.insertRecordByteSeq(byteSeq, recordLen, newRecordRID);
+            ret = newPageHandle.insertRecord(byteSeq, recordLen, newRecordRID);
             if(ret) {
                 LOG(ERROR) << "Fail to store new record's byte sequence @ RecordBasedFileManager::updateRecord" << std::endl;
                 return ret;

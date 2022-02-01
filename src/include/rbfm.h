@@ -4,6 +4,7 @@
 #include <vector>
 #include <cmath>
 #include <iostream>
+#include <algorithm>
 
 #include "pfm.h"
 
@@ -42,8 +43,7 @@ namespace PeterDB {
     * The scan iterator is NOT required to be implemented for Project 1 *
     ********************************************************************/
 
-# define RBFM_EOF (-1)  // end of a scan operator
-
+    # define RBFM_EOF (-1)  // end of a scan operator
     //  RBFM_ScanIterator is an iterator to go through records
     //  The way to use it is like the following:
     //  RBFM_ScanIterator rbfmScanIterator;
@@ -53,18 +53,30 @@ namespace PeterDB {
     //  }
     //  rbfmScanIterator.close();
 
+    const uint16_t MASK_RECORD = 0;
+    const uint16_t MASK_RECORDPOINTER = 1;
+    const int16_t SLOT_EMPTY = -1;
+
+    const int16_t MASK_LEN = 2;
+    const int16_t PAGE_INDEX_LEN = 4;
+    const int16_t SLOT_INDEX_LEN = 2;
+    const int16_t MIN_RECORD_LEN = MASK_LEN + PAGE_INDEX_LEN + SLOT_INDEX_LEN;
+
     class RBFM_ScanIterator {
     public:
-        RBFM_ScanIterator() = default;;
 
-        ~RBFM_ScanIterator() = default;;
+
+    public:
+        RBFM_ScanIterator();
+
+        ~RBFM_ScanIterator();
 
         // Never keep the results in the memory. When getNextRecord() is called,
         // a satisfying record needs to be fetched from the file.
         // "data" follows the same format as RecordBasedFileManager::insertRecord().
         RC getNextRecord(RID &rid, void *data) { return RBFM_EOF; };
 
-        RC close() { return -1; };
+        RC close();
     };
 
     class RecordBasedFileManager {
@@ -165,7 +177,7 @@ namespace PeterDB {
         RC getRecordAttr(short slotNum, short attrIndex, char* attrData);
 
         // Insert Record
-        RC insertRecordByteSeq(char byteSeq[], short recordLen, RID& rid);
+        RC insertRecord(char byteSeq[], short byteSeqLen, RID& rid);
 
         // Delete Record
         RC deleteRecord(int slotIndex);
@@ -177,7 +189,7 @@ namespace PeterDB {
 
         // Helper Functions
         // Shift records left to avoid empty holes between records
-        RC shiftRecord(short dataNeedShiftStartPos, short dist, bool shiftLeft, short slotNeedUpdate);
+        RC shiftRecord(short dataNeedShiftStartPos, short dist, bool shiftLeft);
 
         short getFreeSpace();
         bool hasEnoughSpaceForRecord(int recordLen);
