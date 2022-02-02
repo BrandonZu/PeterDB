@@ -11,6 +11,7 @@
 #include <cstring>
 
 #include "glog/logging.h"
+#include "src/include/ErrorCode.h"
 
 namespace PeterDB {
 

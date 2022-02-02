@@ -162,10 +162,10 @@ namespace PeterDBTesting {
                 if (isFloat(targetPair.second)) {
                     ASSERT_FLOAT_EQ(std::stof(targetPair.second), std::stof(expectedPair.second))
                                                 << "Field (" << targetPair.first
-                                                << ") value should be equal, float values are checked in a range.";
+                                                << ") conditionAttrValue should be equal, float values are checked in a range.";
                 } else {
                     ASSERT_EQ(targetPair.second, expectedPair.second)
-                                                << "Field (" << targetPair.first << ") value should be equal.";
+                                                << "Field (" << targetPair.first << ") conditionAttrValue should be equal.";
                 }
             }
         }

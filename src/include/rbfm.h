@@ -5,6 +5,7 @@
 #include <cmath>
 #include <iostream>
 #include <algorithm>
+#include <unordered_set>
 
 #include "pfm.h"
 
@@ -54,29 +55,58 @@ namespace PeterDB {
     //  rbfmScanIterator.close();
 
     const uint16_t MASK_RECORD = 0;
-    const uint16_t MASK_RECORDPOINTER = 1;
-    const int16_t SLOT_EMPTY = -1;
+    const uint16_t MASK_RECORD_POINTER = 1;
 
-    const int16_t MASK_LEN = 2;
-    const int16_t PAGE_INDEX_LEN = 4;
-    const int16_t SLOT_INDEX_LEN = 2;
-    const int16_t MIN_RECORD_LEN = MASK_LEN + PAGE_INDEX_LEN + SLOT_INDEX_LEN;
+    const int16_t RECORD_MASK_LEN = 2;
+    const int16_t RECORD_ATTRNUM_LEN = 2;
+    const int16_t RECORD_ATTR_ENDPOS_LEN = 2;
+    const int16_t RECORD_ATTR_NULL_ENDPOS = -1;
+    const int16_t PTRRECORD_RECORD_PAGE_INDEX_LEN = 4;
+    const int16_t PTRRECORD_SLOT_INDEX_LEN = 2;
+    const int16_t MIN_RECORD_LEN = RECORD_MASK_LEN + PTRRECORD_RECORD_PAGE_INDEX_LEN + PTRRECORD_SLOT_INDEX_LEN;
+
+    const int16_t SLOT_INDEX_START = 1;
+    const int16_t SLOT_RECORD_POINTER_LEN = 2;
+    const int16_t SLOT_RECORD_LEN_LEN = 2;
+    const int16_t EMPTY_SLOT_OFFSET = -1;
+    const int16_t EMPTY_SLOT_LEN = 0;
+
+    const int16_t ATTR_NULL_LEN = -1;
 
     class RBFM_ScanIterator {
     public:
+        FileHandle fileHandle;
+        std::vector<Attribute> recordDesc;
+        std::vector<uint32_t> selectedAttrIndex;
 
+        CompOp compOp;
+        Attribute conditionAttr;
+        uint32_t conditionAttrIndex;
+        void * conditionAttrValue;
+
+        uint32_t curPageIndex;
+        uint16_t curSlotIndex;
+
+        // Store record byte sequence
+        uint8_t recordByteSeq[PAGE_SIZE];
+        uint16_t recordLen;
 
     public:
         RBFM_ScanIterator();
-
         ~RBFM_ScanIterator();
+
+        RC open(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
+                const std::string &conditionAttribute, const CompOp compOp, const void *value,
+                const std::vector<std::string> &attributeNames);
+        RC close();
 
         // Never keep the results in the memory. When getNextRecord() is called,
         // a satisfying record needs to be fetched from the file.
         // "data" follows the same format as RecordBasedFileManager::insertRecord().
-        RC getNextRecord(RID &rid, void *data) { return RBFM_EOF; };
+        RC getNextRecord(RID &recordRid, void *data);
 
-        RC close();
+        bool isRecordMeetCondition(uint8_t attrData[], int16_t attrLen);
+
     };
 
     class RecordBasedFileManager {
@@ -92,16 +122,16 @@ namespace PeterDB {
         RC closeFile(FileHandle &fileHandle);                               // Close a record-based file
 
         //  Format of the data passed into the function is the following:
-        //  [n byte-null-indicators for y fields] [actual value for the first field] [actual value for the second field] ...
+        //  [n byte-null-indicators for y fields] [actual conditionAttrValue for the first field] [actual conditionAttrValue for the second field] ...
         //  1) For y fields, there is n-byte-null-indicators in the beginning of each record.
-        //     The value n can be calculated as: ceil(y / 8). (e.g., 5 fields => ceil(5 / 8) = 1. 12 fields => ceil(12 / 8) = 2.)
-        //     Each bit represents whether each field value is null or not.
-        //     If k-th bit from the left is set to 1, k-th field value is null. We do not include anything in the actual data part.
+        //     The conditionAttrValue n can be calculated as: ceil(y / 8). (e.g., 5 fields => ceil(5 / 8) = 1. 12 fields => ceil(12 / 8) = 2.)
+        //     Each bit represents whether each field conditionAttrValue is null or not.
+        //     If k-th bit from the left is set to 1, k-th field conditionAttrValue is null. We do not include anything in the actual data part.
         //     If k-th bit from the left is set to 0, k-th field contains non-null values.
         //     If there are more than 8 fields, then you need to find the corresponding byte first,
         //     then find a corresponding bit inside that byte.
         //  2) Actual data is a concatenation of values of the attributes.
-        //  3) For Int and Real: use 4 bytes to store the value;
+        //  3) For Int and Real: use 4 bytes to store the conditionAttrValue;
         //     For Varchar: use 4 bytes to store the length of characters, then store the actual characters.
         //  !!! The same format is used for updateRecord(), the returned data of readRecord(), and readAttribute().
         // For example, refer to the Q8 of Project 1 wiki page.
@@ -117,7 +147,7 @@ namespace PeterDB {
         // Print the record that is passed to this utility method.
         // This method will be mainly used for debugging/testing.
         // The format is as follows:
-        // field1-name: field1-value  field2-name: field2-value ... \n
+        // field1-name: field1-conditionAttrValue  field2-name: field2-conditionAttrValue ... \n
         // (e.g., age: 24  height: 6.1  salary: 9000
         //        age: NULL  height: 7.5  salary: 7500)
         RC printRecord(const std::vector<Attribute> &recordDescriptor, const void *data, std::ostream &out);
@@ -166,6 +196,7 @@ namespace PeterDB {
         short slotCounter;
         char data[PAGE_SIZE] = {};
 
+    public:
         RecordPageHandle(FileHandle& fileHandle, PageNum pageNum);
         ~RecordPageHandle();
 
@@ -173,15 +204,15 @@ namespace PeterDB {
         // Record Format Described in report
         RC getRecordByteSeq(short slotNum, char recordByteSeq[], short& recordLen);
         RC getRecordPointerTarget(short curSlotNum, int& ptrPageNum, short& ptrSlotNum);
-        RC isRecordPointer(short slotNum, bool& isPointer);
-        RC getRecordAttr(short slotNum, short attrIndex, char* attrData);
+
+        RC getRecordAttr(short slotNum, short attrIndex, uint8_t* attrData);
+        RC getNextRecord(uint16_t& slotIndex, uint8_t* byteSeq, uint16_t& recordLen);
 
         // Insert Record
         RC insertRecord(char byteSeq[], short byteSeqLen, RID& rid);
 
         // Delete Record
         RC deleteRecord(int slotIndex);
-        bool isRecordDeleted(short slotIndex);
 
         // Update Record
         RC updateRecord(short slotIndex, char byteSeq[], short recordLen);
@@ -205,9 +236,12 @@ namespace PeterDB {
         // For Specific Record
         // Slot Index start from 1 !!!
         short getSlotOffset(short slotIndex);
-
         short getRecordOffset(short slotIndex);
         short getRecordLen(short slotIndex);
+
+        bool isRecordPointer(short slotNum);
+        bool isRecordReadable(uint16_t slotIndex);
+        bool isRecordDeleted(short slotIndex);
 
         short getAttrNum(short slotIndex);  // Attr offset relative to the start point of record
         short getAttrOffset(short slotIndex, short attrIndex);   // Based on record format
@@ -217,8 +251,8 @@ namespace PeterDB {
     // Based on Record Format
     class RecordHelper {
     public:
-        static RC rawDataToRecordByteSeq(char* rawData, const std::vector<Attribute> &attrs, char* byteSeq, short & recordLen);
-        static RC recordByteSeqToRawData(char record[], const short recordLen, const std::vector<Attribute> &recordDescriptor, char* data);
+        static RC APIFormatToRecordByteSeq(char* apiData, const std::vector<Attribute> &attrs, char* byteSeq, short & recordLen);
+        static RC recordByteSeqToAPIFormat(char record[], const std::vector<Attribute> &recordDescriptor, std::vector<uint32_t> &selectedAttrIndex, char* apiData);
 
         static bool isAttrNull(char* data, unsigned index);
         static void setAttrNull(char* data, unsigned index);

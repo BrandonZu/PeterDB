@@ -291,7 +291,7 @@ namespace tsl {
         }
 
         /**
-         * Due to the way elements are stored, emplace will need to move or copy the key-value once.
+         * Due to the way elements are stored, emplace will need to move or copy the key-conditionAttrValue once.
          * The method is equivalent to insert(value_type(std::forward<Args>(args)...));
          *
          * Mainly here for compatibility with the std::unordered_map interface.
@@ -300,7 +300,7 @@ namespace tsl {
         std::pair<iterator, bool> emplace(Args &&... args) { return m_ht.emplace(std::forward<Args>(args)...); }
 
         /**
-         * Due to the way elements are stored, emplace_hint will need to move or copy the key-value once.
+         * Due to the way elements are stored, emplace_hint will need to move or copy the key-conditionAttrValue once.
          * The method is equivalent to insert(hint, value_type(std::forward<Args>(args)...));
          *
          * Mainly here for compatibility with the std::unordered_map interface.
@@ -357,8 +357,8 @@ namespace tsl {
         /**
          * @copydoc erase(iterator pos)
          *
-         * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
-         * as hash_function()(key). Useful to speed-up the lookup to the value if you already have the hash.
+         * Use the hash conditionAttrValue 'precalculated_hash' instead of hashing the key. The hash conditionAttrValue should be the same
+         * as hash_function()(key). Useful to speed-up the lookup to the conditionAttrValue if you already have the hash.
          */
         size_type erase(const key_type &key, std::size_t precalculated_hash) {
             return m_ht.erase(key, precalculated_hash);
@@ -392,7 +392,7 @@ namespace tsl {
         T &at(const Key &key) { return m_ht.at(key); }
 
         /**
-         * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
+         * Use the hash conditionAttrValue 'precalculated_hash' instead of hashing the key. The hash conditionAttrValue should be the same
          * as hash_function()(key). Useful to speed-up the lookup if you already have the hash.
          */
         T &at(const Key &key, std::size_t precalculated_hash) { return m_ht.at(key, precalculated_hash); }
@@ -414,7 +414,7 @@ namespace tsl {
         /**
          * @copydoc at(const K& key)
          *
-         * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
+         * Use the hash conditionAttrValue 'precalculated_hash' instead of hashing the key. The hash conditionAttrValue should be the same
          * as hash_function()(key). Useful to speed-up the lookup if you already have the hash.
          */
         template<class K, class KE = KeyEqual, typename std::enable_if<has_is_transparent<KE>::value>::type * = nullptr>
@@ -439,7 +439,7 @@ namespace tsl {
         size_type count(const Key &key) const { return m_ht.count(key); }
 
         /**
-         * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
+         * Use the hash conditionAttrValue 'precalculated_hash' instead of hashing the key. The hash conditionAttrValue should be the same
          * as hash_function()(key). Useful to speed-up the lookup if you already have the hash.
          */
         size_type count(const Key &key, std::size_t precalculated_hash) const {
@@ -456,7 +456,7 @@ namespace tsl {
         /**
          * @copydoc count(const K& key) const
          *
-         * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
+         * Use the hash conditionAttrValue 'precalculated_hash' instead of hashing the key. The hash conditionAttrValue should be the same
          * as hash_function()(key). Useful to speed-up the lookup if you already have the hash.
          */
         template<class K, class KE = KeyEqual, typename std::enable_if<has_is_transparent<KE>::value>::type * = nullptr>
@@ -467,7 +467,7 @@ namespace tsl {
         iterator find(const Key &key) { return m_ht.find(key); }
 
         /**
-         * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
+         * Use the hash conditionAttrValue 'precalculated_hash' instead of hashing the key. The hash conditionAttrValue should be the same
          * as hash_function()(key). Useful to speed-up the lookup if you already have the hash.
          */
         iterator find(const Key &key, std::size_t precalculated_hash) { return m_ht.find(key, precalculated_hash); }
@@ -491,7 +491,7 @@ namespace tsl {
         /**
          * @copydoc find(const K& key)
          *
-         * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
+         * Use the hash conditionAttrValue 'precalculated_hash' instead of hashing the key. The hash conditionAttrValue should be the same
          * as hash_function()(key). Useful to speed-up the lookup if you already have the hash.
          */
         template<class K, class KE = KeyEqual, typename std::enable_if<has_is_transparent<KE>::value>::type * = nullptr>
@@ -506,7 +506,7 @@ namespace tsl {
         /**
          * @copydoc find(const K& key)
          *
-         * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
+         * Use the hash conditionAttrValue 'precalculated_hash' instead of hashing the key. The hash conditionAttrValue should be the same
          * as hash_function()(key). Useful to speed-up the lookup if you already have the hash.
          */
         template<class K, class KE = KeyEqual, typename std::enable_if<has_is_transparent<KE>::value>::type * = nullptr>
@@ -517,7 +517,7 @@ namespace tsl {
         bool contains(const Key &key) const { return m_ht.contains(key); }
 
         /**
-         * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
+         * Use the hash conditionAttrValue 'precalculated_hash' instead of hashing the key. The hash conditionAttrValue should be the same
          * as hash_function()(key). Useful to speed-up the lookup if you already have the hash.
          */
         bool contains(const Key &key, std::size_t precalculated_hash) const {
@@ -534,7 +534,7 @@ namespace tsl {
         /**
          * @copydoc contains(const K& key) const
          *
-         * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
+         * Use the hash conditionAttrValue 'precalculated_hash' instead of hashing the key. The hash conditionAttrValue should be the same
          * as hash_function()(key). Useful to speed-up the lookup if you already have the hash.
          */
         template<class K, class KE = KeyEqual, typename std::enable_if<has_is_transparent<KE>::value>::type * = nullptr>
@@ -545,7 +545,7 @@ namespace tsl {
         std::pair<iterator, iterator> equal_range(const Key &key) { return m_ht.equal_range(key); }
 
         /**
-         * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
+         * Use the hash conditionAttrValue 'precalculated_hash' instead of hashing the key. The hash conditionAttrValue should be the same
          * as hash_function()(key). Useful to speed-up the lookup if you already have the hash.
          */
         std::pair<iterator, iterator> equal_range(const Key &key, std::size_t precalculated_hash) {
@@ -571,7 +571,7 @@ namespace tsl {
         /**
          * @copydoc equal_range(const K& key)
          *
-         * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
+         * Use the hash conditionAttrValue 'precalculated_hash' instead of hashing the key. The hash conditionAttrValue should be the same
          * as hash_function()(key). Useful to speed-up the lookup if you already have the hash.
          */
         template<class K, class KE = KeyEqual, typename std::enable_if<has_is_transparent<KE>::value>::type * = nullptr>
@@ -673,7 +673,7 @@ namespace tsl {
         void shrink_to_fit() { m_ht.shrink_to_fit(); }
 
         /**
-         * Insert the value before pos shifting all the elements on the right of pos (including pos) one position
+         * Insert the conditionAttrValue before pos shifting all the elements on the right of pos (including pos) one position
          * to the right.
          *
          * Amortized linear time-complexity in the distance between pos and end().
@@ -683,14 +683,14 @@ namespace tsl {
         }
 
         /**
-         * @copydoc insert_at_position(const_iterator pos, const value_type& value)
+         * @copydoc insert_at_position(const_iterator pos, const value_type& conditionAttrValue)
          */
         std::pair<iterator, bool> insert_at_position(const_iterator pos, value_type &&value) {
             return m_ht.insert_at_position(pos, std::move(value));
         }
 
         /**
-         * @copydoc insert_at_position(const_iterator pos, const value_type& value)
+         * @copydoc insert_at_position(const_iterator pos, const value_type& conditionAttrValue)
          *
          * Same as insert_at_position(pos, value_type(std::forward<Args>(args)...), mainly
          * here for coherence.
@@ -701,7 +701,7 @@ namespace tsl {
         }
 
         /**
-         * @copydoc insert_at_position(const_iterator pos, const value_type& value)
+         * @copydoc insert_at_position(const_iterator pos, const value_type& conditionAttrValue)
          */
         template<class... Args>
         std::pair<iterator, bool> try_emplace_at_position(const_iterator pos, const key_type &k, Args &&... args) {
@@ -709,7 +709,7 @@ namespace tsl {
         }
 
         /**
-         * @copydoc insert_at_position(const_iterator pos, const value_type& value)
+         * @copydoc insert_at_position(const_iterator pos, const value_type& conditionAttrValue)
          */
         template<class... Args>
         std::pair<iterator, bool> try_emplace_at_position(const_iterator pos, key_type &&k, Args &&... args) {
@@ -738,7 +738,7 @@ namespace tsl {
         /**
          * @copydoc unordered_erase(iterator pos)
          *
-         * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
+         * Use the hash conditionAttrValue 'precalculated_hash' instead of hashing the key. The hash conditionAttrValue should be the same
          * as hash_function()(key). Useful to speed-up the lookup if you already have the hash.
          */
         size_type unordered_erase(const key_type &key, std::size_t precalculated_hash) {
@@ -757,7 +757,7 @@ namespace tsl {
         /**
          * @copydoc unordered_erase(const K& key)
          *
-         * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
+         * Use the hash conditionAttrValue 'precalculated_hash' instead of hashing the key. The hash conditionAttrValue should be the same
          * as hash_function()(key). Useful to speed-up the lookup if you already have the hash.
          */
         template<class K, class KE = KeyEqual, typename std::enable_if<has_is_transparent<KE>::value>::type * = nullptr>
@@ -769,7 +769,7 @@ namespace tsl {
          * Serialize the map through the `serializer` parameter.
          *
          * The `serializer` parameter must be a function object that supports the following call:
-         *  - `template<typename U> void operator()(const U& value);` where the types `std::uint64_t`, `float` and `std::pair<Key, T>` must be supported for U.
+         *  - `template<typename U> void operator()(const U& conditionAttrValue);` where the types `std::uint64_t`, `float` and `std::pair<Key, T>` must be supported for U.
          *
          * The implementation leaves binary compatibility (endianness, IEEE 754 for floats, ...) of the types it serializes
          * in the hands of the `Serializer` function object if compatibility is required.

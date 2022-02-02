@@ -41,7 +41,7 @@ namespace PeterDB {
         // 1. Transform Record to Byte Sequence
         short recordLen = 0;
         char buffer[PAGE_SIZE] = {};
-        ret = RecordHelper::rawDataToRecordByteSeq((char *) data, recordDescriptor, buffer, recordLen);
+        ret = RecordHelper::APIFormatToRecordByteSeq((char *) data, recordDescriptor, buffer, recordLen);
         if(ret) {
             LOG(ERROR) << "Fail to Transform Record to Byte Seq @ RecordBasedFileManager::insertRecord" << std::endl;
             return ret;
@@ -72,11 +72,11 @@ namespace PeterDB {
         RC ret = 0;
         if(!fileHandle.isOpen()) {
             LOG(ERROR) << "FileHandle NOT bound to a file! @ RecordBasedFileManager::readRecord" << std::endl;
-            return 1;
+            return ERR_FILE_NOT_OPEN;
         }
         if(rid.pageNum >= fileHandle.getNumberOfPages()) {
             LOG(ERROR) << "Target Page not exist! @ RecordBasedFileManager::readRecord" << std::endl;
-            return 2;
+            return ERR_PAGE_NOT_EXIST;
         }
 
         // 1. Follow the pointer to find the real record
@@ -84,21 +84,20 @@ namespace PeterDB {
         short curSlot = rid.slotNum;
         while(true) {
             RecordPageHandle curPageHandle(fileHandle, curPage);
-            bool isPointer;
-            ret = curPageHandle.isRecordPointer(curSlot, isPointer);
-            if(ret) {
-                LOG(ERROR) << "Fail to read record @ RecordBasedFileManager::readRecord" << std::endl;
-                return 3;
+            if(!curPageHandle.isRecordReadable(curSlot)) {
+                return ERR_SLOT_NOT_EXIST_OR_DELETED;
             }
-            if(!isPointer)
+
+            if(!curPageHandle.isRecordPointer(curSlot)) {
                 break;
+            }
             curPageHandle.getRecordPointerTarget(curSlot, curPage, curSlot);
         }
 
         // 2. Read Record Byte Seq
         RecordPageHandle pageHandle(fileHandle, curPage);
         char recordBuffer[PAGE_SIZE] = {};
-        short recordLen = 0;
+        int16_t recordLen = 0;
 
         ret = pageHandle.getRecordByteSeq(curSlot, recordBuffer, recordLen);
         if(ret) {
@@ -106,8 +105,13 @@ namespace PeterDB {
             return ret;
         }
 
-        // 3. Transform Record Byte Seq to raw data(output format)
-        ret = RecordHelper::recordByteSeqToRawData(recordBuffer, recordLen, recordDescriptor, (char*)data);
+        // 3. Transform Record Byte Seq to api format
+        // Select all attributes
+        std::vector<uint32_t> selectedAttrIndex(recordDescriptor.size());
+        for(uint32_t i = 0; i < recordDescriptor.size(); i++) {
+            selectedAttrIndex[i] = i;
+        }
+        ret = RecordHelper::recordByteSeqToAPIFormat(recordBuffer, recordDescriptor, selectedAttrIndex, (char *) data);
         if(ret) {
             LOG(ERROR) << "Fail to transform Record to Raw Data @ RecordBasedFileManager::readRecord" << std::endl;
             return ret;
@@ -120,11 +124,11 @@ namespace PeterDB {
         RC ret = 0;
         if(!fileHandle.isOpen()) {
             LOG(ERROR) << "FileHandle NOT bound to a file! @ RecordBasedFileManager::deleteRecord" << std::endl;
-            return 1;
+            return ERR_FILE_NOT_OPEN;
         }
         if(rid.pageNum >= fileHandle.getNumberOfPages()) {
             LOG(ERROR) << "Page not exist in this file @ RecordBasedFileManager::deleteRecord" << std::endl;
-            return 2;
+            return ERR_PAGE_NOT_EXIST;
         }
 
         // 1. Follow the pointer to find the real record
@@ -133,14 +137,13 @@ namespace PeterDB {
         while(true) {
             RecordPageHandle curPageHandle(fileHandle, curPage);
             // Break the loop when real record is found
-            bool isPointer;
-            ret = curPageHandle.isRecordPointer(curSlot, isPointer);
-            if(ret) {
-                LOG(ERROR) << "Fail to read record @ RecordBasedFileManager::deleteRecord" << std::endl;
-                return 3;
+            if(!curPageHandle.isRecordReadable(curSlot)) {
+                return ERR_SLOT_NOT_EXIST_OR_DELETED;
             }
-            if(!isPointer)
+
+            if(!curPageHandle.isRecordPointer(curSlot)) {
                 break;
+            }
 
             curPageHandle.getRecordPointerTarget(curSlot, curPage, curSlot);
             ret = curPageHandle.deleteRecord(curSlot);
@@ -219,11 +222,11 @@ namespace PeterDB {
         RC ret = 0;
         if(!fileHandle.isOpen()) {
             LOG(ERROR) << "FileHandle NOT bound to a file! @ RecordBasedFileManager::updateRecord" << std::endl;
-            return 1;
+            return ERR_FILE_NOT_OPEN;
         }
         if(rid.pageNum >= fileHandle.getNumberOfPages()) {
             LOG(ERROR) << "Page not exist in this file @ RecordBasedFileManager::updateRecord" << std::endl;
-            return 2;
+            return ERR_PAGE_NOT_EXIST;
         }
 
         // 1. Follow the pointer to find real record
@@ -231,21 +234,20 @@ namespace PeterDB {
         short curSlotIndex = rid.slotNum;
         while(true) {
             RecordPageHandle curPageHandle(fileHandle, curPageIndex);
-            bool isPointer;
-            ret = curPageHandle.isRecordPointer(curSlotIndex, isPointer);
-            if(ret) {
-                LOG(ERROR) << "Fail to read record @ RecordBasedFileManager::updateRecord" << std::endl;
-                return 3;
+            if(!curPageHandle.isRecordReadable(curSlotIndex)) {
+                return ERR_SLOT_NOT_EXIST_OR_DELETED;
             }
-            if(!isPointer)
+
+            if(!curPageHandle.isRecordPointer(curSlotIndex)) {
                 break;
+            }
             curPageHandle.getRecordPointerTarget(curSlotIndex, curPageIndex, curSlotIndex);
         }
 
         // 2. Transform Record Data to Byte Sequence
         short recordLen = 0;
         char buffer[PAGE_SIZE] = {};
-        ret = RecordHelper::rawDataToRecordByteSeq((char *) data, recordDescriptor, buffer, recordLen);
+        ret = RecordHelper::APIFormatToRecordByteSeq((char *) data, recordDescriptor, buffer, recordLen);
         if(ret) {
             LOG(ERROR) << "Fail to Transform Record to Byte Seq @ RecordBasedFileManager::insertRecord" << std::endl;
             return ret;
@@ -298,11 +300,11 @@ namespace PeterDB {
         RC ret = 0;
         if(!fileHandle.isOpen()) {
             LOG(ERROR) << "FileHandle NOT bound to a file! @ RecordBasedFileManager::readAttribute" << std::endl;
-            return 1;
+            return ERR_FILE_NOT_OPEN;
         }
         if(rid.pageNum >= fileHandle.getNumberOfPages()) {
             LOG(ERROR) << "Page not exist in this file @ RecordBasedFileManager::readAttribute" << std::endl;
-            return 2;
+            return ERR_PAGE_NOT_EXIST;
         }
 
         int attrIndex;
@@ -317,9 +319,12 @@ namespace PeterDB {
         }
 
         RecordPageHandle pageHandle(fileHandle, rid.pageNum);
-
-
-        return ret;
+        ret = pageHandle.getRecordAttr(rid.slotNum, attrIndex, (uint8_t*)data);
+        if(ret) {
+            LOG(ERROR) << "Fail to read attribute @ RecordBasedFileManager::readAttribute" << std::endl;
+            return ret;
+        }
+        return 0;
     }
 
     RC RecordBasedFileManager::scan(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
@@ -327,9 +332,10 @@ namespace PeterDB {
                                     const std::vector<std::string> &attributeNames,
                                     RBFM_ScanIterator &rbfm_ScanIterator) {
         RC ret = 0;
-
-
-
+        ret = rbfm_ScanIterator.open(fileHandle, recordDescriptor, conditionAttribute, compOp, value, attributeNames);
+        if(ret) {
+            LOG(ERROR) << "Fail to open a scanner! @ RecordBasedFileManager::scan" << std::endl;
+        }
         return 0;
     }
 

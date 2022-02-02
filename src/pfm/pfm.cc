@@ -24,7 +24,7 @@ namespace PeterDB {
         ifstream in_fs(fileName, ios::binary);
         if(in_fs.is_open()) {
             in_fs.close();
-            return 2;
+            return ERR_FILE_NOT_OPEN;
         }
         // Create the file using ofstream
         ofstream out_fs(fileName, ios::binary);
@@ -58,7 +58,7 @@ namespace PeterDB {
 
         ret = fileHandle.open(fileName, tmp_fs);
         if(ret) {
-            return ret;
+            return ERR_OPEN_FILE;
         }
         return 0;
     }

@@ -21,7 +21,7 @@ My record format design is shown as below.
 1. Mask(2 bytes): Reserved for future use
 2. AttrNum(2 bytes): Number of attributes
 3. Attr Directory(2 * AttrNum bytes): Each attribute has a pointer which points to the ending position of its byte sequence
-4. Attr Value(it depends): Concatenation of attribute's value
+4. Attr Value(it depends): Concatenation of attribute's conditionAttrValue
 
 
 - Describe how you store a null field.
@@ -90,7 +90,7 @@ record from the page.
         short getFreeSpace();
         bool hasEnoughSpaceForRecord(int recordLen);
         
-        RC insertRecord(char byteSeq[], RecordLen recordLen, RID& rid);
+        RC insertRecord(char recordByteSeq[], RecordLen recordLen, RID& rid);
         RC getRecordByteSeq(short slotNum, char recordByteSeq[], short& recordLen);
     
     private:
