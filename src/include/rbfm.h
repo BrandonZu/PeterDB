@@ -6,6 +6,7 @@
 #include <iostream>
 #include <algorithm>
 #include <unordered_set>
+#include <unordered_map>
 
 #include "pfm.h"
 
@@ -107,6 +108,7 @@ namespace PeterDB {
 
         bool isRecordMeetCondition(uint8_t attrData[], int16_t attrLen);
 
+        RC APIFormatToAttrDict(uint8_t* apiData, std::unordered_map<std::string, void*>& attrDataList);
     };
 
     class RecordBasedFileManager {
@@ -251,11 +253,11 @@ namespace PeterDB {
     // Based on Record Format
     class RecordHelper {
     public:
-        static RC APIFormatToRecordByteSeq(char* apiData, const std::vector<Attribute> &attrs, char* byteSeq, short & recordLen);
+        static RC APIFormatToRecordByteSeq(uint8_t * apiData, const std::vector<Attribute> &attrs, char* byteSeq, short & recordLen);
         static RC recordByteSeqToAPIFormat(char record[], const std::vector<Attribute> &recordDescriptor, std::vector<uint32_t> &selectedAttrIndex, char* apiData);
 
-        static bool isAttrNull(char* data, unsigned index);
-        static void setAttrNull(char* data, unsigned index);
+        static bool isAttrNull(uint8_t* data, uint32_t index);
+        static void setAttrNull(uint8_t* data, uint32_t index);
     };
 
 } // namespace PeterDB

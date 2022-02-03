@@ -41,7 +41,7 @@ namespace PeterDB {
         // 1. Transform Record to Byte Sequence
         short recordLen = 0;
         char buffer[PAGE_SIZE] = {};
-        ret = RecordHelper::APIFormatToRecordByteSeq((char *) data, recordDescriptor, buffer, recordLen);
+        ret = RecordHelper::APIFormatToRecordByteSeq((uint8_t *) data, recordDescriptor, buffer, recordLen);
         if(ret) {
             LOG(ERROR) << "Fail to Transform Record to Byte Seq @ RecordBasedFileManager::insertRecord" << std::endl;
             return ret;
@@ -247,7 +247,7 @@ namespace PeterDB {
         // 2. Transform Record Data to Byte Sequence
         short recordLen = 0;
         char buffer[PAGE_SIZE] = {};
-        ret = RecordHelper::APIFormatToRecordByteSeq((char *) data, recordDescriptor, buffer, recordLen);
+        ret = RecordHelper::APIFormatToRecordByteSeq((uint8_t *) data, recordDescriptor, buffer, recordLen);
         if(ret) {
             LOG(ERROR) << "Fail to Transform Record to Byte Seq @ RecordBasedFileManager::insertRecord" << std::endl;
             return ret;

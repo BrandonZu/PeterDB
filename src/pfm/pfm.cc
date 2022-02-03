@@ -24,7 +24,7 @@ namespace PeterDB {
         ifstream in_fs(fileName, ios::binary);
         if(in_fs.is_open()) {
             in_fs.close();
-            return ERR_FILE_NOT_OPEN;
+            return ERR_CREATE_FILE_ALREADY_EXIST;
         }
         // Create the file using ofstream
         ofstream out_fs(fileName, ios::binary);
@@ -41,7 +41,7 @@ namespace PeterDB {
 
     RC PagedFileManager::destroyFile(const std::string &fileName) {
         if(remove(fileName.c_str()) != 0) {
-            return 1;
+            return ERR_DELETE_FILE;
         }
         return 0;
     }
@@ -53,7 +53,7 @@ namespace PeterDB {
         tmp_fs->open(fileName, ios::in | ios::out | ios::binary);
 
         if(!tmp_fs->is_open()) {
-            return 1;
+            return ERR_OPEN_FILE_ALREADY_OPEN;
         }
 
         ret = fileHandle.open(fileName, tmp_fs);
@@ -102,7 +102,7 @@ namespace PeterDB {
 
     RC FileHandle::readMetadata() {
         if(!isOpen())
-            return 1;
+            return ERR_FILE_NOT_OPEN;
 
         fs->seekg(fs->beg);
         int counterNum = PeterDB::FileHandle::getCounterNum();
@@ -117,7 +117,7 @@ namespace PeterDB {
 
     RC FileHandle::flushMetadata() {
         if(!isOpen())
-            return 1;
+            return ERR_FILE_NOT_OPEN;
 
         fs->seekp(fs->beg);
         int counterNum = PeterDB::FileHandle::getCounterNum();
@@ -134,7 +134,7 @@ namespace PeterDB {
     RC FileHandle::open(const std::string& tmpFileName, std::fstream* tmpFS) {
         // Already bound to a file
         if(isOpen()) {
-            return 2;
+            return ERR_OPEN_FILE_ALREADY_OPEN;
         }
 
         fs = tmpFS;
@@ -147,7 +147,7 @@ namespace PeterDB {
 
     RC FileHandle::close() {
         if(!isOpen()) {
-            return 2;
+            return ERR_FILE_NOT_OPEN;
         }
 
         // Flush all the counters to the hidden file
@@ -160,10 +160,10 @@ namespace PeterDB {
     RC FileHandle::readPage(PageNum pageNum, void *data) {
         // Not Bound to a file
         if(!isOpen())
-            return 1;
+            return ERR_FILE_NOT_OPEN;
         // Page Not Exist
         if(pageNum >= pageCounter)
-            return 2;
+            return ERR_PAGE_NOT_EXIST;
 
         fs->seekg((pageNum + 1) * PAGE_SIZE, fs->beg);
         fs->read((char *)data, PAGE_SIZE);
@@ -178,10 +178,10 @@ namespace PeterDB {
     RC FileHandle::writePage(PageNum pageNum, const void *data) {
         // Not Bound to a file
         if(!isOpen())
-            return 1;
+            return ERR_FILE_NOT_OPEN;
         // Page Not Exist
         if(pageNum >= pageCounter)
-            return 2;
+            return ERR_PAGE_NOT_EXIST;
 
         fs->seekp((pageNum + 1) * PAGE_SIZE, fs->beg);
         fs->write((char *)data, PAGE_SIZE);
@@ -197,7 +197,7 @@ namespace PeterDB {
     RC FileHandle::appendPage(const void *data) {
         // Not Bound to a file
         if(!isOpen())
-            return 1;
+            return ERR_FILE_NOT_OPEN;
         fs->seekp((pageCounter + 1) * PAGE_SIZE);
         fs->write((char *)data, PAGE_SIZE);
         fs->flush(); // IMPORTANT!

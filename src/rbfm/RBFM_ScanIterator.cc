@@ -113,7 +113,7 @@ namespace PeterDB {
             return false;
         }
 
-        bool meetCondition;
+        bool meetCondition = false;
         if(conditionAttr.type == TypeInt) {
             int oper1, oper2;
             memcpy(&oper1, attrData, sizeof(TypeInt));
@@ -198,6 +198,18 @@ namespace PeterDB {
             }
         }
         return meetCondition;
+    }
+
+    RC RBFM_ScanIterator::APIFormatToAttrDict(uint8_t* apiData, std::unordered_map<std::string, void*>& attrDataList) {
+        RC ret = 0;
+        int16_t attrNum = selectedAttrIndex.size();
+        int16_t nullByteNum = ceil(attrNum / 8.0);
+        for(uint16_t i = 0; i < selectedAttrIndex.size(); i++) {
+            if(RecordHelper::isAttrNull(apiData, i)) {
+
+            }
+        }
+        return ret;
     }
 
 }

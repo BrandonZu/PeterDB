@@ -3,7 +3,7 @@
 namespace PeterDB {
     // Record Format
     // Mask(short) | AttrNum(short) | Directory:Attr Offsets, 2 * AttrNum | Attr1 | Attr2 | Attr3 | ... | AttrN |
-    RC RecordHelper::APIFormatToRecordByteSeq(char* apiData, const std::vector<Attribute> &attrs,
+    RC RecordHelper::APIFormatToRecordByteSeq(uint8_t* apiData, const std::vector<Attribute> &attrs,
                                               char* byteSeq, short& recordLen) {
         // 0. Write Mask: 0x00 Record; 0x01 Pointer
         short mask = MASK_RECORD;
@@ -126,14 +126,14 @@ namespace PeterDB {
         return 0;
     }
 
-    bool RecordHelper::isAttrNull(char* data, unsigned index) {
+    bool RecordHelper::isAttrNull(char* data, uint32_t index) {
         unsigned byteIndex = index / 8;
         unsigned bitIndex = index % 8;
         char tmp = data[byteIndex];
         return (tmp >> (7 - bitIndex)) & 0x1;
     }
 
-    void RecordHelper::setAttrNull(char* data, unsigned index) {
+    void RecordHelper::setAttrNull(char* data, uint32_t index) {
         unsigned byteIndex = index / 8;
         unsigned bitIndex = index % 8;
         data[byteIndex] = data[byteIndex] | (0x1 << (7 - bitIndex));

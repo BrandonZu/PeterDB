@@ -18,6 +18,9 @@ namespace PeterDB {
     const int32_t ERR_OPEN_FILE = 102;
     const int32_t ERR_READ_PAGE_FAIL = 103;
     const int32_t ERR_WRITE_PAGE_FAIL = 104;
+    const int32_t ERR_CREATE_FILE_ALREADY_EXIST = 105;
+    const int32_t ERR_OPEN_FILE_ALREADY_OPEN = 106;
+    const int32_t ERR_DELETE_FILE = 107;
 
 
     /*
@@ -38,7 +41,11 @@ namespace PeterDB {
      * Start from 300
      */
 
-
+    const int32_t ERR_TABLE_NAME_INVALID = 300;
+    const int32_t ERR_TABLE_ALREADY_EXIST = 301;
+    const int32_t ERR_OPEN_TABLES_CATALOG = 302;
+    const int32_t ERR_OPEN_COLUMNS_CATALOG = 303;
+    const int32_t ERR_CATALOG_NOT_OPEN = 304;
 }
 
 #endif //PETERDB_ERRORCODE_H
