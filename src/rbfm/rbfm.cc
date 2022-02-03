@@ -39,14 +39,14 @@ namespace PeterDB {
         }
 
         // 1. Transform Record to Byte Sequence
-        short recordLen = 0;
-        char buffer[PAGE_SIZE] = {};
+        int16_t recordLen = 0;
+        uint8_t buffer[PAGE_SIZE] = {};
         ret = RecordHelper::APIFormatToRecordByteSeq((uint8_t *) data, recordDescriptor, buffer, recordLen);
         if(ret) {
             LOG(ERROR) << "Fail to Transform Record to Byte Seq @ RecordBasedFileManager::insertRecord" << std::endl;
             return ret;
         }
-        char byteSeq[recordLen];
+        uint8_t byteSeq[recordLen];
         memcpy(byteSeq, buffer, recordLen);
 
         // 2. Find an available page
@@ -81,7 +81,7 @@ namespace PeterDB {
 
         // 1. Follow the pointer to find the real record
         int curPage = rid.pageNum;
-        short curSlot = rid.slotNum;
+        int16_t curSlot = rid.slotNum;
         while(true) {
             RecordPageHandle curPageHandle(fileHandle, curPage);
             if(!curPageHandle.isRecordReadable(curSlot)) {
@@ -96,7 +96,7 @@ namespace PeterDB {
 
         // 2. Read Record Byte Seq
         RecordPageHandle pageHandle(fileHandle, curPage);
-        char recordBuffer[PAGE_SIZE] = {};
+        uint8_t recordBuffer[PAGE_SIZE] = {};
         int16_t recordLen = 0;
 
         ret = pageHandle.getRecordByteSeq(curSlot, recordBuffer, recordLen);
@@ -111,7 +111,7 @@ namespace PeterDB {
         for(uint32_t i = 0; i < recordDescriptor.size(); i++) {
             selectedAttrIndex[i] = i;
         }
-        ret = RecordHelper::recordByteSeqToAPIFormat(recordBuffer, recordDescriptor, selectedAttrIndex, (char *) data);
+        ret = RecordHelper::recordByteSeqToAPIFormat(recordBuffer, recordDescriptor, selectedAttrIndex, (uint8_t *) data);
         if(ret) {
             LOG(ERROR) << "Fail to transform Record to Raw Data @ RecordBasedFileManager::readRecord" << std::endl;
             return ret;
@@ -133,7 +133,7 @@ namespace PeterDB {
 
         // 1. Follow the pointer to find the real record
         int curPage = rid.pageNum;
-        short curSlot = rid.slotNum;
+        int16_t curSlot = rid.slotNum;
         while(true) {
             RecordPageHandle curPageHandle(fileHandle, curPage);
             // Break the loop when real record is found
@@ -168,35 +168,35 @@ namespace PeterDB {
                                            std::ostream &out) {
         RC ret = 0;
         const std::string deli = " ";
-        char strBuffer[PAGE_SIZE] = {};
+        uint8_t strBuffer[PAGE_SIZE] = {};
         unsigned dataPos = ceil(recordDescriptor.size() / 8.0);
-        for(short i = 0; i < recordDescriptor.size(); i++) {
+        for(int16_t i = 0; i < recordDescriptor.size(); i++) {
             // Print Name
             out << recordDescriptor[i].name << ":" << deli;
             // Print Value
-            if(RecordHelper::isAttrNull((char*)data, i)) {
+            if(RecordHelper::isAttrNull((uint8_t*)data, i)) {
                 out << "NULL";
             }
             else {
                 switch (recordDescriptor[i].type) {
                     case TypeInt:
                         int intVal;
-                        memcpy(&intVal, (char *)data + dataPos, sizeof(int));
+                        memcpy(&intVal, (uint8_t *)data + dataPos, sizeof(int));
                         dataPos += sizeof(int);
                         out << intVal;
                         break;
                     case TypeReal:
                         float floatVal;
-                        memcpy(&floatVal, (char *)data + dataPos, sizeof(float));
+                        memcpy(&floatVal, (uint8_t *)data + dataPos, sizeof(float));
                         dataPos += sizeof(float);
                         out << floatVal;
                         break;
                     case TypeVarChar:
                         unsigned strLen;
                         // Get String Len
-                        memcpy(&strLen, (char *)data + dataPos, sizeof(unsigned));
+                        memcpy(&strLen, (uint8_t *)data + dataPos, sizeof(unsigned));
                         dataPos += sizeof(unsigned);
-                        memcpy(strBuffer, (char *)data + dataPos, strLen);
+                        memcpy(strBuffer, (uint8_t *)data + dataPos, strLen);
                         strBuffer[strLen] = '\0';
                         dataPos += strLen;
                         out << strBuffer;
@@ -231,7 +231,7 @@ namespace PeterDB {
 
         // 1. Follow the pointer to find real record
         int curPageIndex = rid.pageNum;
-        short curSlotIndex = rid.slotNum;
+        int16_t curSlotIndex = rid.slotNum;
         while(true) {
             RecordPageHandle curPageHandle(fileHandle, curPageIndex);
             if(!curPageHandle.isRecordReadable(curSlotIndex)) {
@@ -245,14 +245,14 @@ namespace PeterDB {
         }
 
         // 2. Transform Record Data to Byte Sequence
-        short recordLen = 0;
-        char buffer[PAGE_SIZE] = {};
+        int16_t recordLen = 0;
+        uint8_t buffer[PAGE_SIZE] = {};
         ret = RecordHelper::APIFormatToRecordByteSeq((uint8_t *) data, recordDescriptor, buffer, recordLen);
         if(ret) {
             LOG(ERROR) << "Fail to Transform Record to Byte Seq @ RecordBasedFileManager::insertRecord" << std::endl;
             return ret;
         }
-        char byteSeq[recordLen];
+        uint8_t byteSeq[recordLen];
         memcpy(byteSeq, buffer, recordLen);
 
         // 3. Find available space to store new record and update
@@ -261,8 +261,8 @@ namespace PeterDB {
         // Case 3: new byte seq is longer, no enough space in cur page -> insert record in a new page && update old record to a pointer
         PageNum pageToStore;
         RecordPageHandle curPageHandle(fileHandle, curPageIndex);
-        short oldRecordOffset = curPageHandle.getRecordOffset(curSlotIndex);
-        short oldRecordLen = curPageHandle.getRecordLen(curSlotIndex);
+        int16_t oldRecordOffset = curPageHandle.getRecordOffset(curSlotIndex);
+        int16_t oldRecordLen = curPageHandle.getRecordLen(curSlotIndex);
 
         if(oldRecordLen >= recordLen ||
            (recordLen > oldRecordLen && (recordLen - oldRecordLen) <= curPageHandle.getFreeSpace())) {
@@ -340,9 +340,9 @@ namespace PeterDB {
     }
 
     // Page Organizer Functions
-    RC RecordBasedFileManager::findAvailPage(FileHandle& fileHandle, short recordLen, PageNum& availPageIndex) {
+    RC RecordBasedFileManager::findAvailPage(FileHandle& fileHandle, int16_t recordLen, PageNum& availPageIndex) {
         RC ret = 0;
-        char buffer[PAGE_SIZE] = {};
+        uint8_t buffer[PAGE_SIZE] = {};
         unsigned pageCount = fileHandle.getNumberOfPages();
 
         if(pageCount > 0) {

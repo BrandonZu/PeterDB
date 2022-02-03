@@ -4,25 +4,25 @@ namespace PeterDB {
     // Record Format
     // Mask(short) | AttrNum(short) | Directory:Attr Offsets, 2 * AttrNum | Attr1 | Attr2 | Attr3 | ... | AttrN |
     RC RecordHelper::APIFormatToRecordByteSeq(uint8_t* apiData, const std::vector<Attribute> &attrs,
-                                              char* byteSeq, short& recordLen) {
+                                              uint8_t* byteSeq, int16_t& recordLen) {
         // 0. Write Mask: 0x00 Record; 0x01 Pointer
-        short mask = MASK_RECORD;
+        int16_t mask = MASK_RECORD;
         memcpy(byteSeq, &mask, sizeof(mask));
 
         // 1. Write Attribute Number
-        short attrNum = attrs.size();
+        int16_t attrNum = attrs.size();
         memcpy(byteSeq + sizeof(mask), &attrNum, sizeof(attrNum));
 
         // 2. Write Directory
-        short dictOffset = sizeof(mask) + sizeof(attrNum), dictLen = attrNum * sizeof(short);
-        short valOffset = dictOffset + dictLen;
-        short dictPos = dictOffset, valPos = valOffset;
-        short rawDataPos = ceil(attrNum / 8.0);
+        int16_t dictOffset = sizeof(mask) + sizeof(attrNum), dictLen = attrNum * sizeof(int16_t);
+        int16_t valOffset = dictOffset + dictLen;
+        int16_t dictPos = dictOffset, valPos = valOffset;
+        int16_t rawDataPos = ceil(attrNum / 8.0);
 
         // Fill each attribute's dict
-        for(short i = 0; i < attrNum; i++, dictPos += sizeof(short)) {
+        for(int16_t i = 0; i < attrNum; i++, dictPos += sizeof(int16_t)) {
             if(isAttrNull(apiData, i)) {
-                short attrEndPos = RECORD_ATTR_NULL_ENDPOS;
+                int16_t attrEndPos = RECORD_ATTR_NULL_ENDPOS;
                 memcpy(byteSeq + dictPos, &attrEndPos, sizeof(attrEndPos));
                 continue;
             }
@@ -34,7 +34,7 @@ namespace PeterDB {
                     rawDataPos += attrs[i].length;
                     valPos += attrs[i].length;
                     // Set Attr Directory
-                    memcpy(byteSeq + dictPos, &valPos, sizeof(short));
+                    memcpy(byteSeq + dictPos, &valPos, sizeof(int16_t));
                     break;
 
                 case TypeVarChar:
@@ -47,7 +47,7 @@ namespace PeterDB {
                     rawDataPos += strLen;
                     valPos += strLen;
                     // Set Attr Directory
-                    memcpy(byteSeq + dictPos, &valPos, sizeof(short));
+                    memcpy(byteSeq + dictPos, &valPos, sizeof(int16_t));
                     break;
 
                 default:
@@ -59,8 +59,8 @@ namespace PeterDB {
         return 0;
     }
 
-    RC RecordHelper::recordByteSeqToAPIFormat(char record[], const std::vector<Attribute> &recordDescriptor,
-                                              std::vector<uint32_t> &selectedAttrIndex, char* apiData) {
+    RC RecordHelper::recordByteSeqToAPIFormat(uint8_t record[], const std::vector<Attribute> &recordDescriptor,
+                                              std::vector<uint32_t> &selectedAttrIndex, uint8_t* apiData) {
         int16_t attrNum = selectedAttrIndex.size();
         std::unordered_set<uint32_t> selectedAttrSet(selectedAttrIndex.begin(), selectedAttrIndex.end());
 
@@ -126,14 +126,14 @@ namespace PeterDB {
         return 0;
     }
 
-    bool RecordHelper::isAttrNull(char* data, uint32_t index) {
+    bool RecordHelper::isAttrNull(uint8_t* data, uint32_t index) {
         unsigned byteIndex = index / 8;
         unsigned bitIndex = index % 8;
-        char tmp = data[byteIndex];
+        uint8_t tmp = data[byteIndex];
         return (tmp >> (7 - bitIndex)) & 0x1;
     }
 
-    void RecordHelper::setAttrNull(char* data, uint32_t index) {
+    void RecordHelper::setAttrNull(uint8_t* data, uint32_t index) {
         unsigned byteIndex = index / 8;
         unsigned bitIndex = index % 8;
         data[byteIndex] = data[byteIndex] | (0x1 << (7 - bitIndex));

@@ -86,14 +86,14 @@ namespace PeterDB {
         return 4;
     }
 
-    void FileHandle::setCounters(const unsigned counters[]) {
+    void FileHandle::setCounters(const uint32_t counters[]) {
         readPageCounter = counters[0];
         writePageCounter = counters[1];
         appendPageCounter = counters[2];
         pageCounter = counters[3];
     }
 
-    void FileHandle::getCounters(unsigned counters[]) const {
+    void FileHandle::getCounters(uint32_t counters[]) const {
         counters[0] = readPageCounter;
         counters[1] = writePageCounter;
         counters[2] = appendPageCounter;
@@ -101,14 +101,15 @@ namespace PeterDB {
     }
 
     RC FileHandle::readMetadata() {
-        if(!isOpen())
+        if(!isOpen()) {
             return ERR_FILE_NOT_OPEN;
+        }
 
         fs->seekg(fs->beg);
         int counterNum = PeterDB::FileHandle::getCounterNum();
-        unsigned counters[counterNum];
+        uint32_t counters[counterNum];
         for(int i = 0; i < counterNum; i++) {
-            fs->read(reinterpret_cast<char *>(counters + i), sizeof(unsigned));
+            fs->read(reinterpret_cast<char *>(counters + i), sizeof(uint32_t));
         }
         setCounters(counters);
 
@@ -121,10 +122,10 @@ namespace PeterDB {
 
         fs->seekp(fs->beg);
         int counterNum = PeterDB::FileHandle::getCounterNum();
-        unsigned counters[counterNum];
+        uint32_t counters[counterNum];
         getCounters(counters);
         for(int i = 0; i < counterNum; i++) {
-            fs->write(reinterpret_cast<char *>(counters + i), sizeof(unsigned));
+            fs->write(reinterpret_cast<char *>(counters + i), sizeof(uint32_t));
         }
         fs->flush();
         fs->seekp(fs->beg);
@@ -141,7 +142,9 @@ namespace PeterDB {
         fileName = tmpFileName;
         // Read Metadata From the header page
         RC rc = readMetadata();
-        if(rc) return rc;
+        if(rc) {
+            return rc;
+        }
         return 0;
     }
 
@@ -210,11 +213,11 @@ namespace PeterDB {
         return 0;
     }
 
-    unsigned FileHandle::getNumberOfPages() {
+    uint32_t FileHandle::getNumberOfPages() {
         return pageCounter;
     }
 
-    RC FileHandle::collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount) {
+    RC FileHandle::collectCounterValues(uint32_t &readPageCount, uint32_t &writePageCount, uint32_t &appendPageCount) {
         readPageCount = this->readPageCounter;
         writePageCount = this->writePageCounter;
         appendPageCount = this->appendPageCounter;

@@ -186,7 +186,7 @@ namespace PeterDB {
 
     private:
         // TODO: Create a PageOrganizer class to organize pages
-        RC findAvailPage(FileHandle& fileHandle, short recordLen, PageNum& availPageIndex);
+        RC findAvailPage(FileHandle& fileHandle, int16_t recordLen, PageNum& availPageIndex);
     };
 
     class RecordPageHandle {
@@ -194,9 +194,9 @@ namespace PeterDB {
         FileHandle& fh;
         PageNum pageNum;
 
-        short freeBytePointer;
-        short slotCounter;
-        char data[PAGE_SIZE] = {};
+        int16_t freeBytePointer;
+        int16_t slotCounter;
+        uint8_t data[PAGE_SIZE] = {};
 
     public:
         RecordPageHandle(FileHandle& fileHandle, PageNum pageNum);
@@ -204,57 +204,57 @@ namespace PeterDB {
 
         // Read Record
         // Record Format Described in report
-        RC getRecordByteSeq(short slotNum, char recordByteSeq[], short& recordLen);
-        RC getRecordPointerTarget(short curSlotNum, int& ptrPageNum, short& ptrSlotNum);
+        RC getRecordByteSeq(int16_t slotNum, uint8_t recordByteSeq[], int16_t& recordLen);
+        RC getRecordPointerTarget(int16_t curSlotNum, int& ptrPageNum, int16_t& ptrSlotNum);
 
-        RC getRecordAttr(short slotNum, short attrIndex, uint8_t* attrData);
+        RC getRecordAttr(int16_t slotNum, int16_t attrIndex, uint8_t* attrData);
         RC getNextRecord(uint16_t& slotIndex, uint8_t* byteSeq, uint16_t& recordLen);
 
         // Insert Record
-        RC insertRecord(char byteSeq[], short byteSeqLen, RID& rid);
+        RC insertRecord(uint8_t byteSeq[], int16_t byteSeqLen, RID& rid);
 
         // Delete Record
-        RC deleteRecord(int slotIndex);
+        RC deleteRecord(int16_t slotIndex);
 
         // Update Record
-        RC updateRecord(short slotIndex, char byteSeq[], short recordLen);
-        RC setRecordPointToNewRecord(short curSlotIndex, const RID& newRecordPos);
+        RC updateRecord(int16_t slotIndex, uint8_t byteSeq[], int16_t recordLen);
+        RC setRecordPointToNewRecord(int16_t curSlotIndex, const RID& newRecordPos);
 
         // Helper Functions
         // Shift records left to avoid empty holes between records
-        RC shiftRecord(short dataNeedShiftStartPos, short dist, bool shiftLeft);
+        RC shiftRecord(int16_t dataNeedShiftStartPos, int16_t dist, bool shiftLeft);
 
-        short getFreeSpace();
-        bool hasEnoughSpaceForRecord(int recordLen);
+        int16_t getFreeSpace();
+        bool hasEnoughSpaceForRecord(int16_t recordLen);
 
-        short getAvailSlot();
+        int16_t getAvailSlot();
 
-        short getHeaderLen();
-        short getSlotListLen();
+        int16_t getHeaderLen();
+        int16_t getSlotListLen();
 
-        short getSlotCounterOffset();
-        short getFreeBytePointerOffset();
+        int16_t getSlotCounterOffset();
+        int16_t getFreeBytePointerOffset();
 
         // For Specific Record
         // Slot Index start from 1 !!!
-        short getSlotOffset(short slotIndex);
-        short getRecordOffset(short slotIndex);
-        short getRecordLen(short slotIndex);
+        int16_t getSlotOffset(int16_t slotIndex);
+        int16_t getRecordOffset(int16_t slotIndex);
+        int16_t getRecordLen(int16_t slotIndex);
 
-        bool isRecordPointer(short slotNum);
+        bool isRecordPointer(int16_t slotNum);
         bool isRecordReadable(uint16_t slotIndex);
-        bool isRecordDeleted(short slotIndex);
+        bool isRecordDeleted(int16_t slotIndex);
 
-        short getAttrNum(short slotIndex);  // Attr offset relative to the start point of record
-        short getAttrOffset(short slotIndex, short attrIndex);   // Based on record format
-        short getAttrLen(short slotIndex, short attrIndex);     // Based on record format
+        int16_t getAttrNum(int16_t slotIndex);  // Attr offset relative to the start point of record
+        int16_t getAttrOffset(int16_t slotIndex, int16_t attrIndex);   // Based on record format
+        int16_t getAttrLen(int16_t slotIndex, int16_t attrIndex);     // Based on record format
     };
 
     // Based on Record Format
     class RecordHelper {
     public:
-        static RC APIFormatToRecordByteSeq(uint8_t * apiData, const std::vector<Attribute> &attrs, char* byteSeq, short & recordLen);
-        static RC recordByteSeqToAPIFormat(char record[], const std::vector<Attribute> &recordDescriptor, std::vector<uint32_t> &selectedAttrIndex, char* apiData);
+        static RC APIFormatToRecordByteSeq(uint8_t * apiData, const std::vector<Attribute> &attrs, uint8_t* byteSeq, int16_t & recordLen);
+        static RC recordByteSeqToAPIFormat(uint8_t record[], const std::vector<Attribute> &recordDescriptor, std::vector<uint32_t> &selectedAttrIndex, uint8_t* apiData);
 
         static bool isAttrNull(uint8_t* data, uint32_t index);
         static void setAttrNull(uint8_t* data, uint32_t index);

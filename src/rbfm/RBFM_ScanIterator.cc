@@ -97,7 +97,7 @@ namespace PeterDB {
         recordRid.pageNum = curPageIndex;
         recordRid.slotNum = curSlotIndex;
 
-        ret = RecordHelper::recordByteSeqToAPIFormat((char *)recordByteSeq, recordDesc, selectedAttrIndex, (char *)data);
+        ret = RecordHelper::recordByteSeqToAPIFormat((uint8_t *)recordByteSeq, recordDesc, selectedAttrIndex, (uint8_t *)data);
         if(ret) {
             LOG(ERROR) << "Fail to tranform byte seq to api format @ RBFM_ScanIterator::getNextRecord" << std::endl;
             return ERR_TRANSFORM_BYTESEQ_TO_APIFORMAT;
