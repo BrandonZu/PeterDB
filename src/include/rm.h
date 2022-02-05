@@ -88,13 +88,13 @@ namespace PeterDB {
     class RelationManager {
     private:
         // Catalog tables - Tables and Columns
-        static const std::string tableCatalogName;
-        static const std::vector<Attribute> tableCatalogSchema;
-        static const std::string colCatalogName;
-        static const std::vector<Attribute> colCatalogSchema;
+        static const std::string catalogTablesName;
+        static const std::vector<Attribute> catalogTablesSchema;
+        static const std::string catalogColumnsName;
+        static const std::vector<Attribute> catalogColumnsSchema;
 
-        FileHandle tableCatalogFH;
-        FileHandle columnCatalogFH;
+        FileHandle catalogTablesFH;
+        FileHandle catalogColumnsFH;
 
     public:
         static RelationManager &instance();

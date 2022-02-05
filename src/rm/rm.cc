@@ -6,15 +6,15 @@ namespace PeterDB {
         return _relation_manager;
     }
 
-    const std::string RelationManager::tableCatalogName = "Tables";
-    const std::string RelationManager::colCatalogName = "Columns";
-    const std::vector<Attribute> RelationManager::tableCatalogSchema = std::vector<Attribute> {
+    const std::string RelationManager::catalogTablesName = "Tables";
+    const std::string RelationManager::catalogColumnsName = "Columns";
+    const std::vector<Attribute> RelationManager::catalogTablesSchema = std::vector<Attribute> {
             Attribute{CATALOG_TABLES_TABLEID, TypeInt, sizeof(TypeInt)},
             Attribute{CATALOG_TABLES_TABLENAME, TypeVarChar, CATALOG_TABLES_TABLENAME_LEN},
             Attribute{CATALOG_TABLES_FILENAME, TypeVarChar, CATALOG_TABLES_FILENAME_LEN},
             Attribute{CATALOG_TABLES_TABLETYPE, TypeInt, sizeof(TypeInt)}
     };
-    const std::vector<Attribute> RelationManager::colCatalogSchema = std::vector<Attribute> {
+    const std::vector<Attribute> RelationManager::catalogColumnsSchema = std::vector<Attribute> {
             Attribute{CATALOG_COLUMNS_TABLEID, TypeInt, sizeof(TypeInt)},
             Attribute{CATALOG_COLUMNS_COLUMNNAME, TypeVarChar, CATALOG_COLUMNS_COLUMNNAME_LEN},
             Attribute{CATALOG_COLUMNS_COLUMNTYPE, TypeInt, sizeof(TypeInt)},
@@ -33,33 +33,33 @@ namespace PeterDB {
     RC RelationManager::createCatalog() {
         RC ret;
         RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
-        ret = rbfm.createFile(tableCatalogName);
+        ret = rbfm.createFile(catalogTablesName);
         if(ret) {
             LOG(ERROR) << "Fail to create TABLES catalog! @ RelationManager::createCatalog" << std::endl;
             return ret;
         }
-        ret = rbfm.createFile(colCatalogName);
+        ret = rbfm.createFile(catalogColumnsName);
         if(ret) {
             LOG(ERROR) << "Fail to create COLUMNS catalog! @ RelationManager::createCatalog" << std::endl;
             return ret;
         }
 
-        ret = rbfm.openFile(RelationManager::tableCatalogName, tableCatalogFH);
+        ret = rbfm.openFile(catalogTablesName, catalogTablesFH);
         if(ret) {
             return ERR_OPEN_TABLES_CATALOG;
         }
-        ret = rbfm.openFile(RelationManager::colCatalogName, columnCatalogFH);
+        ret = rbfm.openFile(catalogColumnsName, catalogColumnsFH);
         if(ret) {
             return ERR_OPEN_COLUMNS_CATALOG;
         }
 
-        ret = insertMetaDataIntoCatalog(RelationManager::tableCatalogName, RelationManager::tableCatalogSchema,
+        ret = insertMetaDataIntoCatalog(RelationManager::catalogTablesName, RelationManager::catalogTablesSchema,
                                         TABLE_TYPE_SYSTEM);
         if(ret) {
             LOG(ERROR) << "Fail to insert TABLES metadata into catalog @ RelationManager::createCatalog" << std::endl;
             return ret;
         }
-        ret = insertMetaDataIntoCatalog(RelationManager::colCatalogName, RelationManager::colCatalogSchema,
+        ret = insertMetaDataIntoCatalog(RelationManager::catalogColumnsName, RelationManager::catalogColumnsSchema,
                                         TABLE_TYPE_SYSTEM);
         if(ret) {
             LOG(ERROR) << "Fail to insert COLUMNS metadata into catalog @ RelationManager::createCatalog" << std::endl;
@@ -71,14 +71,14 @@ namespace PeterDB {
     RC RelationManager::deleteCatalog() {
         RC ret = 0;
         RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
-        tableCatalogFH.close();
-        columnCatalogFH.close();
-        ret = rbfm.destroyFile(RelationManager::tableCatalogName);
+        catalogTablesFH.close();
+        catalogColumnsFH.close();
+        ret = rbfm.destroyFile(RelationManager::catalogTablesName);
         if(ret) {
             LOG(ERROR) << "Fail to delete TABLES catalog @ RelationManager::deleteCatalog" << std::endl;
             return ret;
         }
-        ret = rbfm.destroyFile(RelationManager::colCatalogName);
+        ret = rbfm.destroyFile(RelationManager::catalogColumnsName);
         if(ret) {
             LOG(ERROR) << "Fail to delete COLUMNS catalog @ RelationManager::deleteCatalog" << std::endl;
             return ret;
@@ -160,7 +160,7 @@ namespace PeterDB {
         std::vector<std::string> colAttrName = {
                 CATALOG_COLUMNS_COLUMNNAME, CATALOG_COLUMNS_COLUMNTYPE, CATALOG_COLUMNS_COLUMNLENGTH
         };
-        ret = rbfm.scan(columnCatalogFH, colCatalogSchema, CATALOG_COLUMNS_TABLEID,
+        ret = rbfm.scan(catalogColumnsFH, catalogColumnsSchema, CATALOG_COLUMNS_TABLEID,
                         EQ_OP, &tablesRecord.tableID, colAttrName, colIter);
         if(ret) {
             return ret;
@@ -371,7 +371,7 @@ namespace PeterDB {
         std::string fileName = getFileNameOfTable(tableName, tableType);
         CatalogTablesRecord tablesRecord(tableID, tableName, fileName, tableType);
         tablesRecord.getRecordAPIFormat(data);
-        ret = rbfm.insertRecord(tableCatalogFH, tableCatalogSchema, data, rid);
+        ret = rbfm.insertRecord(catalogTablesFH, catalogTablesSchema, data, rid);
         if(ret) {
             LOG(ERROR) << "Fail to insert metadata into TABLES @ RelationManager::insertMetaDataIntoCatalog" << std::endl;
             return ret;
@@ -380,7 +380,7 @@ namespace PeterDB {
         for(int32_t i = 0; i < schema.size(); i++) {
             CatalogColumnsRecord columnsRecord(tableID, schema[i].name, schema[i].type, schema[i].length, i);
             columnsRecord.getRecordAPIFormat(data);
-            ret = rbfm.insertRecord(columnCatalogFH, colCatalogSchema, data, rid);
+            ret = rbfm.insertRecord(catalogColumnsFH, catalogColumnsSchema, data, rid);
             if(ret) {
                 LOG(ERROR) << "Fail to insert metadata into COLUMNS @ RelationManager::insertMetaDataIntoCatalog" << std::endl;
                 return ret;
@@ -400,7 +400,7 @@ namespace PeterDB {
         uint8_t apiData[PAGE_SIZE];
         // Scan Catalog TABLES and delete target table record in TABLES
         RBFM_ScanIterator tablesIter;
-        ret = rbfm.scan(tableCatalogFH, tableCatalogSchema, CATALOG_TABLES_TABLEID,
+        ret = rbfm.scan(catalogTablesFH, catalogTablesSchema, CATALOG_TABLES_TABLEID,
                         EQ_OP, &tableID, tableAttrNames, tablesIter);
         if(ret) {
             return ret;
@@ -409,7 +409,7 @@ namespace PeterDB {
         while(tablesIter.getNextRecord(curRID, apiData) == 0) {
             CatalogTablesRecord tmpRecord(apiData, tableAttrNames);
             if(tmpRecord.tableType == TABLE_TYPE_USER) {
-                ret = rbfm.deleteRecord(tableCatalogFH, tableCatalogSchema, curRID);
+                ret = rbfm.deleteRecord(catalogTablesFH, catalogTablesSchema, curRID);
                 if (ret) {
                     return ret;
                 }
@@ -423,14 +423,14 @@ namespace PeterDB {
 
         // Scan Catalog Columns and delete target column record in COLUMNS
         RBFM_ScanIterator colIter;
-        ret = rbfm.scan(columnCatalogFH, colCatalogSchema, CATALOG_COLUMNS_TABLEID,
+        ret = rbfm.scan(catalogColumnsFH, catalogColumnsSchema, CATALOG_COLUMNS_TABLEID,
                         EQ_OP, &tableID, colAttrNames, colIter);
         if(ret) {
             return ret;
         }
         int32_t colRecordDeletedCount = 0;
         while(colIter.getNextRecord(curRID, apiData) == 0) {
-            ret = rbfm.deleteRecord(columnCatalogFH, colCatalogSchema, curRID);
+            ret = rbfm.deleteRecord(catalogColumnsFH, catalogColumnsSchema, curRID);
             if(ret) {
                 return ret;
             }
@@ -445,18 +445,18 @@ namespace PeterDB {
 
     RC RelationManager::openCatalog() {
         RC ret = 0;
-        if(tableCatalogFH.isOpen() && columnCatalogFH.isOpen()) {
+        if(catalogTablesFH.isOpen() && catalogColumnsFH.isOpen()) {
             return 0;
         }
         RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
-        if(!tableCatalogFH.isOpen()) {
-            ret = rbfm.openFile(tableCatalogName, tableCatalogFH);
+        if(!catalogTablesFH.isOpen()) {
+            ret = rbfm.openFile(catalogTablesName, catalogTablesFH);
             if(ret) {
                 return ret;
             }
         }
-        if(!columnCatalogFH.isOpen()) {
-            ret = rbfm.openFile(colCatalogName, columnCatalogFH);
+        if(!catalogColumnsFH.isOpen()) {
+            ret = rbfm.openFile(catalogColumnsName, catalogColumnsFH);
             if(ret) {
                 return ret;
             }
@@ -478,7 +478,7 @@ namespace PeterDB {
                 CATALOG_TABLES_TABLEID, CATALOG_TABLES_TABLENAME, CATALOG_TABLES_FILENAME, CATALOG_TABLES_TABLETYPE
         };
 
-        ret = rbfm.scan(tableCatalogFH, tableCatalogSchema, tableNameCondition,
+        ret = rbfm.scan(catalogTablesFH, catalogTablesSchema, tableNameCondition,
                         EQ_OP, tableNameStr, attrNames, tableScanIter);
         if(ret) {
             LOG(ERROR) << "Fail to initiate scan iterator @ RelationManager::getMetaDataFromCatalogTables" << std::endl;
@@ -512,7 +512,7 @@ namespace PeterDB {
                 CATALOG_TABLES_TABLEID, CATALOG_TABLES_TABLENAME, CATALOG_TABLES_TABLETYPE
         };
 
-        ret = rbfm.scan(tableCatalogFH, tableCatalogSchema, CATALOG_TABLES_TABLEID,
+        ret = rbfm.scan(catalogTablesFH, catalogTablesSchema, CATALOG_TABLES_TABLEID,
                         NO_OP, &emptyData, attrNames, tableScanIter);
         if(ret) {
             LOG(ERROR) << "Fail to initiate scan iterator @ RelationManager::getTableID" << std::endl;

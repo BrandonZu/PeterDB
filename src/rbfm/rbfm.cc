@@ -307,7 +307,7 @@ namespace PeterDB {
             return ERR_PAGE_NOT_EXIST;
         }
 
-        int attrIndex;
+        uint32_t attrIndex;
         for(attrIndex = 0; attrIndex < recordDescriptor.size(); attrIndex++) {
             if(recordDescriptor[attrIndex].name == attributeName) {
                 break;
@@ -319,11 +319,15 @@ namespace PeterDB {
         }
 
         RecordPageHandle pageHandle(fileHandle, rid.pageNum);
-        ret = pageHandle.getRecordAttr(rid.slotNum, attrIndex, (uint8_t*)data);
+        uint8_t recordByteSeq[PAGE_SIZE];
+        int16_t recordLen;
+        ret = pageHandle.getRecordByteSeq(rid.slotNum, recordByteSeq, recordLen);
         if(ret) {
-            LOG(ERROR) << "Fail to read attribute @ RecordBasedFileManager::readAttribute" << std::endl;
+            LOG(ERROR) << "Fail to read record @ RecordBasedFileManager::readAttribute" << std::endl;
             return ret;
         }
+        std::vector<uint32_t> selectedAttrIndex = {attrIndex};
+        RecordHelper::recordByteSeqToAPIFormat(recordByteSeq, recordDescriptor, selectedAttrIndex, (uint8_t*)data);
         return 0;
     }
 
