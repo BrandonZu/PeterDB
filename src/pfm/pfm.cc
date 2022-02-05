@@ -72,6 +72,12 @@ namespace PeterDB {
         return fs && fs->is_open();
     }
 
+    bool FileHandle::isFileExists(std::string fileName) {
+        struct stat stFileInfo{};
+
+        return stat(fileName.c_str(), &stFileInfo) == 0;
+    }
+
     FileHandle::FileHandle() {
         readPageCounter = 0;
         writePageCounter = 0;
@@ -80,7 +86,11 @@ namespace PeterDB {
         fs = nullptr;
     }
 
-    FileHandle::~FileHandle() = default;
+    FileHandle::~FileHandle() {
+        if(fs) {
+            delete fs;
+        }
+    }
 
     int FileHandle::getCounterNum() {
         return 4;

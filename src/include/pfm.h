@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 #include <cstring>
+#include <sys/stat.h>
 
 #include "glog/logging.h"
 #include "src/include/ErrorCode.h"
@@ -56,6 +57,7 @@ namespace PeterDB {
         void setCounters(const uint32_t counters[]);
         void getCounters(unsigned counters[]) const;
         bool isOpen();
+        bool isFileExists(std::string fileName);
 
     public:
         FileHandle();                                                       // Default constructor

@@ -6,22 +6,6 @@ namespace PeterDB {
         return _relation_manager;
     }
 
-    const std::string RelationManager::catalogTablesName = "Tables";
-    const std::string RelationManager::catalogColumnsName = "Columns";
-    const std::vector<Attribute> RelationManager::catalogTablesSchema = std::vector<Attribute> {
-            Attribute{CATALOG_TABLES_TABLEID, TypeInt, sizeof(TypeInt)},
-            Attribute{CATALOG_TABLES_TABLENAME, TypeVarChar, CATALOG_TABLES_TABLENAME_LEN},
-            Attribute{CATALOG_TABLES_FILENAME, TypeVarChar, CATALOG_TABLES_FILENAME_LEN},
-            Attribute{CATALOG_TABLES_TABLETYPE, TypeInt, sizeof(TypeInt)}
-    };
-    const std::vector<Attribute> RelationManager::catalogColumnsSchema = std::vector<Attribute> {
-            Attribute{CATALOG_COLUMNS_TABLEID, TypeInt, sizeof(TypeInt)},
-            Attribute{CATALOG_COLUMNS_COLUMNNAME, TypeVarChar, CATALOG_COLUMNS_COLUMNNAME_LEN},
-            Attribute{CATALOG_COLUMNS_COLUMNTYPE, TypeInt, sizeof(TypeInt)},
-            Attribute{CATALOG_COLUMNS_COLUMNLENGTH, TypeInt, sizeof(TypeInt)},
-            Attribute{CATALOG_COLUMNS_COLUMNPOS, TypeInt, sizeof(TypeInt)},
-    };
-
     RelationManager::RelationManager() =default;
 
     RelationManager::~RelationManager() = default;
@@ -33,33 +17,24 @@ namespace PeterDB {
     RC RelationManager::createCatalog() {
         RC ret;
         RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
-        ret = rbfm.createFile(catalogTablesName);
+        ret = rbfm.createFile(getFileNameOfTable(catalogTablesName, TABLE_TYPE_SYSTEM));
         if(ret) {
             LOG(ERROR) << "Fail to create TABLES catalog! @ RelationManager::createCatalog" << std::endl;
             return ret;
         }
-        ret = rbfm.createFile(catalogColumnsName);
+        ret = rbfm.createFile(getFileNameOfTable(catalogColumnsName, TABLE_TYPE_SYSTEM));
         if(ret) {
             LOG(ERROR) << "Fail to create COLUMNS catalog! @ RelationManager::createCatalog" << std::endl;
             return ret;
         }
 
-        ret = rbfm.openFile(catalogTablesName, catalogTablesFH);
-        if(ret) {
-            return ERR_OPEN_TABLES_CATALOG;
-        }
-        ret = rbfm.openFile(catalogColumnsName, catalogColumnsFH);
-        if(ret) {
-            return ERR_OPEN_COLUMNS_CATALOG;
-        }
-
-        ret = insertMetaDataIntoCatalog(RelationManager::catalogTablesName, RelationManager::catalogTablesSchema,
+        ret = insertMetaDataIntoCatalog(catalogTablesName, catalogTablesSchema,
                                         TABLE_TYPE_SYSTEM);
         if(ret) {
             LOG(ERROR) << "Fail to insert TABLES metadata into catalog @ RelationManager::createCatalog" << std::endl;
             return ret;
         }
-        ret = insertMetaDataIntoCatalog(RelationManager::catalogColumnsName, RelationManager::catalogColumnsSchema,
+        ret = insertMetaDataIntoCatalog(catalogColumnsName, catalogColumnsSchema,
                                         TABLE_TYPE_SYSTEM);
         if(ret) {
             LOG(ERROR) << "Fail to insert COLUMNS metadata into catalog @ RelationManager::createCatalog" << std::endl;
@@ -73,16 +48,17 @@ namespace PeterDB {
         RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
         catalogTablesFH.close();
         catalogColumnsFH.close();
-        ret = rbfm.destroyFile(RelationManager::catalogTablesName);
+        ret = rbfm.destroyFile(getFileNameOfTable(catalogTablesName, TABLE_TYPE_SYSTEM));
         if(ret) {
             LOG(ERROR) << "Fail to delete TABLES catalog @ RelationManager::deleteCatalog" << std::endl;
             return ret;
         }
-        ret = rbfm.destroyFile(RelationManager::catalogColumnsName);
+        ret = rbfm.destroyFile(getFileNameOfTable(catalogColumnsName, TABLE_TYPE_SYSTEM));
         if(ret) {
             LOG(ERROR) << "Fail to delete COLUMNS catalog @ RelationManager::deleteCatalog" << std::endl;
             return ret;
         }
+
         return 0;
     }
 
@@ -450,13 +426,13 @@ namespace PeterDB {
         }
         RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
         if(!catalogTablesFH.isOpen()) {
-            ret = rbfm.openFile(catalogTablesName, catalogTablesFH);
+            ret = rbfm.openFile(getFileNameOfTable(catalogTablesName, TABLE_TYPE_SYSTEM), catalogTablesFH);
             if(ret) {
                 return ret;
             }
         }
         if(!catalogColumnsFH.isOpen()) {
-            ret = rbfm.openFile(catalogColumnsName, catalogColumnsFH);
+            ret = rbfm.openFile(getFileNameOfTable(catalogColumnsName, TABLE_TYPE_SYSTEM), catalogColumnsFH);
             if(ret) {
                 return ret;
             }
