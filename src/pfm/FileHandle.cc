@@ -7,7 +7,7 @@ using std::ofstream;
 
 namespace PeterDB {
     bool FileHandle::isOpen() {
-        return fs->is_open();
+        return fs && fs->is_open();
     }
 
     FileHandle::FileHandle() {
@@ -15,12 +15,11 @@ namespace PeterDB {
         writePageCounter = 0;
         appendPageCounter = 0;
         pageCounter = 0;
-        fs = new fstream;
+        fs = nullptr;
     }
 
     FileHandle::~FileHandle() {
         flushMetadata();
-        delete fs;
     }
 
     int FileHandle::getCounterNum() {
@@ -45,11 +44,11 @@ namespace PeterDB {
         if(!isOpen()) {
             return ERR_FILE_NOT_OPEN;
         }
-
+        fs->clear();
         fs->seekg(fs->beg);
-        int counterNum = PeterDB::FileHandle::getCounterNum();
+        uint32_t counterNum = PeterDB::FileHandle::getCounterNum();
         uint32_t counters[counterNum];
-        for(int i = 0; i < counterNum; i++) {
+        for(uint32_t i = 0; i < counterNum; i++) {
             fs->read(reinterpret_cast<char *>(counters + i), sizeof(uint32_t));
         }
         setCounters(counters);
@@ -60,27 +59,25 @@ namespace PeterDB {
     RC FileHandle::flushMetadata() {
         if(!isOpen())
             return ERR_FILE_NOT_OPEN;
-
+        fs->clear();
         fs->seekp(fs->beg);
-        int counterNum = PeterDB::FileHandle::getCounterNum();
+        uint32_t counterNum = PeterDB::FileHandle::getCounterNum();
         uint32_t counters[counterNum];
         getCounters(counters);
         for(uint32_t i = 0; i < counterNum; i++) {
             fs->write(reinterpret_cast<char *>(counters + i), sizeof(uint32_t));
         }
         fs->flush();
-        fs->seekp(fs->beg);
         return 0;
     }
 
     RC FileHandle::open(const std::string& tmpFileName) {
-        // Already bound to a file
         if(isOpen()) {
             return ERR_OPEN_FILE_ALREADY_OPEN;
         }
 
         fileName = tmpFileName;
-        fs->open(tmpFileName, std::fstream::in | std::fstream::in | std::fstream::in);
+        fs = new fstream(fileName, std::fstream::in | std::fstream::out | std::fstream::binary);
         if(!isOpen()) {
             return ERR_OPEN_FILE;
         }
@@ -99,7 +96,10 @@ namespace PeterDB {
         }
         // Flush all the counters to the hidden file
         flushMetadata();
-        fs->close();
+
+        delete fs;
+        fs = nullptr;
+
         return 0;
     }
 
@@ -111,6 +111,7 @@ namespace PeterDB {
         if(pageNum >= pageCounter)
             return ERR_PAGE_NOT_EXIST;
 
+        fs->clear();
         fs->seekg((pageNum + 1) * PAGE_SIZE, fs->beg);  // Page is 1-indexed
         fs->read((char *)data, PAGE_SIZE);
         if(!fs->good()) {
@@ -130,6 +131,7 @@ namespace PeterDB {
         if(pageNum >= pageCounter)
             return ERR_PAGE_NOT_EXIST;
 
+        fs->clear();
         fs->seekp((pageNum + 1) * PAGE_SIZE, fs->beg);  // Page is 1-indexed
         fs->write((char *)data, PAGE_SIZE);
         fs->flush(); // IMPORTANT!
@@ -146,6 +148,7 @@ namespace PeterDB {
         // Not Bound to a file
         if(!isOpen())
             return ERR_FILE_NOT_OPEN;
+
         fs->clear();
         fs->seekp((pageCounter + 1) * PAGE_SIZE);
         fs->write((char *)data, PAGE_SIZE);

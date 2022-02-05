@@ -68,7 +68,7 @@ namespace PeterDB {
         RC readPage(PageNum pageNum, void *data);                           // Get a specific page
         RC writePage(PageNum pageNum, const void *data);                    // Write a specific page
         RC appendPage(const void *data);                                    // Append a specific page
-        unsigned getNumberOfPages();                                        // Get the number of pages in the file
+        uint32_t getNumberOfPages();                                        // Get the number of pages in the file
         RC collectCounterValues(uint32_t &readPageCount, uint32_t &writePageCount,
                                 uint32_t &appendPageCount);                 // Put current counter values into variables
     };

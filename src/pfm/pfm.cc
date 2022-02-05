@@ -61,6 +61,9 @@ namespace PeterDB {
     }
 
     RC PagedFileManager::closeFile(FileHandle &fileHandle) {
+        if(!isFileExists(fileHandle.fileName)) {
+            return ERR_FILE_NOT_EXIST;
+        }
         RC rc = fileHandle.close();
         return rc;
     }
