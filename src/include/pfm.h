@@ -29,7 +29,7 @@ namespace PeterDB {
         RC destroyFile(const std::string &fileName);                        // Destroy a file
         RC openFile(const std::string &fileName, FileHandle &fileHandle);   // Open a file
         RC closeFile(FileHandle &fileHandle);                               // Close a file
-
+        bool isFileExists(std::string fileName);
     protected:
         PagedFileManager();                                                 // Prevent construction
         ~PagedFileManager();                                                // Prevent unwanted destruction
@@ -57,13 +57,12 @@ namespace PeterDB {
         void setCounters(const uint32_t counters[]);
         void getCounters(unsigned counters[]) const;
         bool isOpen();
-        bool isFileExists(std::string fileName);
 
     public:
         FileHandle();                                                       // Default constructor
         ~FileHandle();                                                      // Destructor
 
-        RC open(const std::string& tmpFileName, std::fstream* fs);
+        RC open(const std::string& tmpFileName);
         RC close();
 
         RC readPage(PageNum pageNum, void *data);                           // Get a specific page

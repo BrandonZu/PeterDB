@@ -20,26 +20,27 @@ namespace PeterDB {
     PagedFileManager &PagedFileManager::operator=(const PagedFileManager &) = default;
 
     RC PagedFileManager::createFile(const std::string &fileName) {
-        // Check if this file already exists
-        ifstream in_fs(fileName, ios::binary);
-        if(in_fs.is_open()) {
-            in_fs.close();
+        if(isFileExists(fileName)) {
             return ERR_CREATE_FILE_ALREADY_EXIST;
         }
+
         // Create the file using ofstream
         ofstream out_fs(fileName, ios::binary);
+
         // Reserve the first page to store metadata, e.g. counters, number of pages
-        char* buffer = new char[PAGE_SIZE];
-        for(int i = 0; i < PAGE_SIZE; i++) {
-            buffer[i] = 0;
-        }
+        char buffer[PAGE_SIZE];
+        bzero(buffer, PAGE_SIZE);
         out_fs.write(buffer, PAGE_SIZE);
+        out_fs.flush();
         out_fs.close();
-        delete[] buffer;
         return 0;
     }
 
     RC PagedFileManager::destroyFile(const std::string &fileName) {
+        if(!isFileExists(fileName)) {
+            return ERR_FILE_NOT_EXIST;
+        }
+
         if(remove(fileName.c_str()) != 0) {
             return ERR_DELETE_FILE;
         }
@@ -48,15 +49,11 @@ namespace PeterDB {
 
     RC PagedFileManager::openFile(const std::string &fileName, FileHandle &fileHandle) {
         RC ret = 0;
-        // Check if this file exists
-        fstream* tmp_fs = new fstream;
-        tmp_fs->open(fileName, ios::in | ios::out | ios::binary);
-
-        if(!tmp_fs->is_open()) {
-            return ERR_OPEN_FILE;
+        if(!isFileExists(fileName)) {
+            return ERR_FILE_NOT_EXIST;
         }
 
-        ret = fileHandle.open(fileName, tmp_fs);
+        ret = fileHandle.open(fileName);
         if(ret) {
             return ERR_OPEN_FILE;
         }
@@ -68,160 +65,9 @@ namespace PeterDB {
         return rc;
     }
 
-    bool FileHandle::isOpen() {
-        return fs && fs->is_open();
-    }
-
-    FileHandle::FileHandle() {
-        readPageCounter = 0;
-        writePageCounter = 0;
-        appendPageCounter = 0;
-        pageCounter = 0;
-        fs = nullptr;
-    }
-
-    FileHandle::~FileHandle() = default;
-
-    int FileHandle::getCounterNum() {
-        return 4;
-    }
-
-    void FileHandle::setCounters(const uint32_t counters[]) {
-        readPageCounter = counters[0];
-        writePageCounter = counters[1];
-        appendPageCounter = counters[2];
-        pageCounter = counters[3];
-    }
-
-    void FileHandle::getCounters(uint32_t counters[]) const {
-        counters[0] = readPageCounter;
-        counters[1] = writePageCounter;
-        counters[2] = appendPageCounter;
-        counters[3] = pageCounter;
-    }
-
-    RC FileHandle::readMetadata() {
-        if(!isOpen()) {
-            return ERR_FILE_NOT_OPEN;
-        }
-
-        fs->seekg(fs->beg);
-        int counterNum = PeterDB::FileHandle::getCounterNum();
-        uint32_t counters[counterNum];
-        for(int i = 0; i < counterNum; i++) {
-            fs->read(reinterpret_cast<char *>(counters + i), sizeof(uint32_t));
-        }
-        setCounters(counters);
-
-        return 0;
-    }
-
-    RC FileHandle::flushMetadata() {
-        if(!isOpen())
-            return ERR_FILE_NOT_OPEN;
-
-        fs->seekp(fs->beg);
-        int counterNum = PeterDB::FileHandle::getCounterNum();
-        uint32_t counters[counterNum];
-        getCounters(counters);
-        for(int i = 0; i < counterNum; i++) {
-            fs->write(reinterpret_cast<char *>(counters + i), sizeof(uint32_t));
-        }
-        fs->flush();
-        fs->seekp(fs->beg);
-        return 0;
-    }
-
-    RC FileHandle::open(const std::string& tmpFileName, std::fstream* tmpFS) {
-        // Already bound to a file
-        if(isOpen()) {
-            return ERR_OPEN_FILE_ALREADY_OPEN;
-        }
-
-        fs = tmpFS;
-        fileName = tmpFileName;
-        // Read Metadata From the header page
-        RC rc = readMetadata();
-        if(rc) {
-            return rc;
-        }
-        return 0;
-    }
-
-    RC FileHandle::close() {
-        if(!isOpen()) {
-            return ERR_FILE_NOT_OPEN;
-        }
-
-        // Flush all the counters to the hidden file
-        flushMetadata();
-        fs->close();
-        delete fs;
-        return 0;
-    }
-
-    RC FileHandle::readPage(PageNum pageNum, void *data) {
-        // Not Bound to a file
-        if(!isOpen())
-            return ERR_FILE_NOT_OPEN;
-        // Page Not Exist
-        if(pageNum >= pageCounter)
-            return ERR_PAGE_NOT_EXIST;
-
-        fs->seekg((pageNum + 1) * PAGE_SIZE, fs->beg);
-        fs->read((char *)data, PAGE_SIZE);
-        if(!fs->good())
-            return -1;
-        readPageCounter++;
-        // For Robust
-        // flushMetadata();
-        return 0;
-    }
-
-    RC FileHandle::writePage(PageNum pageNum, const void *data) {
-        // Not Bound to a file
-        if(!isOpen())
-            return ERR_FILE_NOT_OPEN;
-        // Page Not Exist
-        if(pageNum >= pageCounter)
-            return ERR_PAGE_NOT_EXIST;
-
-        fs->seekp((pageNum + 1) * PAGE_SIZE, fs->beg);
-        fs->write((char *)data, PAGE_SIZE);
-        fs->flush(); // IMPORTANT!
-        if(!fs->good())
-            return -1;
-        writePageCounter++;
-        // For Robust
-        // flushMetadata();
-        return 0;
-    }
-
-    RC FileHandle::appendPage(const void *data) {
-        // Not Bound to a file
-        if(!isOpen())
-            return ERR_FILE_NOT_OPEN;
-        fs->seekp((pageCounter + 1) * PAGE_SIZE);
-        fs->write((char *)data, PAGE_SIZE);
-        fs->flush(); // IMPORTANT!
-        if(!fs->good())
-            return -1;
-        appendPageCounter++;
-        pageCounter++;
-        // For Robust
-        // flushMetadata();
-        return 0;
-    }
-
-    uint32_t FileHandle::getNumberOfPages() {
-        return pageCounter;
-    }
-
-    RC FileHandle::collectCounterValues(uint32_t &readPageCount, uint32_t &writePageCount, uint32_t &appendPageCount) {
-        readPageCount = this->readPageCounter;
-        writePageCount = this->writePageCounter;
-        appendPageCount = this->appendPageCounter;
-        return 0;
+    bool PagedFileManager::isFileExists(std::string fileName) {
+        struct stat stFileInfo{};
+        return stat(fileName.c_str(), &stFileInfo) == 0;
     }
 
 } // namespace PeterDB

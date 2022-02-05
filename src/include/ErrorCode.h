@@ -16,12 +16,13 @@ namespace PeterDB {
     const int32_t ERR_FILE_NOT_OPEN = 100;
     const int32_t ERR_PAGE_NOT_EXIST = 101;
     const int32_t ERR_OPEN_FILE = 102;
-    const int32_t ERR_READ_PAGE_FAIL = 103;
-    const int32_t ERR_WRITE_PAGE_FAIL = 104;
+    const int32_t ERR_READ_PAGE = 103;
+    const int32_t ERR_WRITE_PAGE = 104;
     const int32_t ERR_CREATE_FILE_ALREADY_EXIST = 105;
     const int32_t ERR_OPEN_FILE_ALREADY_OPEN = 106;
     const int32_t ERR_DELETE_FILE = 107;
-
+    const int32_t ERR_FILE_NOT_EXIST = 108;
+    const int32_t ERR_APPEND_PAGE = 109;
 
     /*
      * Record Based File System
