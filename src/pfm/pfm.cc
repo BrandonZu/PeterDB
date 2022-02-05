@@ -53,7 +53,7 @@ namespace PeterDB {
         tmp_fs->open(fileName, ios::in | ios::out | ios::binary);
 
         if(!tmp_fs->is_open()) {
-            return ERR_OPEN_FILE_ALREADY_OPEN;
+            return ERR_OPEN_FILE;
         }
 
         ret = fileHandle.open(fileName, tmp_fs);

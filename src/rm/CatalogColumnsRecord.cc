@@ -99,4 +99,12 @@ namespace PeterDB {
         apiDataPos += sizeof(columnPos);
         return 0;
     }
+
+    Attribute CatalogColumnsRecord::getAttribute() {
+        Attribute attr;
+        attr.name = columnName;
+        attr.type = static_cast<AttrType>(columnType);
+        attr.length = columnLen;
+        return attr;
+    }
 }

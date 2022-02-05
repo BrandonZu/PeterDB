@@ -77,6 +77,8 @@ namespace PeterDB {
 
         RC constructFromAPIFormat(uint8_t* apiData, const std::vector<std::string>& attrNames);
         RC getRecordAPIFormat(uint8_t* apiData);
+
+        Attribute getAttribute();
     };
 
     // Relation Manager
@@ -140,7 +142,7 @@ namespace PeterDB {
         // Assume table not exist, assign an ID to it
         RC getNewTableID(std::string tableName, const int32_t tableType, int32_t& tableID);
 
-        bool isCatalogOpen();
+        RC openCatalog();
 
         std::string getFileNameOfTable(std::string tableName, std::int32_t type);
 

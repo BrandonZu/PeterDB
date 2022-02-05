@@ -92,7 +92,8 @@ namespace PeterDB {
             LOG(ERROR) << "Table name can not be empty! @ RelationManager::createTable" << std::endl;
             return ERR_TABLE_NAME_INVALID;
         }
-        if(!isCatalogOpen()) {
+        ret = openCatalog();
+        if(ret) {
             LOG(ERROR) << "Catalog not open! @ RelationManager::createTable" << std::endl;
             return ERR_CATALOG_NOT_OPEN;
         }
@@ -114,8 +115,9 @@ namespace PeterDB {
     }
 
     RC RelationManager::deleteTable(const std::string &tableName) {
-        RC ret = 0;
-        if(!isCatalogOpen()) {
+        RC ret = 0;;
+        ret = openCatalog();
+        if(ret) {
             LOG(ERROR) << "Catalog not open! @ RelationManager::deleteTable" << std::endl;
             return ERR_CATALOG_NOT_OPEN;
         }
@@ -141,7 +143,36 @@ namespace PeterDB {
     }
 
     RC RelationManager::getAttributes(const std::string &tableName, std::vector<Attribute> &attrs) {
-        return -1;
+        RC ret = 0;
+        ret = openCatalog();
+        if(ret) {
+            return ERR_CATALOG_NOT_OPEN;
+        }
+        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
+        CatalogTablesRecord tablesRecord;
+        ret = getMetaDataFromCatalogTables(tableName, TABLE_TYPE_USER, tablesRecord);
+        if(ret) {
+            LOG(ERROR) << "Fail to get table meta data @ RelationManager::getAttributes" << std::endl;
+            return ret;
+        }
+
+        RBFM_ScanIterator colIter;
+        std::vector<std::string> colAttrName = {
+                CATALOG_COLUMNS_COLUMNNAME, CATALOG_COLUMNS_COLUMNTYPE, CATALOG_COLUMNS_COLUMNLENGTH
+        };
+        ret = rbfm.scan(columnCatalogFH, colCatalogSchema, CATALOG_COLUMNS_TABLEID,
+                        EQ_OP, &tablesRecord.tableID, colAttrName, colIter);
+        if(ret) {
+            return ret;
+        }
+        RID curRID;
+        uint8_t apiData[PAGE_SIZE];
+        while(colIter.getNextRecord(curRID, apiData) == 0) {
+            CatalogColumnsRecord curCol(apiData, colAttrName);
+            attrs.push_back(curCol.getAttribute());
+        }
+
+        return 0;
     }
 
     RC RelationManager::insertTuple(const std::string &tableName, const void *data, RID &rid) {
@@ -199,8 +230,8 @@ namespace PeterDB {
             LOG(ERROR) << "Fail to get a new table ID @ RelationManager::insertMetaDataIntoCatalog" << std::endl;
             return ret;
         }
-
-        if(!isCatalogOpen()) {
+        ret = openCatalog();
+        if(ret) {
             LOG(ERROR) << "Catalog not open @ RelationManager::insertMetaDataIntoCatalog" << std::endl;
             return ERR_CATALOG_NOT_OPEN;
         }
@@ -284,8 +315,25 @@ namespace PeterDB {
         return 0;
     }
 
-    bool RelationManager::isCatalogOpen() {
-        return tableCatalogFH.isOpen() && columnCatalogFH.isOpen();
+    RC RelationManager::openCatalog() {
+        RC ret = 0;
+        if(tableCatalogFH.isOpen() && columnCatalogFH.isOpen()) {
+            return 0;
+        }
+        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
+        if(!tableCatalogFH.isOpen()) {
+            ret = rbfm.openFile(tableCatalogName, tableCatalogFH);
+            if(ret) {
+                return ret;
+            }
+        }
+        if(!columnCatalogFH.isOpen()) {
+            ret = rbfm.openFile(colCatalogName, columnCatalogFH);
+            if(ret) {
+                return ret;
+            }
+        }
+        return 0;
     }
 
     RC RelationManager::getMetaDataFromCatalogTables(const std::string& tableName, const int32_t tableType, CatalogTablesRecord& tablesRecord) {
