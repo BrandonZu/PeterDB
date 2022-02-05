@@ -55,14 +55,14 @@ namespace PeterDB {
         }
 
         int16_t recordOffset = getRecordOffset(slotNum);
-        int16_t attrOffset = getAttrOffset(slotNum, attrIndex);
+        int16_t attrOffset = getAttrBeginPos(slotNum, attrIndex);
         int16_t attrLen = getAttrLen(slotNum, attrIndex);
         memcpy(attrData, data + recordOffset + attrOffset, attrLen);
 
         return 0;
     }
 
-    RC RecordPageHandle::getNextRecord(uint16_t& slotIndex, uint8_t* byteSeq, uint16_t& recordLen) {
+    RC RecordPageHandle::getNextRecord(uint16_t& slotIndex, uint8_t* byteSeq, int16_t& recordLen) {
         RC ret = 0;
         if(slotIndex > slotCounter) {
             return ERR_NEXT_RECORD_NOT_EXIST;
@@ -78,7 +78,7 @@ namespace PeterDB {
         }
         // Return the next real record to the caller
         slotIndex = realRecordIndex;
-        ret = getRecordByteSeq(slotIndex, (uint8_t *)byteSeq, (int16_t& )recordLen);
+        ret = getRecordByteSeq(slotIndex, byteSeq, recordLen);
         if(ret) {
             return ret;
         }
@@ -323,7 +323,7 @@ namespace PeterDB {
         int16_t recordOffset = getRecordOffset(slotNum);
         int16_t mask;
         memcpy(&mask, data + recordOffset, sizeof(int16_t));
-        return mask == 0x1;
+        return mask == MASK_RECORD_POINTER;
     }
 
     bool RecordPageHandle::isRecordReadable(uint16_t slotIndex) {
@@ -340,29 +340,49 @@ namespace PeterDB {
         return attrNum;
     }
 
-    int16_t RecordPageHandle::getAttrOffset(int16_t slotIndex, int16_t attrIndex) {
-        int16_t recordOffset = getRecordOffset(slotIndex);
-        int16_t dictOffset = sizeof(int16_t) * 2 + attrIndex * sizeof(int16_t);
-        int16_t attrOffset;
-        memcpy(&attrOffset, data + recordOffset + dictOffset, sizeof(int16_t));
-        return attrOffset;
-    }
-
-    int16_t RecordPageHandle::getAttrLen(int16_t slotIndex, int16_t attrIndex) {
-        int16_t curOffset = getAttrOffset(slotIndex, attrIndex);
+    int16_t RecordPageHandle::getAttrBeginPos(int16_t slotIndex, int16_t attrIndex) {
+        int16_t curOffset = getAttrEndPos(slotIndex, attrIndex);
         if(curOffset == -1) {   // Null attribute
             return -1;
         }
         int16_t prevOffset = -1;
         // Looking for previous attribute that is not null
-        for(int i = slotIndex - 1; i >= 0; i--) {
-            prevOffset = getAttrOffset(slotIndex, i);
+        for(int i = attrIndex - 1; i >= 0; i--) {
+            prevOffset = getAttrEndPos(slotIndex, i);
             if(prevOffset != -1) {
                 break;
             }
         }
         if(prevOffset == -1) {
-            prevOffset = (2 + getAttrNum(slotIndex)) * sizeof(int16_t);
+            prevOffset = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN + getAttrNum(slotIndex) * sizeof(int16_t);
+        }
+        return prevOffset;
+
+    }
+
+    int16_t RecordPageHandle::getAttrEndPos(int16_t slotIndex, int16_t attrIndex) {
+        int16_t recordOffset = getRecordOffset(slotIndex);
+        int16_t dictOffset = sizeof(int16_t) * 2 + attrIndex * sizeof(int16_t);
+        int16_t attrEndPos;
+        memcpy(&attrEndPos, data + recordOffset + dictOffset, sizeof(int16_t));
+        return attrEndPos;
+    }
+
+    int16_t RecordPageHandle::getAttrLen(int16_t slotIndex, int16_t attrIndex) {
+        int16_t curOffset = getAttrEndPos(slotIndex, attrIndex);
+        if(curOffset == -1) {   // Null attribute
+            return -1;
+        }
+        int16_t prevOffset = -1;
+        // Looking for previous attribute that is not null
+        for(int i = attrIndex - 1; i >= 0; i--) {
+            prevOffset = getAttrEndPos(slotIndex, i);
+            if(prevOffset != -1) {
+                break;
+            }
+        }
+        if(prevOffset == -1) {
+            prevOffset = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN + getAttrNum(slotIndex) * sizeof(int16_t);
         }
         return curOffset - prevOffset;
     }

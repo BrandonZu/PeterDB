@@ -61,48 +61,50 @@ namespace PeterDB {
 
     RC RecordHelper::recordByteSeqToAPIFormat(uint8_t record[], const std::vector<Attribute> &recordDescriptor,
                                               std::vector<uint32_t> &selectedAttrIndex, uint8_t* apiData) {
-        int16_t attrNum = selectedAttrIndex.size();
+        int16_t allAttrNum = recordDescriptor.size();
+        int16_t selectedAttrNum = selectedAttrIndex.size();
+        if(selectedAttrNum == 0) {
+            return 0;
+        }
         std::unordered_set<uint32_t> selectedAttrSet(selectedAttrIndex.begin(), selectedAttrIndex.end());
 
         // 1. Set Null Byte
-        int16_t nullByteNum = ceil(attrNum / 8.0);
+        int16_t nullByteNum = ceil(selectedAttrNum / 8.0);
         uint8_t nullByte[nullByteNum];
-        for(int16_t i = 0; i < nullByteNum; i++) {
-            nullByte[i] = 0;
-        }
+        bzero(nullByte, nullByteNum);
         memcpy(apiData, nullByte, nullByteNum);
 
         // 2. Write Attr Values
         int16_t apiDataPos = nullByteNum;
 
         int16_t attrDictOffset = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN, attrDictPos = attrDictOffset;
-        int16_t attrValOffset = attrDictOffset + attrNum * RECORD_ATTR_ENDPOS_LEN, attrValPos = attrValOffset;
+        int16_t attrValOffset = attrDictOffset + allAttrNum * RECORD_ATTR_ENDPOS_LEN;
 
         // Last Not Null Attr's End Pos - Initial Value: attrValOffset
         int16_t prevAttrEndPos = attrValOffset;
-        int16_t curAttrEndPos;
-        for(int16_t i = 0; i < attrNum; i++, attrDictPos += RECORD_ATTR_ENDPOS_LEN) {
-            if(selectedAttrSet.find(i) == selectedAttrSet.end()) {
-                continue;   // Ignore attributes not in selected list
-            }
-
+        for(int16_t i = 0; i < allAttrNum; i++, attrDictPos += RECORD_ATTR_ENDPOS_LEN) {
+            int16_t curAttrEndPos;
             memcpy(&curAttrEndPos, record + attrDictPos, RECORD_ATTR_ENDPOS_LEN);
+
+            if(selectedAttrSet.find(i) == selectedAttrSet.end()) {
+                if(curAttrEndPos != RECORD_ATTR_NULL_ENDPOS) {
+                    prevAttrEndPos = curAttrEndPos;
+                }
+                continue;
+            }
 
             if(curAttrEndPos == RECORD_ATTR_NULL_ENDPOS) {
                 setAttrNull(apiData, i);    // Null Attr -> Set Null bit to 1
                 continue;
             }
 
-            // Attributes not null
             switch (recordDescriptor[i].type) {
                 case TypeInt:
-                    memcpy(apiData + apiDataPos, record + attrValPos, sizeof(TypeInt));
-                    attrValPos += sizeof(TypeReal);
+                    memcpy(apiData + apiDataPos, record + prevAttrEndPos, sizeof(TypeInt));
                     apiDataPos += sizeof(TypeReal);
                     break;
                 case TypeReal:
-                    memcpy(apiData + apiDataPos, record + attrValPos, sizeof(TypeReal));
-                    attrValPos += sizeof(TypeReal);
+                    memcpy(apiData + apiDataPos, record + prevAttrEndPos, sizeof(TypeReal));
                     apiDataPos += sizeof(TypeReal);
                     break;
                 case TypeVarChar:
@@ -112,8 +114,7 @@ namespace PeterDB {
                     memcpy(apiData + apiDataPos, &strLen, sizeof(uint32_t));
                     apiDataPos += sizeof(uint32_t);
                     // Write String Val
-                    memcpy(apiData + apiDataPos, record + attrValPos, strLen);
-                    attrValPos += strLen;
+                    memcpy(apiData + apiDataPos, record + prevAttrEndPos, strLen);
                     apiDataPos += strLen;
                     break;
                 default:

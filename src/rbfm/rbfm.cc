@@ -132,7 +132,7 @@ namespace PeterDB {
         }
 
         // 1. Follow the pointer to find the real record
-        int curPage = rid.pageNum;
+        int32_t curPage = rid.pageNum;
         int16_t curSlot = rid.slotNum;
         while(true) {
             RecordPageHandle curPageHandle(fileHandle, curPage);

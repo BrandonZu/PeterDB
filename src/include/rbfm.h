@@ -83,14 +83,15 @@ namespace PeterDB {
         CompOp compOp;
         Attribute conditionAttr;
         uint32_t conditionAttrIndex;
-        void * conditionAttrValue;
+        uint8_t* conditionAttrValue;
+        int32_t conditionStrLen;    // Only use when condition attr is string
 
         uint32_t curPageIndex;
         uint16_t curSlotIndex;
 
         // Store record byte sequence
         uint8_t recordByteSeq[PAGE_SIZE];
-        uint16_t recordLen;
+        int16_t recordLen;
 
     public:
         RBFM_ScanIterator();
@@ -107,8 +108,6 @@ namespace PeterDB {
         RC getNextRecord(RID &recordRid, void *data);
 
         bool isRecordMeetCondition(uint8_t attrData[], int16_t attrLen);
-
-        RC APIFormatToAttrDict(uint8_t* apiData, std::unordered_map<std::string, void*>& attrDataList);
     };
 
     class RecordBasedFileManager {
@@ -208,7 +207,7 @@ namespace PeterDB {
         RC getRecordPointerTarget(int16_t curSlotNum, int& ptrPageNum, int16_t& ptrSlotNum);
 
         RC getRecordAttr(int16_t slotNum, int16_t attrIndex, uint8_t* attrData);
-        RC getNextRecord(uint16_t& slotIndex, uint8_t* byteSeq, uint16_t& recordLen);
+        RC getNextRecord(uint16_t& slotIndex, uint8_t* byteSeq, int16_t& recordLen);
 
         // Insert Record
         RC insertRecord(uint8_t byteSeq[], int16_t byteSeqLen, RID& rid);
@@ -246,8 +245,9 @@ namespace PeterDB {
         bool isRecordDeleted(int16_t slotIndex);
 
         int16_t getAttrNum(int16_t slotIndex);  // Attr offset relative to the start point of record
-        int16_t getAttrOffset(int16_t slotIndex, int16_t attrIndex);   // Based on record format
-        int16_t getAttrLen(int16_t slotIndex, int16_t attrIndex);     // Based on record format
+        int16_t getAttrBeginPos(int16_t slotIndex, int16_t attrIndex);  // Get begin position relative to record offset
+        int16_t getAttrEndPos(int16_t slotIndex, int16_t attrIndex);   // Get end position relative to record offset
+        int16_t getAttrLen(int16_t slotIndex, int16_t attrIndex);
     };
 
     // Based on Record Format

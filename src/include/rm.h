@@ -15,6 +15,8 @@ namespace PeterDB {
     const std::string CATALOG_TABLES_TABLETYPE = "table-type";
     const int32_t CATALOG_TABLES_TABLENAME_LEN = 50;
     const int32_t CATALOG_TABLES_FILENAME_LEN = 50;
+    const int32_t CATALOG_TABLES_ATTR_NUM = 4;
+    const int32_t CATALOG_TABLES_ATTR_NULL = -1;
 
     const std::string CATALOG_COLUMNS_TABLEID = "table-id";
     const std::string CATALOG_COLUMNS_COLUMNNAME = "column-name";
@@ -22,6 +24,8 @@ namespace PeterDB {
     const std::string CATALOG_COLUMNS_COLUMNLENGTH = "column-length";
     const std::string CATALOG_COLUMNS_COLUMNPOS = "column-position";
     const int32_t CATALOG_COLUMNS_COLUMNNAME_LEN = 50;
+    const int32_t CATALOG_COLUMNS_ATTR_NUM = 5;
+    const int32_t CATALOG_COLUMNS_ATTR_NULL = -1;
 
     const int32_t TABLE_TYPE_SYSTEM = 0;
     const int32_t TABLE_TYPE_USER = 1;
@@ -40,8 +44,44 @@ namespace PeterDB {
         RC close();
     };
 
+    class CatalogTablesRecord {
+    public:
+        int32_t tableID;
+        std::string tableName;
+        std::string fileName;
+        int32_t tableType;
+
+        CatalogTablesRecord();
+        CatalogTablesRecord(int32_t id, const std::string& name, const std::string& file, int32_t type);
+        CatalogTablesRecord(uint8_t* apiData, const std::vector<std::string>& attrNames);
+
+        ~CatalogTablesRecord();
+
+        RC constructFromAPIFormat(uint8_t* apiData, const std::vector<std::string>& attrNames);
+        RC getRecordAPIFormat(uint8_t* apiData);
+    };
+
+    class CatalogColumnsRecord {
+    public:
+        int32_t tableID;
+        std::string columnName;
+        int32_t columnType;
+        int32_t columnLen;
+        int32_t columnPos;
+
+        CatalogColumnsRecord();
+        CatalogColumnsRecord(int32_t id, const std::string& name, int32_t type, int32_t length, int32_t pos);
+        CatalogColumnsRecord(uint8_t* apiData, const std::vector<std::string>& attrNames);
+
+        ~CatalogColumnsRecord();
+
+        RC constructFromAPIFormat(uint8_t* apiData, const std::vector<std::string>& attrNames);
+        RC getRecordAPIFormat(uint8_t* apiData);
+    };
+
     // Relation Manager
     class RelationManager {
+    private:
         // Catalog tables - Tables and Columns
         static const std::string tableCatalogName;
         static const std::vector<Attribute> tableCatalogSchema;
@@ -93,13 +133,15 @@ namespace PeterDB {
         RC dropAttribute(const std::string &tableName, const std::string &attributeName);
 
     private:
+        RC insertMetaDataIntoCatalog(const std::string& tableName, std::vector<Attribute> schema, int32_t tableType);
+        RC deleteAllMetaDataFromCatalog(int32_t tableID, int32_t tableType);
 
-        RC insertTableMetaDataIntoCatalog(std::string tableName, std::vector<Attribute> schema, int32_t type);
-
-        // If table exists, return table-id; If not, assign an ID to it
-        RC getTableID(std::string tableName, uint32_t& tableID, const int32_t type);
+        RC getMetaDataFromCatalogTables(const std::string& tableName, int32_t tableType, CatalogTablesRecord& tablesRecord);
+        // Assume table not exist, assign an ID to it
+        RC getNewTableID(std::string tableName, const int32_t tableType, int32_t& tableID);
 
         bool isCatalogOpen();
+
         std::string getFileNameOfTable(std::string tableName, std::int32_t type);
 
     protected:

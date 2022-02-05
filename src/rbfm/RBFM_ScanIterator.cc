@@ -2,12 +2,13 @@
 
 namespace PeterDB {
     RBFM_ScanIterator::RBFM_ScanIterator() {
-        conditionAttrValue = nullptr;
+        conditionAttrValue = new uint8_t[4096];
     }
 
     RBFM_ScanIterator::~RBFM_ScanIterator() {
-        if(conditionAttrValue)
-            free(conditionAttrValue);
+        if(conditionAttrValue) {
+            delete[] conditionAttrValue;
+        }
     }
 
     RC RBFM_ScanIterator::open(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
@@ -25,30 +26,28 @@ namespace PeterDB {
         }
 
         this->curPageIndex = 0;
-        this->curSlotIndex = 1;    // Slot index start from 1
+        this->curSlotIndex = 0;    // Set slot index to 0; Next round it will begin searching at 1
 
         this->compOp = compOp;
         for(uint32_t i = 0; i < recordDescriptor.size(); i++) {
             if(recordDescriptor[i].name == conditionAttribute) {
                 conditionAttr = recordDescriptor[i];
                 conditionAttrIndex = i;
+                break;
             }
         }
 
         if(compOp != NO_OP) {
             switch (conditionAttr.type) {
                 case TypeInt:
-                    conditionAttrValue = new uint8_t(sizeof(int32_t));
-                    memcpy(conditionAttrValue, value, sizeof(int32_t));
+                    memcpy(conditionAttrValue, (uint8_t *)value, sizeof(TypeInt));
                     break;
                 case TypeReal:
-                    conditionAttrValue = new uint8_t(sizeof(int32_t));
-                    memcpy(conditionAttrValue, value, sizeof(float));
+                    memcpy(conditionAttrValue, (uint8_t *)value, sizeof(TypeReal));
                     break;
                 case TypeVarChar:
-                    uint32_t attrLen;
-                    memcpy(&attrLen, value, sizeof(attrLen));
-                    memcpy(conditionAttrValue, (uint8_t *)value + sizeof(attrLen), attrLen);
+                    memcpy(&conditionStrLen, (uint8_t *)value, sizeof(conditionStrLen));
+                    memcpy(conditionAttrValue, (uint8_t *)value + sizeof(conditionStrLen), conditionStrLen);
                     break;
                 default:
                     LOG(ERROR) << "Attribute Type not supported!" << std::endl;
@@ -59,8 +58,6 @@ namespace PeterDB {
     }
 
     RC RBFM_ScanIterator::close() {
-        if(this->conditionAttrValue)
-            free(conditionAttrValue);
         return 0;
     }
 
@@ -78,7 +75,7 @@ namespace PeterDB {
             ret = curPageHandle.getNextRecord(curSlotIndex, recordByteSeq, recordLen);
             if(ret) {
                 curPageIndex++;     // No next record in current page, go to next page
-                curSlotIndex = 1;   // Reset slot index to 1
+                curSlotIndex = 0;   // Reset slot index to 0, so that next round it will begin searching at 1
                 continue;
             }
             // Store attribute value and check if attribute meets condition
@@ -97,7 +94,7 @@ namespace PeterDB {
         recordRid.pageNum = curPageIndex;
         recordRid.slotNum = curSlotIndex;
 
-        ret = RecordHelper::recordByteSeqToAPIFormat((uint8_t *)recordByteSeq, recordDesc, selectedAttrIndex, (uint8_t *)data);
+        ret = RecordHelper::recordByteSeqToAPIFormat(recordByteSeq, recordDesc, selectedAttrIndex, (uint8_t *)data);
         if(ret) {
             LOG(ERROR) << "Fail to tranform byte seq to api format @ RBFM_ScanIterator::getNextRecord" << std::endl;
             return ERR_TRANSFORM_BYTESEQ_TO_APIFORMAT;
@@ -172,7 +169,7 @@ namespace PeterDB {
         }
         else if(conditionAttr.type == TypeVarChar) {
             std::string oper1((char *)attrData, attrLen);
-            std::string oper2((char *)conditionAttrValue, conditionAttr.length);
+            std::string oper2((char *)conditionAttrValue, conditionStrLen);
             switch (compOp) {
                 case EQ_OP:
                     meetCondition = oper1 == oper2;
@@ -198,18 +195,6 @@ namespace PeterDB {
             }
         }
         return meetCondition;
-    }
-
-    RC RBFM_ScanIterator::APIFormatToAttrDict(uint8_t* apiData, std::unordered_map<std::string, void*>& attrDataList) {
-        RC ret = 0;
-        int16_t attrNum = selectedAttrIndex.size();
-        int16_t nullByteNum = ceil(attrNum / 8.0);
-        for(uint16_t i = 0; i < selectedAttrIndex.size(); i++) {
-            if(RecordHelper::isAttrNull(apiData, i)) {
-
-            }
-        }
-        return ret;
     }
 
 }
