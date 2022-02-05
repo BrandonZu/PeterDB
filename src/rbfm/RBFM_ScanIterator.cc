@@ -86,7 +86,6 @@ namespace PeterDB {
             }
         }
         if(curPageIndex >= fileHandle.getNumberOfPages()) {
-            LOG(ERROR) << "Next Record not exist! @ RBFM_ScanIterator::getNextRecord" << std::endl;
             return ERR_NEXT_RECORD_NOT_EXIST;
         }
 

@@ -176,29 +176,138 @@ namespace PeterDB {
     }
 
     RC RelationManager::insertTuple(const std::string &tableName, const void *data, RID &rid) {
-
-        return -1;
+        RC ret = 0;
+        std::vector<Attribute> attrs;
+        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
+        ret = getAttributes(tableName, attrs);
+        if(ret) {
+            LOG(ERROR) << "Fail to get meta data @ RelationManager::insertTuple" << std::endl;
+            return ERR_GET_METADATA;
+        }
+        FileHandle fh;
+        ret = rbfm.openFile(getFileNameOfTable(tableName, TABLE_TYPE_USER), fh);
+        if(ret) {
+            return ret;
+        }
+        ret = rbfm.insertRecord(fh, attrs, data, rid);
+        if(ret) {
+            return ret;
+        }
+        ret = rbfm.closeFile(fh);
+        if(ret) {
+            return ret;
+        }
+        return 0;
     }
 
     RC RelationManager::deleteTuple(const std::string &tableName, const RID &rid) {
-        return -1;
+        RC ret = 0;
+        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
+        std::vector<Attribute> attrs;
+        ret = getAttributes(tableName, attrs);
+        if(ret) {
+            LOG(ERROR) << "Fail to get meta data @ RelationManager::deleteTuple" << std::endl;
+            return ERR_GET_METADATA;
+        }
+        FileHandle fh;
+        ret = rbfm.openFile(getFileNameOfTable(tableName, TABLE_TYPE_USER), fh);
+        if(ret) {
+            return ret;
+        }
+        ret = rbfm.deleteRecord(fh, attrs, rid);
+        if(ret) {
+            return ret;
+        }
+        ret = rbfm.closeFile(fh);
+        if(ret) {
+            return ret;
+        }
+        return 0;
     }
 
     RC RelationManager::updateTuple(const std::string &tableName, const void *data, const RID &rid) {
-        return -1;
+        RC ret = 0;
+        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
+        std::vector<Attribute> attrs;
+        ret = getAttributes(tableName, attrs);
+        if(ret) {
+            LOG(ERROR) << "Fail to get meta data @ RelationManager::updateTuple" << std::endl;
+            return ERR_GET_METADATA;
+        }
+        FileHandle fh;
+        ret = rbfm.openFile(getFileNameOfTable(tableName, TABLE_TYPE_USER), fh);
+        if(ret) {
+            return ret;
+        }
+        ret = rbfm.updateRecord(fh, attrs, data, rid);
+        if(ret) {
+            return ret;
+        }
+        ret = rbfm.closeFile(fh);
+        if(ret) {
+            return ret;
+        }
+        return 0;
     }
 
     RC RelationManager::readTuple(const std::string &tableName, const RID &rid, void *data) {
-        return -1;
+        RC ret = 0;
+        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
+        std::vector<Attribute> attrs;
+        ret = getAttributes(tableName, attrs);
+        if(ret) {
+            LOG(ERROR) << "Fail to get meta data @ RelationManager::readTuple" << std::endl;
+            return ERR_GET_METADATA;
+        }
+        FileHandle fh;
+        ret = rbfm.openFile(getFileNameOfTable(tableName, TABLE_TYPE_USER), fh);
+        if(ret) {
+            return ret;
+        }
+        ret = rbfm.readRecord(fh, attrs, rid, data);
+        if(ret) {
+            return ret;
+        }
+        ret = rbfm.closeFile(fh);
+        if(ret) {
+            return ret;
+        }
+        return 0;
     }
 
     RC RelationManager::printTuple(const std::vector<Attribute> &attrs, const void *data, std::ostream &out) {
-        return -1;
+        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
+        RC ret = rbfm.printRecord(attrs, data, out);
+        if(ret) {
+            return ret;
+        }
+        return 0;
     }
 
     RC RelationManager::readAttribute(const std::string &tableName, const RID &rid, const std::string &attributeName,
                                       void *data) {
-        return -1;
+        RC ret = 0;
+        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
+        std::vector<Attribute> attrs;
+        ret = getAttributes(tableName, attrs);
+        if(ret) {
+            LOG(ERROR) << "Fail to get meta data @ RelationManager::readTuple" << std::endl;
+            return ERR_GET_METADATA;
+        }
+        FileHandle fh;
+        ret = rbfm.openFile(getFileNameOfTable(tableName, TABLE_TYPE_USER), fh);
+        if(ret) {
+            return ret;
+        }
+        ret = rbfm.readAttribute(fh, attrs, rid, attributeName, data);
+        if(ret) {
+            return ret;
+        }
+        ret = rbfm.closeFile(fh);
+        if(ret) {
+            return ret;
+        }
+        return 0;
     }
 
     RC RelationManager::scan(const std::string &tableName,
@@ -207,7 +316,26 @@ namespace PeterDB {
                              const void *value,
                              const std::vector<std::string> &attributeNames,
                              RM_ScanIterator &rm_ScanIterator) {
-        return -1;
+        RC ret = 0;
+        std::vector<Attribute> attrs;
+        ret = getAttributes(tableName, attrs);
+        if(ret) {
+            LOG(ERROR) << "Fail to get meta data @ RelationManager::readTuple" << std::endl;
+            return ERR_GET_METADATA;
+        }
+        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
+        FileHandle fh;
+        ret = rbfm.openFile(getFileNameOfTable(tableName, TABLE_TYPE_USER), fh);
+        if(ret) {
+            return ret;
+        }
+
+        ret = rm_ScanIterator.open(fh, attrs, conditionAttribute, compOp, value, attributeNames);
+        if(ret) {
+            return ret;
+        }
+
+        return 0;
     }
 
     // Extra credit work

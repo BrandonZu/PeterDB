@@ -33,11 +33,14 @@ namespace PeterDB {
 
     // RM_ScanIterator is an iterator to go through tuples
     class RM_ScanIterator {
+        RBFM_ScanIterator rbfmIter;
     public:
         RM_ScanIterator();
-
         ~RM_ScanIterator();
 
+        RC open(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
+                const std::string &conditionAttribute, const CompOp compOp, const void *value,
+                const std::vector<std::string> &attributeNames);
         // "data" follows the same format as RelationManager::insertTuple()
         RC getNextTuple(RID &rid, void *data);
 

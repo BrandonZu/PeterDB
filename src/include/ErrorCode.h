@@ -47,6 +47,7 @@ namespace PeterDB {
     const int32_t ERR_OPEN_COLUMNS_CATALOG = 303;
     const int32_t ERR_CATALOG_NOT_OPEN = 304;
     const int32_t ERR_DELETE_METADATA = 305;
+    const int32_t ERR_GET_METADATA = 306;
 
 }
 
