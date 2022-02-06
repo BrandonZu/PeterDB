@@ -138,7 +138,7 @@ namespace PeterDB {
         // 1. Follow the pointer to find the real record
         int32_t curPage = rid.pageNum;
         int16_t curSlot = rid.slotNum;
-        while(true) {
+        while(curPage < fileHandle.getNumberOfPages()) {
             RecordPageHandle curPageHandle(fileHandle, curPage);
             // Break the loop when real record is found
             if(!curPageHandle.isRecordReadable(curSlot)) {
@@ -148,9 +148,9 @@ namespace PeterDB {
             if(!curPageHandle.isRecordPointer(curSlot)) {
                 break;
             }
-
-            curPageHandle.getRecordPointerTarget(curSlot, curPage, curSlot);
-            ret = curPageHandle.deleteRecord(curSlot);
+            int16_t oldSlot = curSlot;
+            curPageHandle.getRecordPointerTarget(oldSlot, curPage, curSlot);
+            ret = curPageHandle.deleteRecord(oldSlot);
             if(ret) {
                 LOG(ERROR) << "Fail to delete record @ RecordBasedFileManager::deleteRecord" << std::endl;
                 return ret;
