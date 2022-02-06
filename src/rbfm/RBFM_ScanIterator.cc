@@ -125,7 +125,7 @@ namespace PeterDB {
         if(compOp == NO_OP) {
             return true;
         }
-        if(attrLen == ATTR_NULL_LEN) {
+        if(attrLen == RECORD_ATTR_NULL_ENDPOS) {
             return false;
         }
 

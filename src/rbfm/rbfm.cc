@@ -80,26 +80,30 @@ namespace PeterDB {
         }
 
         // 1. Follow the pointer to find the real record
-        int curPage = rid.pageNum;
-        int16_t curSlot = rid.slotNum;
-        while(true) {
-            RecordPageHandle curPageHandle(fileHandle, curPage);
-            if(!curPageHandle.isRecordReadable(curSlot)) {
+        int curPageIndex = rid.pageNum;
+        int16_t curSlotIndex = rid.slotNum;
+        while(curPageIndex < fileHandle.getNumberOfPages()) {
+            RecordPageHandle curPageHandle(fileHandle, curPageIndex);
+            if(!curPageHandle.isRecordReadable(curSlotIndex)) {
                 return ERR_SLOT_NOT_EXIST_OR_DELETED;
             }
 
-            if(!curPageHandle.isRecordPointer(curSlot)) {
+            if(!curPageHandle.isRecordPointer(curSlotIndex)) {
                 break;
             }
-            curPageHandle.getRecordPointerTarget(curSlot, curPage, curSlot);
+            curPageHandle.getRecordPointerTarget(curSlotIndex, curPageIndex, curSlotIndex);
+        }
+        if(curPageIndex >= fileHandle.getNumberOfPages()) {
+            LOG(ERROR) << "Fail to find the real record @ RecordBasedFileManager::updateRecord" << std::endl;
+            return ERR_RECORD_NOT_FOUND;
         }
 
         // 2. Read Record Byte Seq
-        RecordPageHandle pageHandle(fileHandle, curPage);
+        RecordPageHandle pageHandle(fileHandle, curPageIndex);
         uint8_t recordBuffer[PAGE_SIZE] = {};
         int16_t recordLen = 0;
 
-        ret = pageHandle.getRecordByteSeq(curSlot, recordBuffer, recordLen);
+        ret = pageHandle.getRecordByteSeq(curSlotIndex, recordBuffer, recordLen);
         if(ret) {
             LOG(ERROR) << "Fail to Get Record Byte Seq @ RecordBasedFileManager::readRecord" << std::endl;
             return ret;
@@ -181,21 +185,21 @@ namespace PeterDB {
                 switch (recordDescriptor[i].type) {
                     case TypeInt:
                         int intVal;
-                        memcpy(&intVal, (uint8_t *)data + dataPos, sizeof(int));
-                        dataPos += sizeof(int);
+                        memcpy(&intVal, (uint8_t *)data + dataPos, sizeof(TypeInt));
+                        dataPos += sizeof(TypeInt);
                         out << intVal;
                         break;
                     case TypeReal:
                         float floatVal;
-                        memcpy(&floatVal, (uint8_t *)data + dataPos, sizeof(float));
-                        dataPos += sizeof(float);
+                        memcpy(&floatVal, (uint8_t *)data + dataPos, sizeof(TypeReal));
+                        dataPos += sizeof(TypeReal);
                         out << floatVal;
                         break;
                     case TypeVarChar:
-                        unsigned strLen;
+                        int32_t strLen;
                         // Get String Len
-                        memcpy(&strLen, (uint8_t *)data + dataPos, sizeof(unsigned));
-                        dataPos += sizeof(unsigned);
+                        memcpy(&strLen, (uint8_t *)data + dataPos, APIRECORD_STRLEN_LEN);
+                        dataPos += APIRECORD_STRLEN_LEN;
                         memcpy(strBuffer, (uint8_t *)data + dataPos, strLen);
                         strBuffer[strLen] = '\0';
                         dataPos += strLen;
@@ -203,6 +207,7 @@ namespace PeterDB {
                         break;
                     default:
                         LOG(ERROR) << "DataType not supported @ RecordBasedFileManager::printRecord" << std::endl;
+                        return ERR_IMPOSSIBLE;
                         break;
                 }
             }
@@ -230,9 +235,9 @@ namespace PeterDB {
         }
 
         // 1. Follow the pointer to find real record
-        int curPageIndex = rid.pageNum;
+        int32_t curPageIndex = rid.pageNum;
         int16_t curSlotIndex = rid.slotNum;
-        while(true) {
+        while(curPageIndex < fileHandle.getNumberOfPages()) {
             RecordPageHandle curPageHandle(fileHandle, curPageIndex);
             if(!curPageHandle.isRecordReadable(curSlotIndex)) {
                 return ERR_SLOT_NOT_EXIST_OR_DELETED;
@@ -242,6 +247,10 @@ namespace PeterDB {
                 break;
             }
             curPageHandle.getRecordPointerTarget(curSlotIndex, curPageIndex, curSlotIndex);
+        }
+        if(curPageIndex >= fileHandle.getNumberOfPages()) {
+            LOG(ERROR) << "Fail to find the real record @ RecordBasedFileManager::updateRecord" << std::endl;
+            return ERR_RECORD_NOT_FOUND;
         }
 
         // 2. Transform Record Data to Byte Sequence
@@ -292,7 +301,7 @@ namespace PeterDB {
             curPageHandle.setRecordPointToNewRecord(curSlotIndex, newRecordRID);
         }
 
-        return ret;
+        return 0;
     }
 
     RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,

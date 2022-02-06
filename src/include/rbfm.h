@@ -30,7 +30,6 @@ namespace PeterDB {
         AttrLength length; // attribute length
     } Attribute;
 
-    // Comparison Operator (NOT needed for part 1 of the project)
     typedef enum {
         EQ_OP = 0, // no condition// =
         LT_OP,      // <
@@ -40,10 +39,6 @@ namespace PeterDB {
         NE_OP,      // !=
         NO_OP       // no condition
     } CompOp;
-
-    /********************************************************************
-    * The scan iterator is NOT required to be implemented for Project 1 *
-    ********************************************************************/
 
     # define RBFM_EOF (-1)  // end of a scan operator
     //  RBFM_ScanIterator is an iterator to go through records
@@ -55,24 +50,33 @@ namespace PeterDB {
     //  }
     //  rbfmScanIterator.close();
 
-    const uint16_t MASK_RECORD = 0;
-    const uint16_t MASK_RECORD_POINTER = 1;
+    // Constant values for API Record format
+    const int16_t APIRECORD_STRLEN_LEN = 4;
+
+    // Constant values for Record format
+    const uint16_t RECORD_MASK_REALRECORD = 0;
+    const uint16_t RECORD_MASK_PTRRECORD = 1;
+    const int16_t RECORD_ATTR_NULL_ENDPOS = -1;
 
     const int16_t RECORD_MASK_LEN = 2;
     const int16_t RECORD_ATTRNUM_LEN = 2;
+    const int16_t RECORD_DICT_BEGIN = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN;
+    const int16_t RECORD_DICT_SLOT_LEN = 2;
     const int16_t RECORD_ATTR_ENDPOS_LEN = 2;
-    const int16_t RECORD_ATTR_NULL_ENDPOS = -1;
     const int16_t PTRRECORD_RECORD_PAGE_INDEX_LEN = 4;
     const int16_t PTRRECORD_SLOT_INDEX_LEN = 2;
-    const int16_t MIN_RECORD_LEN = RECORD_MASK_LEN + PTRRECORD_RECORD_PAGE_INDEX_LEN + PTRRECORD_SLOT_INDEX_LEN;
+    const int16_t RECORD_MIN_LEN = RECORD_MASK_LEN + PTRRECORD_RECORD_PAGE_INDEX_LEN + PTRRECORD_SLOT_INDEX_LEN;
 
-    const int16_t SLOT_INDEX_START = 1;
-    const int16_t SLOT_RECORD_POINTER_LEN = 2;
-    const int16_t SLOT_RECORD_LEN_LEN = 2;
-    const int16_t EMPTY_SLOT_OFFSET = -1;
-    const int16_t EMPTY_SLOT_LEN = 0;
+    // Constant values for Page format
+    const int16_t PAGE_FREE_BYTE_POINTER_LEN = 2;
+    const int16_t PAGE_SLOT_COUNTER_LEN = 2;
 
-    const int16_t ATTR_NULL_LEN = -1;
+    const int16_t PAGE_SLOT_INDEX_START = 1;
+    const int16_t PAGE_SLOT_RECORD_PTR_LEN = 2;
+    const int16_t PAGE_SLOT_RECORD_LEN_LEN = 2;
+    const int16_t PAGE_EMPTY_SLOT_OFFSET = -1;
+    const int16_t PAGE_EMPTY_SLOT_LEN = 0;
+
 
     class RBFM_ScanIterator {
     public:

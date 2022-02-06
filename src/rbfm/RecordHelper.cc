@@ -2,28 +2,28 @@
 
 namespace PeterDB {
     // Record Format
-    // Mask(short) | AttrNum(short) | Directory:Attr Offsets, 2 * AttrNum | Attr1 | Attr2 | Attr3 | ... | AttrN |
+    // Mask(2) | AttrNum(2) | Directory:Attr End Postions, 2 * AttrNum | Attr1(2) | Attr2(2) | Attr3(2) | ... | AttrN(2) |
     RC RecordHelper::APIFormatToRecordByteSeq(uint8_t* apiData, const std::vector<Attribute> &attrs,
                                               uint8_t* byteSeq, int16_t& recordLen) {
         // 0. Write Mask: 0x00 Record; 0x01 Pointer
-        int16_t mask = MASK_RECORD;
-        memcpy(byteSeq, &mask, sizeof(mask));
+        int16_t mask = RECORD_MASK_REALRECORD;
+        memcpy(byteSeq, &mask, RECORD_MASK_LEN);
 
         // 1. Write Attribute Number
         int16_t attrNum = attrs.size();
-        memcpy(byteSeq + sizeof(mask), &attrNum, sizeof(attrNum));
+        memcpy(byteSeq + RECORD_MASK_LEN, &attrNum, RECORD_ATTRNUM_LEN);
 
         // 2. Write Directory
-        int16_t dictOffset = sizeof(mask) + sizeof(attrNum), dictLen = attrNum * sizeof(int16_t);
+        int16_t dictOffset = RECORD_DICT_BEGIN, dictLen = attrNum * RECORD_DICT_SLOT_LEN;
         int16_t valOffset = dictOffset + dictLen;
         int16_t dictPos = dictOffset, valPos = valOffset;
         int16_t rawDataPos = ceil(attrNum / 8.0);
 
-        // Fill each attribute's dict
-        for(int16_t i = 0; i < attrNum; i++, dictPos += sizeof(int16_t)) {
+        // Fill each attribute's dict slot
+        for(int16_t i = 0; i < attrNum; i++, dictPos += RECORD_DICT_SLOT_LEN) {
             if(isAttrNull(apiData, i)) {
                 int16_t attrEndPos = RECORD_ATTR_NULL_ENDPOS;
-                memcpy(byteSeq + dictPos, &attrEndPos, sizeof(attrEndPos));
+                memcpy(byteSeq + dictPos, &attrEndPos, RECORD_DICT_SLOT_LEN);
                 continue;
             }
             switch(attrs[i].type) {
@@ -33,21 +33,21 @@ namespace PeterDB {
                     memcpy(byteSeq + valPos, apiData + rawDataPos, attrs[i].length);
                     rawDataPos += attrs[i].length;
                     valPos += attrs[i].length;
-                    // Set Attr Directory
-                    memcpy(byteSeq + dictPos, &valPos, sizeof(int16_t));
+                    // Write the end position into the dict slot
+                    memcpy(byteSeq + dictPos, &valPos, RECORD_DICT_SLOT_LEN);
                     break;
 
                 case TypeVarChar:
-                    unsigned strLen;
+                    int32_t strLen;
                     // Get String Length
-                    memcpy(&strLen, apiData + rawDataPos, sizeof(unsigned));
-                    rawDataPos += sizeof(unsigned);
+                    memcpy(&strLen, apiData + rawDataPos, APIRECORD_STRLEN_LEN);
+                    rawDataPos += APIRECORD_STRLEN_LEN;
                     // Copy String Value
                     memcpy(byteSeq + valPos, apiData + rawDataPos, strLen);
                     rawDataPos += strLen;
                     valPos += strLen;
                     // Set Attr Directory
-                    memcpy(byteSeq + dictPos, &valPos, sizeof(int16_t));
+                    memcpy(byteSeq + dictPos, &valPos, RECORD_DICT_SLOT_LEN);
                     break;
 
                 default:
@@ -111,8 +111,8 @@ namespace PeterDB {
                     // Write String Len
                     uint32_t strLen;
                     strLen = curAttrEndPos - prevAttrEndPos;
-                    memcpy(apiData + apiDataPos, &strLen, sizeof(uint32_t));
-                    apiDataPos += sizeof(uint32_t);
+                    memcpy(apiData + apiDataPos, &strLen, APIRECORD_STRLEN_LEN);
+                    apiDataPos += APIRECORD_STRLEN_LEN;
                     // Write String Val
                     memcpy(apiData + apiDataPos, record + prevAttrEndPos, strLen);
                     apiDataPos += strLen;
@@ -128,15 +128,15 @@ namespace PeterDB {
     }
 
     bool RecordHelper::isAttrNull(uint8_t* data, uint32_t index) {
-        unsigned byteIndex = index / 8;
-        unsigned bitIndex = index % 8;
+        uint32_t byteIndex = index / 8;
+        uint32_t bitIndex = index % 8;
         uint8_t tmp = data[byteIndex];
         return (tmp >> (7 - bitIndex)) & 0x1;
     }
 
     void RecordHelper::setAttrNull(uint8_t* data, uint32_t index) {
-        unsigned byteIndex = index / 8;
-        unsigned bitIndex = index % 8;
+        uint32_t byteIndex = index / 8;
+        uint32_t bitIndex = index % 8;
         data[byteIndex] = data[byteIndex] | (0x1 << (7 - bitIndex));
     }
 

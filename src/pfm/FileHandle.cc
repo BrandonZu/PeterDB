@@ -94,12 +94,10 @@ namespace PeterDB {
         if(!isOpen()) {
             return ERR_FILE_NOT_OPEN;
         }
-        // Flush all the counters to the hidden file
         flushMetadata();
 
         delete fs;
         fs = nullptr;
-
         return 0;
     }
 
@@ -118,8 +116,7 @@ namespace PeterDB {
             return ERR_READ_PAGE;
         }
         readPageCounter++;
-        // For Robust
-        // flushMetadata();
+        flushMetadata();
         return 0;
     }
 
@@ -139,8 +136,7 @@ namespace PeterDB {
             return ERR_WRITE_PAGE;
         }
         writePageCounter++;
-        // For Robust
-        // flushMetadata();
+        flushMetadata();
         return 0;
     }
 
@@ -158,8 +154,7 @@ namespace PeterDB {
         }
         appendPageCounter++;
         pageCounter++;
-        // For Robust
-        // flushMetadata();
+        flushMetadata();
         return 0;
     }
 

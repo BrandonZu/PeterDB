@@ -3,8 +3,8 @@
 namespace PeterDB {
     RecordPageHandle::RecordPageHandle(FileHandle& fileHandle, PageNum pageNum): fh(fileHandle), pageNum(pageNum) {
         fileHandle.readPage(pageNum, data);
-        memcpy(&freeBytePointer, data + getFreeBytePointerOffset(), sizeof(int16_t));
-        memcpy(&slotCounter, data + getSlotCounterOffset(), sizeof(int16_t));
+        memcpy(&freeBytePointer, data + getFreeBytePointerOffset(), PAGE_FREE_BYTE_POINTER_LEN);
+        memcpy(&slotCounter, data + getSlotCounterOffset(), PAGE_SLOT_COUNTER_LEN);
     }
 
     RecordPageHandle::~RecordPageHandle() {
@@ -33,18 +33,18 @@ namespace PeterDB {
     RC RecordPageHandle::getRecordPointerTarget(const int16_t curSlotNum, int& ptrPageNum, int16_t& ptrSlotNum) {
         if(curSlotNum > slotCounter || isRecordDeleted(curSlotNum)) {
             LOG(ERROR) << "Slot not exist or deleted! SlotIndex: " << curSlotNum << ", SlotCounter: " << slotCounter << " @ RecordPageHandle::getRecordPointerTarget" << std::endl;
-            return 1;
+            return ERR_SLOT_NOT_EXIST_OR_DELETED;
         }
 
         int16_t recordOffset = getRecordOffset(curSlotNum);
         int16_t mask;
-        memcpy(&mask, data + recordOffset, sizeof(int16_t));
-        if(mask != 0x1) {
+        memcpy(&mask, data + recordOffset, RECORD_MASK_LEN);
+        if(mask != RECORD_MASK_PTRRECORD) {
             LOG(ERROR) << "Record is not a pointer!" << std::endl;
             return -1;
         }
-        memcpy(&ptrPageNum, data + recordOffset + sizeof(int16_t), sizeof(int));
-        memcpy(&ptrSlotNum, data + recordOffset + sizeof(int16_t) + sizeof(int), sizeof(int16_t));
+        memcpy(&ptrPageNum, data + recordOffset + RECORD_MASK_LEN, PTRRECORD_RECORD_PAGE_INDEX_LEN);
+        memcpy(&ptrSlotNum, data + recordOffset + RECORD_MASK_LEN + PTRRECORD_RECORD_PAGE_INDEX_LEN, PTRRECORD_SLOT_INDEX_LEN);
         return 0;
     }
 
@@ -95,7 +95,7 @@ namespace PeterDB {
         int16_t slotIndex = getAvailSlot();
 
         // Pad the data if necessary and append padded record data to the end
-        uint16_t recordLen = std::max(byteSeqLen, MIN_RECORD_LEN);
+        uint16_t recordLen = std::max(byteSeqLen, RECORD_MIN_LEN);
         memcpy(data + freeBytePointer, byteSeq, byteSeqLen);
 
         // Fill in offset and length of record
@@ -145,8 +145,8 @@ namespace PeterDB {
         }
 
         // Update current slot to make it empty
-        recordOffset = EMPTY_SLOT_OFFSET;
-        recordLen = EMPTY_SLOT_LEN;
+        recordOffset = PAGE_EMPTY_SLOT_OFFSET;
+        recordLen = PAGE_EMPTY_SLOT_LEN;
         memcpy(data + getSlotOffset(slotIndex), &recordOffset, sizeof(int16_t));
         memcpy(data + getSlotOffset(slotIndex) + sizeof(int16_t), &recordLen, sizeof(int16_t));
 
@@ -200,7 +200,7 @@ namespace PeterDB {
         int16_t oldRecordLen = getRecordLen(curSlotIndex);
 
         // Write Mask
-        int16_t mask = MASK_RECORD_POINTER;
+        int16_t mask = RECORD_MASK_PTRRECORD;
         memcpy(data + recordOffset, &mask, sizeof(int16_t));
         // Write page index
         memcpy(data + recordOffset + sizeof(int16_t), &newRecordPos.pageNum, sizeof(unsigned));
@@ -309,21 +309,21 @@ namespace PeterDB {
 
     int16_t RecordPageHandle::getRecordOffset(int16_t slotIndex) {
         int16_t offset;
-        memcpy(&offset, data + getSlotOffset(slotIndex), sizeof(int16_t));
+        memcpy(&offset, data + getSlotOffset(slotIndex), RECORD_ATTR_ENDPOS_LEN);
         return offset;
     }
 
     int16_t RecordPageHandle::getRecordLen(int16_t slotIndex) {
         int16_t recordLen;
-        memcpy(&recordLen, data + getSlotOffset(slotIndex) + sizeof(int16_t), sizeof(int16_t));
+        memcpy(&recordLen, data + getSlotOffset(slotIndex) + RECORD_MASK_LEN, RECORD_ATTR_ENDPOS_LEN);
         return recordLen;
     }
 
     bool RecordPageHandle::isRecordPointer(int16_t slotNum) {
         int16_t recordOffset = getRecordOffset(slotNum);
         int16_t mask;
-        memcpy(&mask, data + recordOffset, sizeof(int16_t));
-        return mask == MASK_RECORD_POINTER;
+        memcpy(&mask, data + recordOffset, RECORD_MASK_LEN);
+        return mask == RECORD_MASK_PTRRECORD;
     }
 
     bool RecordPageHandle::isRecordReadable(uint16_t slotIndex) {
@@ -342,14 +342,14 @@ namespace PeterDB {
 
     int16_t RecordPageHandle::getAttrBeginPos(int16_t slotIndex, int16_t attrIndex) {
         int16_t curOffset = getAttrEndPos(slotIndex, attrIndex);
-        if(curOffset == -1) {   // Null attribute
-            return -1;
+        if(curOffset == RECORD_ATTR_NULL_ENDPOS) {   // Null attribute
+            return ERR_RECORD_NULL;
         }
         int16_t prevOffset = -1;
         // Looking for previous attribute that is not null
         for(int i = attrIndex - 1; i >= 0; i--) {
             prevOffset = getAttrEndPos(slotIndex, i);
-            if(prevOffset != -1) {
+            if(prevOffset != RECORD_ATTR_NULL_ENDPOS) {
                 break;
             }
         }
@@ -362,22 +362,22 @@ namespace PeterDB {
 
     int16_t RecordPageHandle::getAttrEndPos(int16_t slotIndex, int16_t attrIndex) {
         int16_t recordOffset = getRecordOffset(slotIndex);
-        int16_t dictOffset = sizeof(int16_t) * 2 + attrIndex * sizeof(int16_t);
+        int16_t dictOffset = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN + attrIndex * RECORD_ATTR_ENDPOS_LEN;
         int16_t attrEndPos;
-        memcpy(&attrEndPos, data + recordOffset + dictOffset, sizeof(int16_t));
+        memcpy(&attrEndPos, data + recordOffset + dictOffset, RECORD_ATTR_ENDPOS_LEN);
         return attrEndPos;
     }
 
     int16_t RecordPageHandle::getAttrLen(int16_t slotIndex, int16_t attrIndex) {
         int16_t curOffset = getAttrEndPos(slotIndex, attrIndex);
-        if(curOffset == -1) {   // Null attribute
-            return -1;
+        if(curOffset == RECORD_ATTR_NULL_ENDPOS) {   // Null attribute
+            return RECORD_ATTR_NULL_ENDPOS;
         }
         int16_t prevOffset = -1;
         // Looking for previous attribute that is not null
         for(int i = attrIndex - 1; i >= 0; i--) {
             prevOffset = getAttrEndPos(slotIndex, i);
-            if(prevOffset != -1) {
+            if(prevOffset != RECORD_ATTR_NULL_ENDPOS) {
                 break;
             }
         }

@@ -7,6 +7,7 @@ namespace PeterDB {
      * Start from 000
      */
 
+    const int32_t ERR_IMPOSSIBLE = 10;
 
     /*
      * Paged File System
@@ -36,8 +37,9 @@ namespace PeterDB {
     const int32_t ERR_TRANSFORM_BYTESEQ_TO_APIFORMAT = 204;
     const int32_t ERR_TRANSFORM_APIFORMAT_TO_BYTESEQ = 205;
     const int32_t ERR_SCAN_INVALID_CONDITION_ATTR = 206;
-    const int32_t ERR_ATTRIBUTE_NOT_SUPPORT = 299;
-
+    const int32_t ERR_ATTRIBUTE_NOT_SUPPORT = 207;
+    const int32_t ERR_RECORD_NOT_FOUND = 208;
+    const int32_t ERR_RECORD_NULL = 209;
 
     /*
      * Relation Model
