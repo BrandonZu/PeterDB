@@ -76,7 +76,7 @@ namespace PeterDB {
         RC ret = 0;
         if(curPageIndex >= fileHandle.getNumberOfPages()) {
             LOG(ERROR) << "Page not exist! @ RBFM_ScanIterator::getNextRecord" << std::endl;
-            return ERR_PAGE_NOT_EXIST;
+            return RBFM_EOF;
         }
         // Try to find next record
         uint8_t attrData[PAGE_SIZE];
@@ -106,7 +106,7 @@ namespace PeterDB {
             }
         }
         if(curPageIndex >= fileHandle.getNumberOfPages()) {
-            return ERR_NEXT_RECORD_NOT_EXIST;
+            return RBFM_EOF;
         }
 
         // Transform selected attributes byte seq into api format
@@ -116,7 +116,7 @@ namespace PeterDB {
         ret = RecordHelper::recordByteSeqToAPIFormat(recordByteSeq, recordDesc, selectedAttrIndex, (uint8_t *)data);
         if(ret) {
             LOG(ERROR) << "Fail to tranform byte seq to api format @ RBFM_ScanIterator::getNextRecord" << std::endl;
-            return ERR_TRANSFORM_BYTESEQ_TO_APIFORMAT;
+            return RBFM_EOF;
         }
         return 0;
     }

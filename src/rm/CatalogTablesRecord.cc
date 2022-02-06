@@ -2,16 +2,15 @@
 
 namespace PeterDB {
     CatalogTablesRecord::CatalogTablesRecord() {
-        tableID = tableType = CATALOG_TABLES_ATTR_NULL;
+        tableID = CATALOG_TABLES_ATTR_NULL;
     }
 
     CatalogTablesRecord::~CatalogTablesRecord() = default;
 
-    CatalogTablesRecord::CatalogTablesRecord(int32_t id, const std::string& name, const std::string& file, int32_t type) {
+    CatalogTablesRecord::CatalogTablesRecord(int32_t id, const std::string& name, const std::string& file) {
         tableID = id;
         tableName = name;
         fileName = file;
-        tableType = type;
     }
 
     CatalogTablesRecord::CatalogTablesRecord(uint8_t* apiData, const std::vector<std::string>& attrNames) {
@@ -56,14 +55,6 @@ namespace PeterDB {
         else {
             fileName.clear();
         }
-        // Table Type
-        if(attrSet.find(CATALOG_TABLES_TABLETYPE) != attrSet.end()) {
-            memcpy(&tableType, apiData + apiDataPos, sizeof(tableType));
-            apiDataPos += sizeof(tableType);
-        }
-        else {
-            tableType = CATALOG_TABLES_ATTR_NULL;
-        }
         return 0;
     }
 
@@ -89,9 +80,6 @@ namespace PeterDB {
         apiDataPos += sizeof(fileNameLen);
         memcpy(apiData + apiDataPos, fileName.c_str(), fileNameLen);   // Ignore '\0' at the end
         apiDataPos += fileNameLen;
-        // Table Type
-        memcpy(apiData + apiDataPos, &tableType, sizeof(tableType));
-        apiDataPos += sizeof(tableType);
 
         return 0;
     }

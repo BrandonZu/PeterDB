@@ -12,10 +12,9 @@ namespace PeterDB {
     const std::string CATALOG_TABLES_TABLEID = "table-id";
     const std::string CATALOG_TABLES_TABLENAME = "table-name";
     const std::string CATALOG_TABLES_FILENAME = "file-name";
-    const std::string CATALOG_TABLES_TABLETYPE = "table-type";
     const int32_t CATALOG_TABLES_TABLENAME_LEN = 50;
     const int32_t CATALOG_TABLES_FILENAME_LEN = 50;
-    const int32_t CATALOG_TABLES_ATTR_NUM = 4;
+    const int32_t CATALOG_TABLES_ATTR_NUM = 3;
     const int32_t CATALOG_TABLES_ATTR_NULL = -1;
 
     const std::string CATALOG_COLUMNS_TABLEID = "table-id";
@@ -35,8 +34,7 @@ namespace PeterDB {
     const std::vector<Attribute> catalogTablesSchema = std::vector<Attribute> {
             Attribute{CATALOG_TABLES_TABLEID, TypeInt, sizeof(TypeInt)},
             Attribute{CATALOG_TABLES_TABLENAME, TypeVarChar, CATALOG_TABLES_TABLENAME_LEN},
-            Attribute{CATALOG_TABLES_FILENAME, TypeVarChar, CATALOG_TABLES_FILENAME_LEN},
-            Attribute{CATALOG_TABLES_TABLETYPE, TypeInt, sizeof(TypeInt)}
+            Attribute{CATALOG_TABLES_FILENAME, TypeVarChar, CATALOG_TABLES_FILENAME_LEN}
     };
     const std::vector<Attribute> catalogColumnsSchema = std::vector<Attribute> {
             Attribute{CATALOG_COLUMNS_TABLEID, TypeInt, sizeof(TypeInt)},
@@ -68,10 +66,9 @@ namespace PeterDB {
         int32_t tableID;
         std::string tableName;
         std::string fileName;
-        int32_t tableType;
 
         CatalogTablesRecord();
-        CatalogTablesRecord(int32_t id, const std::string& name, const std::string& file, int32_t type);
+        CatalogTablesRecord(int32_t id, const std::string& name, const std::string& file);
         CatalogTablesRecord(uint8_t* apiData, const std::vector<std::string>& attrNames);
 
         ~CatalogTablesRecord();
@@ -148,16 +145,17 @@ namespace PeterDB {
         RC dropAttribute(const std::string &tableName, const std::string &attributeName);
 
     private:
-        RC insertMetaDataIntoCatalog(const std::string& tableName, std::vector<Attribute> schema, int32_t tableType);
-        RC deleteAllMetaDataFromCatalog(int32_t tableID, int32_t tableType);
+        RC insertMetaDataIntoCatalog(const std::string& tableName, std::vector<Attribute> schema);
+        RC deleteAllMetaDataFromCatalog(int32_t tableID);
 
-        RC getMetaDataFromCatalogTables(const std::string& tableName, int32_t tableType, CatalogTablesRecord& tablesRecord);
+        RC getMetaDataFromCatalogTables(const std::string& tableName, CatalogTablesRecord& tablesRecord);
         // Assume table not exist, assign an ID to it
-        RC getNewTableID(std::string tableName, const int32_t tableType, int32_t& tableID);
+        RC getNewTableID(std::string tableName, int32_t& tableID);
 
         RC openCatalog();
 
-        std::string getFileNameOfTable(std::string tableName, std::int32_t type);
+        bool isTableAccessible(const std::string& tableName);
+        bool isTableNameValid(const std::string& tableName);
 
     protected:
         RelationManager();                                                  // Prevent construction
