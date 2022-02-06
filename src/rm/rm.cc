@@ -418,7 +418,7 @@ namespace PeterDB {
             return ret;
         }
         // Insert all column records into COLUMNS catalog
-        for(int32_t i = 0; i < schema.size(); i++) {
+        for(int32_t i = 1; i <= schema.size(); i++) {       // Column position starts from 1
             CatalogColumnsRecord columnsRecord(tableID, schema[i].name, schema[i].type, schema[i].length, i);
             columnsRecord.getRecordAPIFormat(data);
             ret = rbfm.insertRecord(catalogColumnsFH, catalogColumnsSchema, data, rid);
