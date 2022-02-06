@@ -59,14 +59,13 @@ namespace PeterDB {
         return 0;
     }
 
-    RC RecordHelper::recordByteSeqToAPIFormat(uint8_t record[], const std::vector<Attribute> &recordDescriptor,
+    RC RecordHelper::recordByteSeqToAPIFormat(uint8_t byteSeq[], const std::vector<Attribute> &recordDescriptor,
                                               std::vector<uint32_t> &selectedAttrIndex, uint8_t* apiData) {
         int16_t allAttrNum = recordDescriptor.size();
         int16_t selectedAttrNum = selectedAttrIndex.size();
         if(selectedAttrNum == 0) {
             return 0;
         }
-        std::unordered_set<uint32_t> selectedAttrSet(selectedAttrIndex.begin(), selectedAttrIndex.end());
 
         // 1. Set Null Byte
         int16_t nullByteNum = ceil(selectedAttrNum / 8.0);
@@ -77,52 +76,42 @@ namespace PeterDB {
         // 2. Write Attr Values
         int16_t apiDataPos = nullByteNum;
 
-        int16_t attrDictOffset = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN, attrDictPos = attrDictOffset;
-        int16_t attrValOffset = attrDictOffset + allAttrNum * RECORD_DICT_SLOT_LEN;
+        int16_t attrDictPos = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN;
 
         // Last Not Null Attr's End Pos - Initial Value: attrValOffset
-        int16_t prevAttrEndPos = attrValOffset;
-        for(int16_t i = 0; i < allAttrNum; i++, attrDictPos += RECORD_DICT_SLOT_LEN) {
-            int16_t curAttrEndPos;
-            memcpy(&curAttrEndPos, record + attrDictPos, RECORD_DICT_SLOT_LEN);
+        for(int16_t i = 0; i < selectedAttrNum; i++, attrDictPos += RECORD_DICT_SLOT_LEN) {
+            int16_t attrIndex = selectedAttrIndex[i];
+            int16_t attrEndPos = getAttrEndPos(byteSeq, attrIndex);
+            int16_t attrBeginPos = getAttrBeginPos(byteSeq, attrIndex);
 
-            if(selectedAttrSet.find(i) == selectedAttrSet.end()) {
-                if(curAttrEndPos != RECORD_ATTR_NULL_ENDPOS) {
-                    prevAttrEndPos = curAttrEndPos;
-                }
-                continue;
-            }
-
-            if(curAttrEndPos == RECORD_ATTR_NULL_ENDPOS) {
+            if(attrEndPos == RECORD_ATTR_NULL_ENDPOS) {
                 setAttrNull(apiData, i);    // Null Attr -> Set Null bit to 1
                 continue;
             }
 
-            switch (recordDescriptor[i].type) {
+            switch (recordDescriptor[attrIndex].type) {
                 case TypeInt:
-                    memcpy(apiData + apiDataPos, record + prevAttrEndPos, sizeof(TypeInt));
+                    memcpy(apiData + apiDataPos, byteSeq + attrBeginPos, sizeof(TypeInt));
                     apiDataPos += sizeof(TypeReal);
                     break;
                 case TypeReal:
-                    memcpy(apiData + apiDataPos, record + prevAttrEndPos, sizeof(TypeReal));
+                    memcpy(apiData + apiDataPos, byteSeq + attrBeginPos, sizeof(TypeReal));
                     apiDataPos += sizeof(TypeReal);
                     break;
                 case TypeVarChar:
                     // Write String Len
                     uint32_t strLen;
-                    strLen = curAttrEndPos - prevAttrEndPos;
+                    strLen = attrEndPos - attrBeginPos;
                     memcpy(apiData + apiDataPos, &strLen, APIRECORD_STRLEN_LEN);
                     apiDataPos += APIRECORD_STRLEN_LEN;
                     // Write String Val
-                    memcpy(apiData + apiDataPos, record + prevAttrEndPos, strLen);
+                    memcpy(apiData + apiDataPos, byteSeq + attrBeginPos, strLen);
                     apiDataPos += strLen;
                     break;
                 default:
                     LOG(ERROR) << "Data Type Not Supported" << std::endl;
                     break;
             }
-            // Update previous attr end pos pointer
-            prevAttrEndPos = curAttrEndPos;
         }
         return 0;
     }
@@ -138,6 +127,38 @@ namespace PeterDB {
         uint32_t byteIndex = index / 8;
         uint32_t bitIndex = index % 8;
         data[byteIndex] = data[byteIndex] | (0x1 << (7 - bitIndex));
+    }
+
+    int16_t RecordHelper::getRecordAttrNum(uint8_t* byteSeq) {
+        int16_t attrNum;
+        memcpy(&attrNum, byteSeq + RECORD_MASK_LEN, RECORD_ATTRNUM_LEN);
+        return attrNum;
+    }
+
+    int16_t RecordHelper::getAttrBeginPos(uint8_t* byteSeq, int16_t attrIndex) {
+        int16_t curOffset = getAttrEndPos(byteSeq, attrIndex);
+        if(curOffset == RECORD_ATTR_NULL_ENDPOS) {   // Null attribute
+            return ERR_RECORD_NULL;
+        }
+        int16_t prevOffset = -1;
+        // Looking for previous attribute that is not null
+        for(int i = attrIndex - 1; i >= 0; i--) {
+            prevOffset = getAttrEndPos(byteSeq, i);
+            if(prevOffset != RECORD_ATTR_NULL_ENDPOS) {
+                break;
+            }
+        }
+        if(prevOffset == -1) {
+            prevOffset = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN + getRecordAttrNum(byteSeq) * RECORD_DICT_SLOT_LEN;
+        }
+        return prevOffset;
+    }
+
+    int16_t RecordHelper::getAttrEndPos(uint8_t* byteSeq, int16_t attrIndex) {
+        int16_t dictOffset = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN + attrIndex * RECORD_DICT_SLOT_LEN;
+        int16_t attrEndPos;
+        memcpy(&attrEndPos, byteSeq + dictOffset, RECORD_DICT_SLOT_LEN);
+        return attrEndPos;
     }
 
 }

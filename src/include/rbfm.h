@@ -276,10 +276,14 @@ namespace PeterDB {
     class RecordHelper {
     public:
         static RC APIFormatToRecordByteSeq(uint8_t * apiData, const std::vector<Attribute> &attrs, uint8_t* byteSeq, int16_t & recordLen);
-        static RC recordByteSeqToAPIFormat(uint8_t record[], const std::vector<Attribute> &recordDescriptor, std::vector<uint32_t> &selectedAttrIndex, uint8_t* apiData);
+        static RC recordByteSeqToAPIFormat(uint8_t byteSeq[], const std::vector<Attribute> &recordDescriptor, std::vector<uint32_t> &selectedAttrIndex, uint8_t* apiData);
 
         static bool isAttrNull(uint8_t* data, uint32_t index);
         static void setAttrNull(uint8_t* data, uint32_t index);
+
+        static int16_t getRecordAttrNum(uint8_t* byteSeq);
+        static int16_t getAttrBeginPos(uint8_t* byteSeq, int16_t attrIndex);
+        static int16_t getAttrEndPos(uint8_t* byteSeq, int16_t attrIndex);
     };
 
 } // namespace PeterDB
