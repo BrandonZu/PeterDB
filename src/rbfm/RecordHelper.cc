@@ -78,13 +78,13 @@ namespace PeterDB {
         int16_t apiDataPos = nullByteNum;
 
         int16_t attrDictOffset = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN, attrDictPos = attrDictOffset;
-        int16_t attrValOffset = attrDictOffset + allAttrNum * RECORD_ATTR_ENDPOS_LEN;
+        int16_t attrValOffset = attrDictOffset + allAttrNum * RECORD_DICT_SLOT_LEN;
 
         // Last Not Null Attr's End Pos - Initial Value: attrValOffset
         int16_t prevAttrEndPos = attrValOffset;
-        for(int16_t i = 0; i < allAttrNum; i++, attrDictPos += RECORD_ATTR_ENDPOS_LEN) {
+        for(int16_t i = 0; i < allAttrNum; i++, attrDictPos += RECORD_DICT_SLOT_LEN) {
             int16_t curAttrEndPos;
-            memcpy(&curAttrEndPos, record + attrDictPos, RECORD_ATTR_ENDPOS_LEN);
+            memcpy(&curAttrEndPos, record + attrDictPos, RECORD_DICT_SLOT_LEN);
 
             if(selectedAttrSet.find(i) == selectedAttrSet.end()) {
                 if(curAttrEndPos != RECORD_ATTR_NULL_ENDPOS) {

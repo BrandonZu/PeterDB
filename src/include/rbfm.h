@@ -62,18 +62,21 @@ namespace PeterDB {
     const int16_t RECORD_ATTRNUM_LEN = 2;
     const int16_t RECORD_DICT_BEGIN = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN;
     const int16_t RECORD_DICT_SLOT_LEN = 2;
-    const int16_t RECORD_ATTR_ENDPOS_LEN = 2;
+
     const int16_t PTRRECORD_RECORD_PAGE_INDEX_LEN = 4;
     const int16_t PTRRECORD_SLOT_INDEX_LEN = 2;
     const int16_t RECORD_MIN_LEN = RECORD_MASK_LEN + PTRRECORD_RECORD_PAGE_INDEX_LEN + PTRRECORD_SLOT_INDEX_LEN;
 
     // Constant values for Page format
-    const int16_t PAGE_FREE_BYTE_POINTER_LEN = 2;
-    const int16_t PAGE_SLOT_COUNTER_LEN = 2;
+    const int16_t PAGE_FREEBYTE_PTR_LEN = 2;
+    const int16_t PAGE_SLOTCOUNTER_LEN = 2;
+    const int16_t PAGE_HEADER_LEN = PAGE_FREEBYTE_PTR_LEN + PAGE_SLOTCOUNTER_LEN;
 
     const int16_t PAGE_SLOT_INDEX_START = 1;
     const int16_t PAGE_SLOT_RECORD_PTR_LEN = 2;
     const int16_t PAGE_SLOT_RECORD_LEN_LEN = 2;
+    const int16_t PAGE_SLOT_LEN = PAGE_SLOT_RECORD_PTR_LEN + PAGE_SLOT_RECORD_LEN_LEN;
+
     const int16_t PAGE_EMPTY_SLOT_OFFSET = -1;
     const int16_t PAGE_EMPTY_SLOT_LEN = 0;
 
@@ -227,22 +230,31 @@ namespace PeterDB {
         // Shift records left to avoid empty holes between records
         RC shiftRecord(int16_t dataNeedShiftStartPos, int16_t dist, bool shiftLeft);
 
+        // Find empty slot or append a new slot
+        int16_t findAvailSlot();
+
+        // For record page
+        int16_t getSlotListLen();
         int16_t getFreeSpace();
         bool hasEnoughSpaceForRecord(int16_t recordLen);
 
-        int16_t getAvailSlot();
-
-        int16_t getHeaderLen();
-        int16_t getSlotListLen();
+        int16_t getFreeBytePointerOffset();
+        int16_t getFreeBytePointer();
+        void setFreeBytePointer(int ptr);
 
         int16_t getSlotCounterOffset();
-        int16_t getFreeBytePointerOffset();
+        int16_t getSlotCounter();
+        void setSlotCounter(int slotCounter);
+
+        int16_t getSlotOffset(int16_t slotIndex);
 
         // For Specific Record
         // Slot Index start from 1 !!!
-        int16_t getSlotOffset(int16_t slotIndex);
         int16_t getRecordOffset(int16_t slotIndex);
+        void setRecordOffset(int16_t slotIndex, int16_t recordOffset);
+
         int16_t getRecordLen(int16_t slotIndex);
+        void setRecordLen(int16_t slotIndex, int16_t recordLen);
 
         bool isRecordPointer(int16_t slotNum);
         bool isRecordReadable(uint16_t slotIndex);

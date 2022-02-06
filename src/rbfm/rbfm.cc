@@ -262,6 +262,7 @@ namespace PeterDB {
             return ret;
         }
         uint8_t byteSeq[recordLen];
+        bzero(byteSeq, recordLen);
         memcpy(byteSeq, buffer, recordLen);
 
         // 3. Find available space to store new record and update

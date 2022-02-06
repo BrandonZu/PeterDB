@@ -3,8 +3,8 @@
 namespace PeterDB {
     RecordPageHandle::RecordPageHandle(FileHandle& fileHandle, PageNum pageNum): fh(fileHandle), pageNum(pageNum) {
         fileHandle.readPage(pageNum, data);
-        memcpy(&freeBytePointer, data + getFreeBytePointerOffset(), PAGE_FREE_BYTE_POINTER_LEN);
-        memcpy(&slotCounter, data + getSlotCounterOffset(), PAGE_SLOT_COUNTER_LEN);
+        freeBytePointer = getFreeBytePointer();
+        slotCounter = getSlotCounter();
     }
 
     RecordPageHandle::~RecordPageHandle() {
@@ -92,19 +92,19 @@ namespace PeterDB {
         RC ret = 0;
 
         // Get Slot Index while maintaining SlotCounter
-        int16_t slotIndex = getAvailSlot();
+        int16_t slotIndex = findAvailSlot();
 
         // Pad the data if necessary and append padded record data to the end
         uint16_t recordLen = std::max(byteSeqLen, RECORD_MIN_LEN);
         memcpy(data + freeBytePointer, byteSeq, byteSeqLen);
 
         // Fill in offset and length of record
-        memcpy(data + getSlotOffset(slotIndex), &freeBytePointer, sizeof(int16_t));
-        memcpy(data + getSlotOffset(slotIndex) + sizeof(int16_t), &recordLen, sizeof(int16_t));
+        setRecordOffset(slotIndex, freeBytePointer);
+        setRecordLen(slotIndex, recordLen);
 
         // Update Free Space Pointer
         freeBytePointer += recordLen;
-        memcpy(data + getFreeBytePointerOffset(), &freeBytePointer, sizeof(int16_t));
+        setFreeBytePointer(freeBytePointer);
 
         // Flush page
         ret = fh.writePage(pageNum, data);
@@ -167,6 +167,7 @@ namespace PeterDB {
      * Update Record
      */
     RC RecordPageHandle::updateRecord(int16_t slotIndex, uint8_t byteSeq[], int16_t recordLen) {
+        RC ret = 0;
         if(slotIndex > slotCounter || isRecordDeleted(slotIndex)) {
             LOG(ERROR) << "Slot not exist or deleted! SlotIndex: " << slotIndex << ", SlotCounter: " << slotCounter << " @ RecordPageHandle::deleteRecord" << std::endl;
             return ERR_SLOT_NOT_EXIST_OR_DELETED;
@@ -187,8 +188,14 @@ namespace PeterDB {
         memcpy(data + recordOffset, byteSeq, recordLen);
 
         // Update Record Length in slot
-        memcpy(data + getSlotOffset(slotIndex) + sizeof(int16_t), &recordLen, sizeof(int16_t));
+        setRecordLen(slotIndex, recordLen);
 
+        // Flush page
+        ret = fh.writePage(pageNum, data);
+        if(ret) {
+            LOG(ERROR) << "Fail to flush page data into file! @ RecordPageHandle::updateRecord" << std::endl;
+            return ret;
+        }
         return 0;
     }
 
@@ -235,8 +242,8 @@ namespace PeterDB {
 
             // Update the slots of record that follows dataNeedShift
             int16_t curRecordOffset;
-            for (int i = 1; i <= slotCounter; i++) {
-                memcpy(&curRecordOffset, data + getSlotOffset(i), sizeof(int16_t));
+            for (int16_t i = 1; i <= slotCounter; i++) {
+                memcpy(&curRecordOffset, data + getSlotOffset(i), PAGE_SLOT_RECORD_PTR_LEN);
                 if(curRecordOffset == ERR_SLOT_EMPTY || curRecordOffset < dataNeedShiftStartPos) {
                     continue;
                 }
@@ -244,7 +251,7 @@ namespace PeterDB {
                     curRecordOffset -= dist;
                 else
                     curRecordOffset += dist;
-                memcpy(data + getSlotOffset(i), &curRecordOffset, sizeof(int16_t));
+                memcpy(data + getSlotOffset(i), &curRecordOffset, PAGE_SLOT_RECORD_PTR_LEN);
             }
         }
 
@@ -253,21 +260,21 @@ namespace PeterDB {
             freeBytePointer -= dist;
         else
             freeBytePointer += dist;
-        memcpy(data + getFreeBytePointerOffset(), &freeBytePointer, sizeof(int16_t));
+        setFreeBytePointer(freeBytePointer);
 
         return 0;
     }
 
     int16_t RecordPageHandle::getFreeSpace() {
-        return PAGE_SIZE - freeBytePointer - getSlotListLen() - getHeaderLen();
+        return PAGE_SIZE - freeBytePointer - getSlotListLen() - PAGE_HEADER_LEN;
     }
 
     bool RecordPageHandle::hasEnoughSpaceForRecord(int16_t recordLen) {
         int16_t freeSpace = getFreeSpace();
-        return freeSpace >= (recordLen + 2 * sizeof(int16_t));
+        return freeSpace >= (recordLen + PAGE_SLOT_LEN);
     }
 
-    int16_t RecordPageHandle::getAvailSlot() {
+    int16_t RecordPageHandle::findAvailSlot() {
         // Traverse through all existing slots searching for an empty slot
         int16_t index = 0;
         for(int16_t i = 1; i <= slotCounter; i++) {
@@ -282,41 +289,65 @@ namespace PeterDB {
         }
         else {      // Allocate a new slot
             slotCounter++;
-            memcpy(data + getSlotCounterOffset(), &slotCounter, sizeof(int16_t));
+            setSlotCounter(slotCounter);
             return slotCounter;
         }
     }
 
-    int16_t RecordPageHandle::getHeaderLen() {
-        return 2 * sizeof(int16_t);
-    }
-
     int16_t RecordPageHandle::getSlotListLen() {
-        return 2 * sizeof(int16_t) * slotCounter;
-    }
-
-    int16_t RecordPageHandle::getSlotCounterOffset() {
-        return PAGE_SIZE - 2 * sizeof(int16_t);
+        return PAGE_SLOT_LEN * slotCounter;
     }
 
     int16_t RecordPageHandle::getFreeBytePointerOffset() {
-        return PAGE_SIZE - sizeof(int16_t);
+        return PAGE_SIZE - PAGE_FREEBYTE_PTR_LEN;
+    }
+
+    int16_t RecordPageHandle::getFreeBytePointer() {
+        int16_t ptr;
+        memcpy(&ptr, data + getFreeBytePointerOffset(), PAGE_FREEBYTE_PTR_LEN);
+        return ptr;
+    }
+
+    void RecordPageHandle::setFreeBytePointer(int ptr) {
+        memcpy(data + getFreeBytePointerOffset(), &ptr, PAGE_FREEBYTE_PTR_LEN);
+    }
+
+    int16_t RecordPageHandle::getSlotCounterOffset() {
+        return PAGE_SIZE - PAGE_FREEBYTE_PTR_LEN - PAGE_SLOTCOUNTER_LEN;
+    }
+
+    int16_t RecordPageHandle::getSlotCounter() {
+        int16_t counter;
+        memcpy(&counter, data + getSlotCounterOffset(), PAGE_SLOTCOUNTER_LEN);
+        return counter;
+    }
+
+    void RecordPageHandle::setSlotCounter(int slotCounter) {
+        memcpy(data + getSlotCounterOffset(), &slotCounter, PAGE_SLOTCOUNTER_LEN);
     }
 
     int16_t RecordPageHandle::getSlotOffset(int16_t slotIndex) {
-        return getSlotCounterOffset() - 2 * sizeof(int16_t) * slotIndex;
+        return getSlotCounterOffset() - PAGE_SLOT_LEN * slotIndex;
     }
 
     int16_t RecordPageHandle::getRecordOffset(int16_t slotIndex) {
         int16_t offset;
-        memcpy(&offset, data + getSlotOffset(slotIndex), RECORD_ATTR_ENDPOS_LEN);
+        memcpy(&offset, data + getSlotOffset(slotIndex), PAGE_SLOT_RECORD_PTR_LEN);
         return offset;
+    }
+
+    void RecordPageHandle::setRecordOffset(int16_t slotIndex, int16_t recordOffset) {
+        memcpy(data + getSlotOffset(slotIndex), &recordOffset, PAGE_SLOT_RECORD_PTR_LEN);
     }
 
     int16_t RecordPageHandle::getRecordLen(int16_t slotIndex) {
         int16_t recordLen;
-        memcpy(&recordLen, data + getSlotOffset(slotIndex) + RECORD_MASK_LEN, RECORD_ATTR_ENDPOS_LEN);
+        memcpy(&recordLen, data + getSlotOffset(slotIndex) + PAGE_SLOT_RECORD_PTR_LEN, PAGE_SLOT_RECORD_LEN_LEN);
         return recordLen;
+    }
+
+    void RecordPageHandle::setRecordLen(int16_t slotIndex, int16_t recordLen) {
+        memcpy(data + getSlotOffset(slotIndex) + PAGE_SLOT_RECORD_PTR_LEN, &recordLen, PAGE_SLOT_RECORD_LEN_LEN);
     }
 
     bool RecordPageHandle::isRecordPointer(int16_t slotNum) {
@@ -336,7 +367,7 @@ namespace PeterDB {
     int16_t RecordPageHandle::getAttrNum(int16_t slotIndex) {
         int16_t recordOffset = getRecordOffset(slotIndex);
         int16_t attrNum;
-        memcpy(&attrNum, data + recordOffset + sizeof(int16_t), sizeof(int16_t));
+        memcpy(&attrNum, data + recordOffset + RECORD_MASK_LEN, RECORD_ATTRNUM_LEN);
         return attrNum;
     }
 
@@ -354,7 +385,7 @@ namespace PeterDB {
             }
         }
         if(prevOffset == -1) {
-            prevOffset = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN + getAttrNum(slotIndex) * sizeof(int16_t);
+            prevOffset = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN + getAttrNum(slotIndex) * RECORD_DICT_SLOT_LEN;
         }
         return prevOffset;
 
@@ -362,9 +393,9 @@ namespace PeterDB {
 
     int16_t RecordPageHandle::getAttrEndPos(int16_t slotIndex, int16_t attrIndex) {
         int16_t recordOffset = getRecordOffset(slotIndex);
-        int16_t dictOffset = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN + attrIndex * RECORD_ATTR_ENDPOS_LEN;
+        int16_t dictOffset = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN + attrIndex * RECORD_DICT_SLOT_LEN;
         int16_t attrEndPos;
-        memcpy(&attrEndPos, data + recordOffset + dictOffset, RECORD_ATTR_ENDPOS_LEN);
+        memcpy(&attrEndPos, data + recordOffset + dictOffset, RECORD_DICT_SLOT_LEN);
         return attrEndPos;
     }
 
