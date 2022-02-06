@@ -17,7 +17,6 @@
 | table-id | Int | 4           | ID of the table, starting from zero               |
 | table-name | Varchar | 50 | name of the table                                 | 
 | file-name | Varchar | 50 | name of the file where the table is stored        |
-| file-type | Int | 4 | type of table: 0 -> System Table; 1 -> User Table | 
 
 **'Columns' Table**
 
@@ -88,28 +87,89 @@ One. The first page of a file is reserved.
 ### 6. Describe the following operation logic.
 - Delete a record
 
-
+1. Get all the attributes of the table from catalog, i.e. Columns table
+2. Open File
+3. Call the delete record function provided by RBFM
+   1. Follow the record pointer to find the real position of the record, during which delete all record pointers
+   2. Delete the read record and shift all following records right to make sure there is no hole
+4. Close File
 
 - Update a record
 
-
+1. Get all the attributes of the table from catalog, i.e. Columns table
+2. Open File
+3. Call the update record function provided by RBFM
+   1. Follow the record pointer to find the real position of the record
+   2. Tranform record byte sequence to the API data format, which contains the Null Attribute Indicator
+   3. Find available space to store new record and update \
+      Case 1: new byte seq is shorter -> shift records left && update slots and free byte pointer \
+      Case 2: new byte seq is longer, cur page has enough space -> shift records right && update slots and free byte pointer \
+      Case 3: new byte seq is longer, no enough space in cur page -> insert record in a new page && update old record to a pointer
+4. Close File
 
 - Scan on normal records
 
-
+1. Create a RecordPageHandle, try to find next record in current page
+   1. If next record does not exist, add the page index by 1 and set the slot index to 0
+   2. If next record exist
+      1. If NO_OP, found!
+      2. If comparison attribute is NULL, continue to find next record
+      3. Check if this record meets condition. If it does, found! If not, continue to find next record
+2. Transform selected attributes into API Data format and return
 
 - Scan on deleted records
 
-
+While trying to find next record in current page, deleted records are ignored.
 
 - Scan on updated records
 
-
+While trying to find next record in current page, if the record is a pointer, it is ignored. \
+If the record contains the content, it is considered as a normal record.
 
 ### 7. Implementation Detail
 - Other implementation details goes here.
 
+Create a RecordPageHandle class to handle all operations within the same page. Each RecordPageHandle is bound to a page. 
+The main functions are shown as below.
 
+    class RecordPageHandle {
+    public:
+        FileHandle& fh;
+        PageNum pageNum;
+
+        int16_t freeBytePointer;
+        int16_t slotCounter;
+        uint8_t data[PAGE_SIZE] = {};
+
+    public:
+        RecordPageHandle(FileHandle& fileHandle, PageNum pageNum);
+        ~RecordPageHandle();
+
+        // Read Record
+        // Record Format Described in report
+        RC getRecordByteSeq(int16_t slotNum, uint8_t recordByteSeq[], int16_t& recordLen);
+        RC getRecordPointerTarget(int16_t curSlotNum, int& ptrPageNum, int16_t& ptrSlotNum);
+
+        RC getRecordAttr(int16_t slotNum, int16_t attrIndex, uint8_t* attrData);
+        RC getNextRecord(uint16_t& slotIndex, uint8_t* byteSeq, int16_t& recordLen);
+
+        // Insert Record
+        RC insertRecord(uint8_t byteSeq[], int16_t byteSeqLen, RID& rid);
+
+        // Delete Record
+        RC deleteRecord(int16_t slotIndex);
+
+        // Update Record
+        RC updateRecord(int16_t slotIndex, uint8_t byteSeq[], int16_t recordLen);
+        RC setRecordPointToNewRecord(int16_t curSlotIndex, const RID& newRecordPos);
+
+        // Helper Functions
+        // Shift records left to avoid empty holes between records
+        RC shiftRecord(int16_t dataNeedShiftStartPos, int16_t dist, bool shiftLeft);
+
+        // Find empty slot or append a new slot
+        int16_t findAvailSlot();
+    }
 
 ### 8. Member contribution (for team of two)
 - Explain how you distribute the workload in team.
