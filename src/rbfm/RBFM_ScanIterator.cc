@@ -25,19 +25,29 @@ namespace PeterDB {
             }
         }
 
-        this->curPageIndex = 0;
-        this->curSlotIndex = 0;    // Set slot index to 0; Next round it will begin searching at 1
+        this->curPageIndex = 0;     // Page index starts from 0
+        this->curSlotIndex = 0;     // Set slot index to 0; Next round it will begin searching at 1
 
         this->compOp = compOp;
-        for(uint32_t i = 0; i < recordDescriptor.size(); i++) {
-            if(recordDescriptor[i].name == conditionAttribute) {
-                conditionAttr = recordDescriptor[i];
-                conditionAttrIndex = i;
-                break;
-            }
-        }
 
-        if(compOp != NO_OP) {
+        if(compOp == NO_OP)  {
+            conditionAttrIndex = -1;
+            conditionAttrValue = nullptr;
+        }
+        else {
+            conditionAttrIndex = -1;
+            for(uint32_t i = 0; i < recordDescriptor.size(); i++) {
+                if(recordDescriptor[i].name == conditionAttribute) {
+                    conditionAttr = recordDescriptor[i];
+                    conditionAttrIndex = i;
+                    break;
+                }
+            }
+
+            if(conditionAttrIndex == -1 || !value) {
+                return ERR_SCAN_INVALID_CONDITION_ATTR;
+            }
+
             switch (conditionAttr.type) {
                 case TypeInt:
                     memcpy(conditionAttrValue, (uint8_t *)value, sizeof(TypeInt));
@@ -51,6 +61,7 @@ namespace PeterDB {
                     break;
                 default:
                     LOG(ERROR) << "Attribute Type not supported!" << std::endl;
+                    return ERR_ATTRIBUTE_NOT_SUPPORT;
             }
         }
 
@@ -78,11 +89,20 @@ namespace PeterDB {
                 curSlotIndex = 0;   // Reset slot index to 0, so that next round it will begin searching at 1
                 continue;
             }
-            // Store attribute value and check if attribute meets condition
-            curPageHandle.getRecordAttr(curSlotIndex, conditionAttrIndex, attrData);
-            attrLen = curPageHandle.getAttrLen(curSlotIndex, conditionAttrIndex);
-            if(isRecordMeetCondition(attrData, attrLen)) {
-                break;
+
+            if(compOp == NO_OP) {
+                break;      // No comparison
+            }
+            else if(curPageHandle.isAttrNull(curSlotIndex, conditionAttrIndex)) {
+                continue;   // All comparison operations with NULL is FALSE
+            }
+            else {
+                // Get comparison attribute value and check if attribute meets condition
+                curPageHandle.getRecordAttr(curSlotIndex, conditionAttrIndex, attrData);
+                attrLen = curPageHandle.getAttrLen(curSlotIndex, conditionAttrIndex);
+                if (isRecordMeetCondition(attrData, attrLen)) {
+                    break;
+                }
             }
         }
         if(curPageIndex >= fileHandle.getNumberOfPages()) {

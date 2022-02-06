@@ -50,7 +50,10 @@ namespace PeterDB {
         catalogColumnsFH.close();
         ret = rbfm.destroyFile(getFileNameOfTable(catalogTablesName, TABLE_TYPE_SYSTEM));
         if(ret) {
-            LOG(ERROR) << "Fail to delete TABLES catalog @ RelationManager::deleteCatalog" << std::endl;
+            if(ret == ERR_FILE_NOT_EXIST)
+                LOG(ERROR) << "File not exist! @ RelationManager::deleteCatalog";
+            else
+                LOG(ERROR) << "Fail to delete TABLES catalog @ RelationManager::deleteCatalog";
             return ret;
         }
         ret = rbfm.destroyFile(getFileNameOfTable(catalogColumnsName, TABLE_TYPE_SYSTEM));

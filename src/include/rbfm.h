@@ -82,7 +82,7 @@ namespace PeterDB {
 
         CompOp compOp;
         Attribute conditionAttr;
-        uint32_t conditionAttrIndex;
+        int32_t conditionAttrIndex;
         uint8_t* conditionAttrValue;
         int32_t conditionStrLen;    // Only use when condition attr is string
 
@@ -248,6 +248,7 @@ namespace PeterDB {
         int16_t getAttrBeginPos(int16_t slotIndex, int16_t attrIndex);  // Get begin position relative to record offset
         int16_t getAttrEndPos(int16_t slotIndex, int16_t attrIndex);   // Get end position relative to record offset
         int16_t getAttrLen(int16_t slotIndex, int16_t attrIndex);
+        bool isAttrNull(int16_t slotIndex, int16_t attrIndex);
     };
 
     // Based on Record Format

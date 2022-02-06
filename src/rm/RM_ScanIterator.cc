@@ -20,10 +20,10 @@ namespace PeterDB {
     RC RM_ScanIterator::getNextTuple(RID &rid, void *data) {
         RC ret;
         ret = rbfmIter.getNextRecord(rid, data);
-        if(ret)
+        if(ret) {
             return RM_EOF;
-        else
-            return 0;
+        }
+        return 0;
     }
 
     RC RM_ScanIterator::close() {

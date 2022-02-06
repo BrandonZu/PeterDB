@@ -386,4 +386,9 @@ namespace PeterDB {
         }
         return curOffset - prevOffset;
     }
+
+    bool RecordPageHandle::isAttrNull(int16_t slotIndex, int16_t attrIndex) {
+        int16_t curOffset = getAttrEndPos(slotIndex, attrIndex);
+        return curOffset == RECORD_ATTR_NULL_ENDPOS;
+    }
 }

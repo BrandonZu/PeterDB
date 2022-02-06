@@ -34,8 +34,10 @@ namespace PeterDB {
     const int32_t ERR_NEXT_RECORD_NOT_EXIST = 202;
     const int32_t ERR_COMPARISON_NOT_SUPPORT = 203;
     const int32_t ERR_TRANSFORM_BYTESEQ_TO_APIFORMAT = 204;
-    const int32_t ERR_TRANSFORM_APIFORMAT_TO_BYTESEQ = 204;
+    const int32_t ERR_TRANSFORM_APIFORMAT_TO_BYTESEQ = 205;
+    const int32_t ERR_SCAN_INVALID_CONDITION_ATTR = 206;
     const int32_t ERR_ATTRIBUTE_NOT_SUPPORT = 299;
+
 
     /*
      * Relation Model
