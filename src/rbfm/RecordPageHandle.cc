@@ -298,14 +298,12 @@ namespace PeterDB {
     int16_t RecordPageHandle::getFreeBytePointerOffset() {
         return PAGE_SIZE - PAGE_FREEBYTE_PTR_LEN;
     }
-
     int16_t RecordPageHandle::getFreeBytePointer() {
         int16_t ptr;
         memcpy(&ptr, data + getFreeBytePointerOffset(), PAGE_FREEBYTE_PTR_LEN);
         return ptr;
     }
-
-    void RecordPageHandle::setFreeBytePointer(int ptr) {
+    void RecordPageHandle::setFreeBytePointer(int16_t ptr) {
         memcpy(data + getFreeBytePointerOffset(), &ptr, PAGE_FREEBYTE_PTR_LEN);
     }
 
@@ -317,10 +315,10 @@ namespace PeterDB {
         memcpy(&counter, data + getSlotCounterOffset(), PAGE_SLOTCOUNTER_LEN);
         return counter;
     }
-
-    void RecordPageHandle::setSlotCounter(int slotCounter) {
+    void RecordPageHandle::setSlotCounter(int16_t slotCounter) {
         memcpy(data + getSlotCounterOffset(), &slotCounter, PAGE_SLOTCOUNTER_LEN);
     }
+
     int16_t RecordPageHandle::getSlotOffset(int16_t slotIndex) {
         return getSlotCounterOffset() - PAGE_SLOT_LEN * slotIndex;
     }

@@ -240,11 +240,11 @@ namespace PeterDB {
 
         int16_t getFreeBytePointerOffset();
         int16_t getFreeBytePointer();
-        void setFreeBytePointer(int ptr);
+        void setFreeBytePointer(int16_t ptr);
 
         int16_t getSlotCounterOffset();
         int16_t getSlotCounter();
-        void setSlotCounter(int slotCounter);
+        void setSlotCounter(int16_t slotCounter);
 
         int16_t getSlotOffset(int16_t slotIndex);
 
