@@ -2,12 +2,10 @@
 
 
 ### 1. Basic information
- - Team #:
- - Github Repo Link:
- - Student 1 UCI NetID:
- - Student 1 Name:
- - Student 2 UCI NetID (if applicable):
- - Student 2 Name (if applicable):
+ - Team #: Dongjue Zu
+ - Github Repo Link: https://github.com/UCI-Chenli-teaching/cs222p-winter22-BrandonZu
+ - Student 1 UCI NetID: 3256 9266
+ - Student 1 Name: Dongjue Zu
 
 
 ### 2. Meta-data page in an index file

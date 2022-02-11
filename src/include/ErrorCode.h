@@ -55,6 +55,12 @@ namespace PeterDB {
     const int32_t ERR_GET_METADATA = 306;
     const int32_t ERR_ACCESS_DENIED_SYS_TABLE = 307;
 
+    /*
+     * Index
+     * Start from 400
+     */
+
+
 }
 
 #endif //PETERDB_ERRORCODE_H

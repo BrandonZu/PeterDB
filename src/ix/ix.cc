@@ -7,7 +7,9 @@ namespace PeterDB {
     }
 
     RC IndexManager::createFile(const std::string &fileName) {
-        return -1;
+        RC ret = 0;
+
+        return 0;
     }
 
     RC IndexManager::destroyFile(const std::string &fileName) {
@@ -43,33 +45,7 @@ namespace PeterDB {
     }
 
     RC IndexManager::printBTree(IXFileHandle &ixFileHandle, const Attribute &attribute, std::ostream &out) const {
-    }
 
-    IX_ScanIterator::IX_ScanIterator() {
-    }
-
-    IX_ScanIterator::~IX_ScanIterator() {
-    }
-
-    RC IX_ScanIterator::getNextEntry(RID &rid, void *key) {
-        return -1;
-    }
-
-    RC IX_ScanIterator::close() {
-        return -1;
-    }
-
-    IXFileHandle::IXFileHandle() {
-        ixReadPageCounter = 0;
-        ixWritePageCounter = 0;
-        ixAppendPageCounter = 0;
-    }
-
-    IXFileHandle::~IXFileHandle() {
-    }
-
-    RC
-    IXFileHandle::collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount) {
         return -1;
     }
 
