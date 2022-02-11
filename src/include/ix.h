@@ -54,7 +54,8 @@ namespace PeterDB {
         ~IndexManager() = default;                                                  // Prevent unwanted destruction
         IndexManager(const IndexManager &) = default;                               // Prevent construction by copying
         IndexManager &operator=(const IndexManager &) = default;                    // Prevent assignment
-
+    private:
+        bool isFileExists(std::string fileName);
     };
 
     class IX_ScanIterator {
@@ -74,21 +75,27 @@ namespace PeterDB {
     };
 
     class IXFileHandle {
+        FileHandle fh;
     public:
-
         // variables to keep counter for each operation
         unsigned ixReadPageCounter;
         unsigned ixWritePageCounter;
         unsigned ixAppendPageCounter;
 
-        // Constructor
         IXFileHandle();
-
-        // Destructor
         ~IXFileHandle();
+
+        RC open(const std::string& filename);
+        RC close();
+
+        RC readPage(uint32_t pageNum, void* data);
+        RC writePage(uint32_t pageNum, const void* data);
+        RC appendPage(const void* data);
 
         // Put the current counter values of associated PF FileHandles into variables
         RC collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount);
+
+        std::string getFileName();
 
     };
 }// namespace PeterDB

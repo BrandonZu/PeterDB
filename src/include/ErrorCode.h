@@ -4,10 +4,11 @@
 namespace PeterDB {
     /*
      * General
-     * Start from 000
+     * Start from 010
      */
 
     const int32_t ERR_IMPOSSIBLE = 10;
+    const int32_t ERR_FILE_NOT_EXIST = 11;
 
     /*
      * Paged File System
@@ -22,7 +23,6 @@ namespace PeterDB {
     const int32_t ERR_CREATE_FILE_ALREADY_EXIST = 105;
     const int32_t ERR_OPEN_FILE_ALREADY_OPEN = 106;
     const int32_t ERR_DELETE_FILE = 107;
-    const int32_t ERR_FILE_NOT_EXIST = 108;
     const int32_t ERR_APPEND_PAGE = 109;
 
     /*
@@ -59,6 +59,7 @@ namespace PeterDB {
      * Index
      * Start from 400
      */
+
 
 
 }
