@@ -71,7 +71,7 @@ namespace PeterDBTesting {
         unsigned char nullsIndicator[nullFieldsIndicatorActualSize];
         memset(nullsIndicator, 0, nullFieldsIndicatorActualSize);
 
-        // Setting the age & salary fields conditionAttrValue as null
+        // Setting the age & salary fields value as null
         nullsIndicator[0] = 80; // 01010000
 
         // Insert a record into a file and print the record

@@ -656,7 +656,7 @@ namespace PeterDBTesting {
                 if (k == 0) {
                     target = attr15[k];
                 } else {
-                    ASSERT_EQ(target, attr15[k]) << "Scanned VARCHAR has incorrect conditionAttrValue";
+                    ASSERT_EQ(target, attr15[k]) << "Scanned VARCHAR has incorrect value";
                 }
             }
             unsigned attr25 = *(unsigned *) ((uint8_t *) outBuffer + offset + nullAttributesIndicatorActualSize);
@@ -717,7 +717,7 @@ namespace PeterDBTesting {
         memset(outBuffer, 0, bufSize);
         while (rmsi.getNextTuple(rid, outBuffer) != RM_EOF) {
             age = *(unsigned *) ((uint8_t *) outBuffer + 1);
-            ASSERT_GT(age, ageVal) << "Returned conditionAttrValue from a scan is not correct.";
+            ASSERT_GT(age, ageVal) << "Returned value from a scan is not correct.";
             memset(outBuffer, 0, bufSize);
         }
     }
@@ -791,10 +791,10 @@ namespace PeterDBTesting {
             // All comparison operations with NULL should return FALSE
             // (e.g., NULL > 25, NULL >= 25, NULL <= 25, NULL < 25, NULL == 25, NULL != 25: ALL FALSE)
             nullBit = *(bool *) ((uint8_t *) outBuffer) & ((unsigned) 1 << (unsigned) 7);
-            ASSERT_FALSE(nullBit) << "NULL conditionAttrValue should not be returned from a scan.";
+            ASSERT_FALSE(nullBit) << "NULL value should not be returned from a scan.";
 
             age = *(unsigned *) ((uint8_t *) outBuffer + 1);
-            ASSERT_GT(age, ageVal) << "Returned conditionAttrValue from a scan is not correct.";
+            ASSERT_GT(age, ageVal) << "Returned value from a scan is not correct.";
             memset(outBuffer, 0, bufSize);
 
         }
