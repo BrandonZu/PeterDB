@@ -10,6 +10,16 @@
 # define IX_EOF (-1)  // end of the index scan
 
 namespace PeterDB {
+    namespace IX {
+        const int16_t PAGE_TYPE_LEN = 2;
+        const int16_t TYPE_INDEX_PAGE = 1;
+        const int16_t TYPE_LEAF_PAGE = 2;
+
+        const int16_t PAGE_FREEBYTE_PTR_LEN = 2;
+
+        const int16_t PAGE_COUNTER_LEN = 2;
+    }
+
     class IX_ScanIterator;
 
     class IXFileHandle;
@@ -82,6 +92,9 @@ namespace PeterDB {
         unsigned ixWritePageCounter;
         unsigned ixAppendPageCounter;
 
+        int32_t root;
+        AttrType keyType;
+
         IXFileHandle();
         ~IXFileHandle();
 
@@ -96,7 +109,42 @@ namespace PeterDB {
         RC collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount);
 
         std::string getFileName();
-
+        bool isOpen();
     };
+
+    class IXPageHandle {
+        IXFileHandle& fh;
+        uint32_t pageNum;
+        int16_t pageType;
+        int16_t freeBytePtr;
+        uint8_t data[PAGE_SIZE] = {};
+    public:
+        IXPageHandle(IXFileHandle& fileHandle, uint32_t page);
+        ~IXPageHandle();
+
+        bool isTypeIndex();
+        void setTypeIndex();
+        bool isTypeLeaf();
+        void setTypeLeaf();
+
+        // Index Page
+
+
+        // Leaf Page
+
+
+    private:
+        int16_t getPageType();
+        void setPageType(int16_t type);
+
+        int16_t getFreeBytePointerOffset();
+        int16_t getFreeBytePointer();
+        void setFreeBytePointer(int16_t ptr);
+
+        int16_t getCounterOffset();
+        int16_t getCounter();
+        void setCounter(int16_t counter);
+    };
+
 }// namespace PeterDB
 #endif // _ix_h_

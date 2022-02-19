@@ -26,6 +26,10 @@ namespace PeterDB {
         return 4;
     }
 
+    int32_t  FileHandle::getAllCounterLen() {
+        return getCounterNum() * sizeof(int32_t);
+    }
+
     void FileHandle::setCounters(const uint32_t counters[]) {
         readPageCounter = counters[0];
         writePageCounter = counters[1];

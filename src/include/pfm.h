@@ -54,6 +54,7 @@ namespace PeterDB {
         RC flushMetadata();
 
         static int getCounterNum(); // Get Number of Counters
+        int32_t getAllCounterLen();
         void setCounters(const uint32_t counters[]);
         void getCounters(unsigned counters[]) const;
         bool isOpen();

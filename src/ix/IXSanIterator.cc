@@ -11,5 +11,9 @@ namespace PeterDB {
     RC IX_ScanIterator::getNextEntry(RID &rid, void *key) {
         return -1;
     }
+
+    RC IX_ScanIterator::close() {
+        return -1;
+    }
 }
 

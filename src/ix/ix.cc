@@ -63,7 +63,12 @@ namespace PeterDB {
 
     RC
     IndexManager::insertEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid) {
-        return -1;
+        RC ret = 0;
+        if(!ixFileHandle.isOpen()) {
+            return ERR_FILE_NOT_OPEN;
+        }
+
+        return 0;
     }
 
     RC
