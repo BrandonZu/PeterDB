@@ -11,9 +11,14 @@
 
 namespace PeterDB {
     namespace IX {
+        const int32_t FILE_COUNTER_NUM = 3;
+        const int32_t FILE_COUNTER_LEN = 4;
+        const int32_t FILE_ROOT_LEN = 4;
+        const int32_t FILE_TYPE_LEN = 4;
+
         const int16_t PAGE_TYPE_LEN = 2;
-        const int16_t TYPE_INDEX_PAGE = 1;
-        const int16_t TYPE_LEAF_PAGE = 2;
+        const int16_t PAGE_TYPE_INDEX = 1;
+        const int16_t PAGE_TYPE_LEAF = 2;
 
         const int16_t PAGE_FREEBYTE_PTR_LEN = 2;
 
@@ -85,12 +90,14 @@ namespace PeterDB {
     };
 
     class IXFileHandle {
-        FileHandle fh;
     public:
         // variables to keep counter for each operation
         unsigned ixReadPageCounter;
         unsigned ixWritePageCounter;
         unsigned ixAppendPageCounter;
+
+        std::string fileName;
+        std::fstream* fs;
 
         int32_t root;
         AttrType keyType;
@@ -107,6 +114,9 @@ namespace PeterDB {
 
         // Put the current counter values of associated PF FileHandles into variables
         RC collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount);
+
+        RC readMetaData();
+        RC flushMetaData();
 
         std::string getFileName();
         bool isOpen();

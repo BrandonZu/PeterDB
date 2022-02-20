@@ -56,9 +56,10 @@ namespace PeterDB {
     const int32_t ERR_ACCESS_DENIED_SYS_TABLE = 307;
 
     /*
-     * Index
+     * Index Manager
      * Start from 400
      */
+
 
 
 

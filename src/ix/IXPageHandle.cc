@@ -12,16 +12,16 @@ namespace PeterDB {
     }
 
     bool IXPageHandle::isTypeIndex() {
-        return pageType == IX::TYPE_INDEX_PAGE;
+        return pageType == IX::PAGE_TYPE_INDEX;
     }
     void IXPageHandle::setTypeIndex() {
-        setPageType(IX::TYPE_INDEX_PAGE);
+        setPageType(IX::PAGE_TYPE_INDEX);
     }
     bool IXPageHandle::isTypeLeaf() {
-        return pageType == IX::TYPE_LEAF_PAGE;
+        return pageType == IX::PAGE_TYPE_LEAF;
     }
     void IXPageHandle::setTypeLeaf() {
-        setPageType(IX::TYPE_LEAF_PAGE);
+        setPageType(IX::PAGE_TYPE_LEAF);
     }
 
     int16_t IXPageHandle::getPageType() {
