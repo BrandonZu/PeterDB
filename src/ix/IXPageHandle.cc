@@ -5,6 +5,18 @@ namespace PeterDB {
         fh.readPage(pageNum, data);
         freeBytePtr = getFreeBytePointer();
         pageType = getPageType();
+        counter = getCounter();
+        parentPtr = getParentPtr();
+    }
+
+    IXPageHandle::IXPageHandle(IXPageHandle& pageHandle): fh(pageHandle.fh) {
+        pageNum = pageHandle.pageNum;
+        pageType = pageHandle.pageType;
+        freeBytePtr = pageHandle.freeBytePtr;
+        counter = pageHandle.counter;
+        parentPtr = pageHandle.parentPtr;
+
+        memcpy(data, pageHandle.data, PAGE_SIZE);
     }
 
     IXPageHandle::~IXPageHandle() {
@@ -14,14 +26,12 @@ namespace PeterDB {
     bool IXPageHandle::isTypeIndex() {
         return pageType == IX::PAGE_TYPE_INDEX;
     }
-    void IXPageHandle::setTypeIndex() {
-        setPageType(IX::PAGE_TYPE_INDEX);
-    }
     bool IXPageHandle::isTypeLeaf() {
         return pageType == IX::PAGE_TYPE_LEAF;
     }
-    void IXPageHandle::setTypeLeaf() {
-        setPageType(IX::PAGE_TYPE_LEAF);
+
+    int16_t IXPageHandle::getHeaderLen() {
+        return IX::PAGE_TYPE_LEN + IX::PAGE_FREEBYTE_PTR_LEN + IX::PAGE_COUNTER_LEN + IX::PAGE_PARENT_PTR_LEN;
     }
 
     int16_t IXPageHandle::getPageType() {
@@ -57,5 +67,16 @@ namespace PeterDB {
         memcpy(data + getCounterOffset(), &counter, IX::PAGE_COUNTER_LEN);
     }
 
+    int16_t IXPageHandle::getParentPtrOffset() {
+        return PAGE_SIZE - IX::PAGE_TYPE_LEN - IX::PAGE_FREEBYTE_PTR_LEN - IX::PAGE_COUNTER_LEN - IX::PAGE_PARENT_PTR_LEN;
+    }
+    uint32_t IXPageHandle::getParentPtr() {
+        uint32_t parent;
+        memcpy(&parent, data + getParentPtrOffset(), IX::PAGE_PARENT_PTR_LEN);
+        return parent;
+    }
+    void IXPageHandle::setParentPtr(uint32_t parent) {
+        memcpy(data + getParentPtrOffset(), &parent, IX::PAGE_PARENT_PTR_LEN);
+    }
 
 }

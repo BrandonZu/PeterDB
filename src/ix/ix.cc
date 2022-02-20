@@ -20,7 +20,7 @@ namespace PeterDB {
         // Create the file using ofstream
         ofstream out_fs(fileName, ios::binary);
 
-        // Reserve the first page to store metadata, e.g. counters, number of pages
+        // Reserve the first page to store metadata: Counters, Root Page,
         char buffer[PAGE_SIZE];
         bzero(buffer, PAGE_SIZE);
         out_fs.write(buffer, PAGE_SIZE);
@@ -68,6 +68,13 @@ namespace PeterDB {
             return ERR_FILE_NOT_OPEN;
         }
 
+        if(ixFileHandle.isRootNull()) {
+
+            ret = ixFileHandle.appendPage()
+        }
+        else {
+
+        }
         return 0;
     }
 

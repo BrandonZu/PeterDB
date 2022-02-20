@@ -156,5 +156,9 @@ namespace PeterDB {
     bool IXFileHandle::isOpen() {
         return fs && fs->is_open();
     }
+
+    bool IXFileHandle::isRootNull() {
+        return root == IX::FILE_ROOT_NULL;  // Page 0 is the hidden page
+    }
 }
 

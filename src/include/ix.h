@@ -15,14 +15,16 @@ namespace PeterDB {
         const int32_t FILE_COUNTER_LEN = 4;
         const int32_t FILE_ROOT_LEN = 4;
         const int32_t FILE_TYPE_LEN = 4;
+        const uint32_t FILE_ROOT_NULL = 0;
 
         const int16_t PAGE_TYPE_LEN = 2;
         const int16_t PAGE_TYPE_INDEX = 1;
         const int16_t PAGE_TYPE_LEAF = 2;
-
         const int16_t PAGE_FREEBYTE_PTR_LEN = 2;
-
         const int16_t PAGE_COUNTER_LEN = 2;
+        const int16_t PAGE_PARENT_PTR_LEN = 4;
+
+        const int16_t LEAFPAGE_NEXT_PTR_LEN = 4;
     }
 
     class IX_ScanIterator;
@@ -120,30 +122,32 @@ namespace PeterDB {
 
         std::string getFileName();
         bool isOpen();
+        bool isRootNull();
     };
 
     class IXPageHandle {
+    public:
         IXFileHandle& fh;
         uint32_t pageNum;
+
         int16_t pageType;
         int16_t freeBytePtr;
+        int16_t counter;
+        uint32_t parentPtr;
+
         uint8_t data[PAGE_SIZE] = {};
+
     public:
         IXPageHandle(IXFileHandle& fileHandle, uint32_t page);
+        IXPageHandle(IXPageHandle& pageHandle);
         ~IXPageHandle();
 
         bool isTypeIndex();
-        void setTypeIndex();
         bool isTypeLeaf();
-        void setTypeLeaf();
 
-        // Index Page
+    protected:
+        int16_t getHeaderLen();
 
-
-        // Leaf Page
-
-
-    private:
         int16_t getPageType();
         void setPageType(int16_t type);
 
@@ -154,6 +158,40 @@ namespace PeterDB {
         int16_t getCounterOffset();
         int16_t getCounter();
         void setCounter(int16_t counter);
+
+        int16_t getParentPtrOffset();
+        uint32_t getParentPtr();
+        void setParentPtr(uint32_t parent);
+    };
+
+    class IndexPageHandle: IXPageHandle {
+    public:
+        // For existed page
+        IndexPageHandle(IXPageHandle& pageHandle);
+        // For new page
+        IndexPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent);
+        ~IndexPageHandle();
+
+        int16_t getIndexHeaderLen();
+        int16_t getFreeSpace();
+
+
+
+    };
+
+    class LeafPageHandle: IXPageHandle {
+    public:
+        uint32_t nextPtr;
+    public:
+        LeafPageHandle(IXPageHandle& pageHandle);
+        ~LeafPageHandle();
+
+        int16_t getLeafHeaderLen();
+        int16_t getFreeSpace();
+
+        int16_t getNextPtrOffset();
+        uint32_t getNextPtr();
+        void setNextPtr(uint32_t next);
     };
 
 }// namespace PeterDB
