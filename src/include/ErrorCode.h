@@ -6,9 +6,10 @@ namespace PeterDB {
      * General
      * Start from 010
      */
-
+    const int32_t ERR_TODO = 9;
     const int32_t ERR_IMPOSSIBLE = 10;
     const int32_t ERR_FILE_NOT_EXIST = 11;
+
 
     /*
      * Paged File System
@@ -60,9 +61,10 @@ namespace PeterDB {
      * Start from 400
      */
 
-
-
-
+    const int32_t ERR_INDEX_TYPE_NOT_SUPPORT = 400;
+    const int32_t ERR_PAGE_TYPE_UNKNOWN = 401;
+    const int32_t ERR_PAGE_NOT_ENOUGH_SPACE = 402;
+    const int32_t ERR_PAGE_INTERNAL = 403;
 }
 
 #endif //PETERDB_ERRORCODE_H

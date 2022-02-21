@@ -20,7 +20,8 @@ namespace PeterDB {
         // Create the file using ofstream
         ofstream out_fs(fileName, ios::binary);
 
-        // Reserve the first page to store metadata: Counters, Root Page,
+        // Reserve the first page to store metadata
+        // Counters * 3 | Root Ptr | Index Type
         char buffer[PAGE_SIZE];
         bzero(buffer, PAGE_SIZE);
         out_fs.write(buffer, PAGE_SIZE);
@@ -69,11 +70,45 @@ namespace PeterDB {
         }
 
         if(ixFileHandle.isRootNull()) {
+            ret = ixFileHandle.appendEmptyPage();
+            if(ret) {
+                return ret;
+            }
+            ixFileHandle.root = ixFileHandle.getLastPageIndex();
+            // Initialize Index Page
+            IndexPageHandle indexPH(ixFileHandle, ixFileHandle.root, 0);
+        }
+        ret = insertEntryRecur(ixFileHandle, attribute, key, rid, ixFileHandle.root);
+        if(ret) {
+            return ret;
+        }
+        return 0;
+    }
 
-            ret = ixFileHandle.appendPage()
+    RC IndexManager::insertEntryRecur(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key,
+                                      const RID &rid, uint32_t pageNum) {
+        RC ret = 0;
+        IXPageHandle pageHandle(ixFileHandle, pageNum);
+
+        if(pageHandle.isTypeIndex()) {
+            IndexPageHandle indexPH(pageHandle);
+
+        }
+        else if(pageHandle.isTypeLeaf()) {
+            LeafPageHandle leafPH(pageHandle);
+            if(leafPH.hasEnoughSpace((uint8_t*)key, attribute)) {
+                ret = leafPH.insertEntry((uint8_t*)key, rid, attribute);
+                if(ret) {
+                    return ret;
+                }
+            }
+            else {
+                // TODO split page
+                return ERR_TODO;
+            }
         }
         else {
-
+            return ERR_PAGE_TYPE_UNKNOWN;
         }
         return 0;
     }

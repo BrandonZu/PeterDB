@@ -102,11 +102,25 @@ namespace PeterDB {
         return 0;
     }
 
+    RC IXFileHandle::appendEmptyPage() {
+        uint8_t emptyPage[PAGE_SIZE];
+        bzero(emptyPage, PAGE_SIZE);
+        return appendPage(emptyPage);
+    }
+
     RC IXFileHandle::collectCounterValues(unsigned &readPageCount, unsigned &writePageCount, unsigned &appendPageCount) {
         readPageCount = ixReadPageCounter;
         writePageCount = ixWritePageCounter;
         appendPageCount = ixAppendPageCounter;
         return 0;
+    }
+
+    uint32_t IXFileHandle::getPageCounter() {
+        return ixAppendPageCounter;     // Page won't be deleted -> appendCount = pageCounter
+    }
+
+    uint32_t IXFileHandle::getLastPageIndex() {
+        return ixAppendPageCounter;     // After insert hidden page, appendCounter remains 0
     }
 
     // Meta Data Format
@@ -125,8 +139,6 @@ namespace PeterDB {
         fs->read((char *)(&ixAppendPageCounter), IX::FILE_COUNTER_LEN);
         // Root
         fs->read((char *)(&root), IX::FILE_ROOT_LEN);
-        // Type
-        fs->read((char *)(&keyType), IX::FILE_TYPE_LEN);
         return 0;
     }
 
@@ -144,8 +156,6 @@ namespace PeterDB {
         fs->write((char *)(&ixAppendPageCounter), IX::FILE_COUNTER_LEN);
         // Root
         fs->write((char *)(&root), IX::FILE_ROOT_LEN);
-        // Type
-        fs->write((char *)(&keyType), IX::FILE_TYPE_LEN);
         return 0;
     }
 
