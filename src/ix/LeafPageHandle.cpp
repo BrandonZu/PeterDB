@@ -23,39 +23,48 @@ namespace PeterDB {
             return ERR_PAGE_NOT_ENOUGH_SPACE;
         }
 
-        // Iterate over all entries
         int16_t pos = 0;
-        for(int16_t index = 0; index < counter; index++) {
-            int16_t keyLen = getKeyLen(data + pos, attr);
-            if(!isKeyGreater(key, data + pos, attr)) {
-                break;
+
+        if(counter == 0) {
+            // Case 1: the first entry
+            pos = 0;
+        }
+        else if(isKeySatisfyComparison(key, data, attr, CompOp::LT_OP)) {
+            // Case 2: new key is the smallest
+            pos = 0;
+        }
+        else {
+            // Case 3: Iterate over other keys
+            int16_t prev = 0;
+            pos = getEntryLen(key, attr);
+            for (int16_t index = 1; index < counter; index++) {
+                if (isKeySatisfyComparison(key, data + prev, attr, CompOp::GE_OP) &&
+                    isKeySatisfyComparison(key, data + pos, attr, CompOp::LT_OP)) {
+                    break;
+                }
+                prev = pos;
+                pos += getEntryLen(data + pos, attr);
             }
-            pos += keyLen + IX::LEAFPAGE_ENTRY_PAGE_LEN + IX::LEAFPAGE_ENTRY_SLOT_LEN;
         }
 
         if(pos > freeBytePtr) {
             return ERR_PAGE_INTERNAL;
         }
 
-        int16_t keyLen = getKeyLen(key, attr);
+        int16_t entryLen = getEntryLen(key, attr);
         if(pos < freeBytePtr) {
             // Insert Entry in the middle, Need to shift entries right
-            ret = shiftRecordRight(pos, keyLen);
+            ret = shiftRecordRight(pos, entryLen);
             if(ret) {
                 return ret;
             }
         }
         writeEntry(pos, key, entry, attr);
         // Update Free Byte Ptr
-        setFreeBytePointer(freeBytePtr + keyLen);
+        setFreeBytePointer(freeBytePtr + entryLen);
         // Update Counter
         addCounterByOne();
 
-        // Flush Page
-        ret = fh.writePage(pageNum, data);
-        if(ret) {
-            return ret;
-        }
         return 0;
     }
 
@@ -71,29 +80,50 @@ namespace PeterDB {
         pos += IX::LEAFPAGE_ENTRY_SLOT_LEN;
     }
 
+    RC LeafPageHandle::print(const Attribute &attr, std::ostream &out) {
+        RC ret = 0;
+        out << "{\"keys\": [";
+        int16_t offset = 0;
+        uint32_t pageNum;
+        int16_t slotNum;
+        for(int16_t i = 0; i < counter; i++) {
+            out << "\"";
+            switch (attr.type) {
+                case TypeInt:
+                    out << getKeyInt(data + offset);
+                    break;
+                case TypeReal:
+                    out << getKeyReal(data + offset);
+                    break;
+                case TypeVarChar:
+                    out << getKeyString(data + offset);
+                    break;
+                default:
+                    return ERR_KEY_TYPE_NOT_SUPPORT;
+            }
+            offset += getKeyLen(data + offset, attr);
+
+            memcpy(&pageNum, data + offset, IX::LEAFPAGE_ENTRY_PAGE_LEN);
+            offset += IX::INDEXPAGE_CHILD_PTR_LEN;
+            memcpy(&slotNum, data + offset, IX::LEAFPAGE_ENTRY_SLOT_LEN);
+            offset += IX::LEAFPAGE_ENTRY_SLOT_LEN;
+            out << ":[(" << pageNum << "," << slotNum <<")]\"";
+
+            if(i != counter - 1) {
+                out << ",";
+            }
+        }
+        out << "]}";
+        return 0;
+    }
+
     bool LeafPageHandle::hasEnoughSpace(const uint8_t* key, const Attribute &attr) {
         return getFreeSpace() >= getEntryLen(key, attr);
     }
     int16_t LeafPageHandle::getEntryLen(const uint8_t* key, const Attribute& attr) {
         return getKeyLen(key, attr) + IX::LEAFPAGE_ENTRY_PAGE_LEN + IX::LEAFPAGE_ENTRY_SLOT_LEN;
     }
-    int16_t LeafPageHandle::getKeyLen(const uint8_t* key, const Attribute &attr) {
-        switch (attr.type) {
-            case TypeInt:
-                return sizeof(int32_t);
-                break;
-            case TypeReal:
-                return sizeof(float);
-                break;
-            case TypeVarChar:
-                int32_t strLen;
-                memcpy(&strLen, key, sizeof(int32_t));
-                return strLen + sizeof(int32_t);
-                break;
-            default:
-                return -1;
-        }
-    }
+
     int16_t LeafPageHandle::getLeafHeaderLen() {
         return getHeaderLen() + IX::LEAFPAGE_NEXT_PTR_LEN;
     }

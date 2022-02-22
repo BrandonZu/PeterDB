@@ -17,16 +17,24 @@ namespace PeterDB {
             return ERR_CREATE_FILE_ALREADY_EXIST;
         }
 
-        // Create the file using ofstream
-        ofstream out_fs(fileName, ios::binary);
+        // Create the file
+        {
+            ofstream out_fs(fileName, ios::binary);
+            if (!out_fs.good()) {
+                return ERR_CREATE_FILE;
+            }
+        }
 
         // Reserve the first page to store metadata
-        // Counters * 3 | Root Ptr | Index Type
-        char buffer[PAGE_SIZE];
-        bzero(buffer, PAGE_SIZE);
-        out_fs.write(buffer, PAGE_SIZE);
-        out_fs.flush();
-        out_fs.close();
+        // Counters * 3
+        {
+            IXFileHandle fileHandle;
+            ret = fileHandle.open(fileName);
+            if(ret || !fileHandle.isOpen()) {
+                return ERR_CREATE_FILE;
+            }
+            fileHandle.appendEmptyPage();
+        }
         return 0;
     }
 
@@ -63,22 +71,36 @@ namespace PeterDB {
     }
 
     RC
-    IndexManager::insertEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid) {
+    IndexManager::insertEntry(IXFileHandle &ixFileHandle, const Attribute &attr, const void *key, const RID &rid) {
         RC ret = 0;
         if(!ixFileHandle.isOpen()) {
             return ERR_FILE_NOT_OPEN;
         }
+        if(!ixFileHandle.isRootExist()) {
+            // Root Page not exist
+            ret = ixFileHandle.createRootPage();
+            if(ret) {
+                return ret;
+            }
+        }
 
         if(ixFileHandle.isRootNull()) {
+            // Append one leaf page
             ret = ixFileHandle.appendEmptyPage();
             if(ret) {
                 return ret;
             }
+            uint32_t leafPageNum = ixFileHandle.getLastPageIndex();
             ixFileHandle.root = ixFileHandle.getLastPageIndex();
-            // Initialize Index Page
-            IndexPageHandle indexPH(ixFileHandle, ixFileHandle.root, 0);
+            LeafPageHandle leafPageHandle(ixFileHandle, leafPageNum, 0, 0);
+            ret = leafPageHandle.insertEntry((uint8_t*)key, rid, attr);
+            if(ret) {
+                return ret;
+            }
+            return 0;
         }
-        ret = insertEntryRecur(ixFileHandle, attribute, key, rid, ixFileHandle.root);
+
+        ret = insertEntryRecur(ixFileHandle, attr, key, rid, ixFileHandle.root);
         if(ret) {
             return ret;
         }
@@ -128,9 +150,24 @@ namespace PeterDB {
         return -1;
     }
 
-    RC IndexManager::printBTree(IXFileHandle &ixFileHandle, const Attribute &attribute, std::ostream &out) const {
-
-        return -1;
+    RC IndexManager::printBTree(IXFileHandle &ixFileHandle, const Attribute &attr, std::ostream &out) const {
+        RC ret = 0;
+        if(ixFileHandle.isRootNull() || !ixFileHandle.isRootExist()) {
+            return ERR_ROOT_NOT_EXIST_OR_NULL;
+        }
+        IXPageHandle page(ixFileHandle, ixFileHandle.root);
+        if(page.isTypeIndex()) {
+            IndexPageHandle indexPH(page);
+            indexPH.print(attr, out);
+        }
+        else if(page.isTypeLeaf()) {
+            LeafPageHandle leafPH(page);
+            leafPH.print(attr, out);
+        }
+        else {
+            return IX::PAGE_TYPE_UNKNOWN;
+        }
+        return 0;
     }
 
     bool IndexManager::isFileExists(std::string fileName) {

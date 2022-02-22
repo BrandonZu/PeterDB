@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <queue>
 
 #include "pfm.h"
 #include "rbfm.h" // for some type declarations only, e.g., RID and Attribute
@@ -11,12 +12,17 @@
 
 namespace PeterDB {
     namespace IX {
+        // IX File Common
+        const int32_t FILE_HIDDEN_PAGE_NUM = 1;
+        const int32_t FILE_ROOT_PAGE_NUM = 1;
         const int32_t FILE_COUNTER_NUM = 3;
         const int32_t FILE_COUNTER_LEN = 4;
         const int32_t FILE_ROOT_LEN = 4;
         const int32_t FILE_TYPE_LEN = 4;
-        const uint32_t FILE_ROOT_NULL = 0;
+        const uint32_t FILE_ROOT_NOT_EXIST = 0;
+        const uint32_t FILE_ROOT_NULL = 1;
 
+        // IX Page Common
         const int16_t PAGE_TYPE_LEN = 2;
         const int16_t PAGE_TYPE_UNKNOWN = 0;
         const int16_t PAGE_TYPE_INDEX = 1;
@@ -25,6 +31,10 @@ namespace PeterDB {
         const int16_t PAGE_COUNTER_LEN = 2;
         const int16_t PAGE_PARENT_PTR_LEN = 4;
 
+        // Index Page
+        const int16_t INDEXPAGE_CHILD_PTR_LEN = 4;
+
+        // Leaf Page
         const int16_t LEAFPAGE_NEXT_PTR_LEN = 4;
         const int16_t LEAFPAGE_ENTRY_PAGE_LEN = 4;
         const int16_t LEAFPAGE_ENTRY_SLOT_LEN = 2;
@@ -53,7 +63,7 @@ namespace PeterDB {
         RC closeFile(IXFileHandle &ixFileHandle);
 
         // Insert an entry into the given index that is indicated by the given ixFileHandle.
-        RC insertEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid);
+        RC insertEntry(IXFileHandle &ixFileHandle, const Attribute &attr, const void *key, const RID &rid);
         RC insertEntryRecur(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid, uint32_t pageNum);
 
         // Delete an entry from the given index that is indicated by the given ixFileHandle.
@@ -106,7 +116,7 @@ namespace PeterDB {
         std::string fileName;
         std::fstream* fs;
 
-        int32_t root;
+        uint32_t root;
     public:
         IXFileHandle();
         ~IXFileHandle();
@@ -125,10 +135,13 @@ namespace PeterDB {
         RC readMetaData();
         RC flushMetaData();
 
-        RC insertRootPage();
+        RC createRootPage();
+        RC readRoot();
+        RC flushRoot();
 
         std::string getFileName();
         bool isOpen();
+        bool isRootExist();
         bool isRootNull();
         uint32_t getPageCounter();
         uint32_t getLastPageIndex();
@@ -154,11 +167,16 @@ namespace PeterDB {
         bool isTypeIndex();
         bool isTypeLeaf();
 
-        bool isKeyGreater(const uint8_t* key1, const uint8_t* key2, const Attribute& attr);
+        bool isKeySatisfyComparison(const uint8_t* key1, const uint8_t* key2, const Attribute& attr, const CompOp op);
 
         RC shiftRecordLeft(int16_t dataNeedShiftStartPos, int16_t dist);
         RC shiftRecordRight(int16_t dataNeedShiftStartPos, int16_t dist);
     protected:
+        int16_t getKeyLen(const uint8_t* key, const Attribute &attr);
+        int32_t getKeyInt(const uint8_t* key);
+        float getKeyReal(const uint8_t* key);
+        std::string getKeyString(const uint8_t* key);
+
         int16_t getHeaderLen();
 
         int16_t getPageType();
@@ -186,10 +204,19 @@ namespace PeterDB {
         IndexPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent);
         ~IndexPageHandle();
 
-        int16_t getIndexHeaderLen();
-        int16_t getFreeSpace();
+        // Get target child page, if not exist, append one
+        RC getTargetChild(uint32_t& childPtr, const uint8_t* key, const Attribute &attr);
 
         RC insertIndex();
+
+        // TODO split page
+        RC splitPage();
+
+        RC print(const Attribute &attr, std::ostream &out);
+
+        bool hasEnoughSpace(const uint8_t* key, const Attribute &attr);
+        int16_t getIndexHeaderLen();
+        int16_t getFreeSpace();
 
     };
 
@@ -209,9 +236,10 @@ namespace PeterDB {
         // TODO split page
         RC splitPage();
 
+        RC print(const Attribute &attr, std::ostream &out);
+
         bool hasEnoughSpace(const uint8_t* key, const Attribute &attr);
         int16_t getEntryLen(const uint8_t* key, const Attribute& attr);
-        int16_t getKeyLen(const uint8_t* key, const Attribute &attr);
         int16_t getLeafHeaderLen();
         int16_t getFreeSpace();
 

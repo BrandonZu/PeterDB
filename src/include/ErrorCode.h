@@ -12,7 +12,7 @@ namespace PeterDB {
 
 
     /*
-     * Paged File System
+     * General File Error
      * Start from 100
      */
 
@@ -25,6 +25,7 @@ namespace PeterDB {
     const int32_t ERR_OPEN_FILE_ALREADY_OPEN = 106;
     const int32_t ERR_DELETE_FILE = 107;
     const int32_t ERR_APPEND_PAGE = 109;
+    const int32_t ERR_CREATE_FILE = 110;
 
     /*
      * Record Based File System
@@ -61,10 +62,12 @@ namespace PeterDB {
      * Start from 400
      */
 
-    const int32_t ERR_INDEX_TYPE_NOT_SUPPORT = 400;
+    const int32_t ERR_KEY_TYPE_NOT_SUPPORT = 400;
     const int32_t ERR_PAGE_TYPE_UNKNOWN = 401;
     const int32_t ERR_PAGE_NOT_ENOUGH_SPACE = 402;
     const int32_t ERR_PAGE_INTERNAL = 403;
+    const int32_t ERR_CREATE_ROOT = 404;
+    const int32_t ERR_ROOT_NOT_EXIST_OR_NULL = 405;
 }
 
 #endif //PETERDB_ERRORCODE_H

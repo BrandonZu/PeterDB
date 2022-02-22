@@ -30,21 +30,72 @@ namespace PeterDB {
         return pageType == IX::PAGE_TYPE_LEAF;
     }
 
-    bool IXPageHandle::isKeyGreater(const uint8_t* key1, const uint8_t* key2, const Attribute& attr) {
+    bool IXPageHandle::isKeySatisfyComparison(const uint8_t* key1, const uint8_t* key2, const Attribute& attr, const CompOp op) {
         switch (attr.type) {
             case TypeInt:
-                return *(int32_t*)key1 > *(int32_t*)key2;
+                int32_t int1;
+                int1 = getKeyInt(key1);
+                int32_t int2;
+                int2 = getKeyInt(key2);
+                switch (op) {
+                    case GT_OP:
+                        return int1 > int2;
+                    case GE_OP:
+                        return int1 >= int2;
+                    case LT_OP:
+                        return int1 < int2;
+                    case LE_OP:
+                        return int1 <= int2;
+                    case NE_OP:
+                        return int1 != int2;
+                    case EQ_OP:
+                        return int1 == int2;
+                    default:
+                        return false;
+                }
                 break;
             case TypeReal:
-                return *(float*)key1 > *(float*)key2;
-                break;
+                float float1;
+                float1 = getKeyReal(key1);
+                float float2;
+                float2 = getKeyReal(key2);
+                switch (op) {
+                    case GT_OP:
+                        return float1 > float2;
+                    case GE_OP:
+                        return float1 >= float2;
+                    case LT_OP:
+                        return float1 < float2;
+                    case LE_OP:
+                        return float1 <= float2;
+                    case NE_OP:
+                        return float1 != float2;
+                    case EQ_OP:
+                        return float1 == float2;
+                    default:
+                        return false;
+                }
             case TypeVarChar:
-                int len1, len2;
-                memcpy(&len1, key1, sizeof(int32_t));
-                memcpy(&len2, key2, sizeof(int32_t));
-                std::string str1((char *)(key1 + sizeof(int32_t)), len1);
-                std::string str2((char *)(key2 + sizeof(int32_t)), len2);
-                return str1 > str2;
+                std::string str1;
+                str1 = getKeyString(key1);
+                std::string str2;
+                str2 = getKeyString(key2);
+                switch (op) {
+                    case GT_OP:
+                        return str1 > str2;
+                    case GE_OP:
+                        return str1 >= str2;
+                    case LT_OP:
+                        return str1 < str2;
+                    case LE_OP:
+                        return str1 <= str2;
+                    case NE_OP:
+                        return str1 != str2;
+                    case EQ_OP:
+                        return str1 == str2;
+                    default:
+                        return false;
+                }
                 break;
         }
         return false;
@@ -77,6 +128,37 @@ namespace PeterDB {
         memmove(data + dataNeedShiftStartPos + dist, data + dataNeedShiftStartPos, dataNeedMoveLen);
 
         return 0;
+    }
+
+    int16_t IXPageHandle::getKeyLen(const uint8_t* key, const Attribute &attr) {
+        switch (attr.type) {
+            case TypeInt:
+                return sizeof(int32_t);
+                break;
+            case TypeReal:
+                return sizeof(float);
+                break;
+            case TypeVarChar:
+                int32_t strLen;
+                memcpy(&strLen, key, sizeof(int32_t));
+                return strLen + sizeof(int32_t);
+                break;
+            default:
+                return -1;
+        }
+    }
+
+    int32_t IXPageHandle::getKeyInt(const uint8_t* key) {
+        return *(int32_t *)key;
+    }
+    float IXPageHandle::getKeyReal(const uint8_t* key) {
+        return *(float *)key;
+    }
+    std::string IXPageHandle::getKeyString(const uint8_t* key) {
+        int32_t strLen;
+        memcpy(&strLen, key, sizeof(int32_t));
+        std::string str((char *)(key + sizeof(int32_t)), strLen);
+        return str;
     }
 
     int16_t IXPageHandle::getHeaderLen() {
