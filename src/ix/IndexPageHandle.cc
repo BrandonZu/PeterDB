@@ -5,42 +5,152 @@ namespace PeterDB {
 
     }
 
-    IndexPageHandle::IndexPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent): IXPageHandle(fileHandle, page) {
+    IndexPageHandle::IndexPageHandle(IXFileHandle& fileHandle, uint32_t page): IXPageHandle(fileHandle, page) {
+
+    }
+
+//    IndexPageHandle::IndexPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent): IXPageHandle(fileHandle, page) {
+//        setPageType(IX::PAGE_TYPE_INDEX);
+//        setCounter(0);
+//        setFreeBytePointer(0);
+//        setParentPtr(parent);
+//    }
+
+    // Initialize the new page with one key
+    IndexPageHandle::IndexPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent,
+                                     uint32_t leftPage, uint8_t* key, uint32_t rightPage, const Attribute &attr): IXPageHandle(fileHandle, page) {
         setPageType(IX::PAGE_TYPE_INDEX);
-        setCounter(0);
-        setFreeBytePointer(0);
+        setCounter(1);
         setParentPtr(parent);
+
+        int16_t pos = 0;
+        // Write left page pointer
+        memcpy(data + pos, &leftPage, IX::INDEXPAGE_CHILD_PTR_LEN);
+        pos += IX::INDEXPAGE_CHILD_PTR_LEN;
+        // Write the key
+        int16_t keyLen = getKeyLen(key, attr);
+        memcpy(data + pos, key, keyLen);
+        pos += keyLen;
+        // Write right page pointer
+        memcpy(data + pos, &rightPage, IX::INDEXPAGE_CHILD_PTR_LEN);
+        pos += IX::INDEXPAGE_CHILD_PTR_LEN;
+
+        setFreeBytePointer(pos);
     }
 
     IndexPageHandle::~IndexPageHandle() {
+        flushIndexHeader();
         fh.writePage(pageNum, data);
     }
 
     RC IndexPageHandle::getTargetChild(uint32_t& childPtr, const uint8_t* key, const Attribute &attr) {
         RC ret = 0;
         int16_t pos = 0;
+        ret = findPosToInsertKey(pos, key, attr);
+        if(ret) return ret;
+        // Get previous child pointer
+        pos -= IX::INDEXPAGE_CHILD_PTR_LEN;
+        memcpy(&childPtr, data + pos, IX::INDEXPAGE_CHILD_PTR_LEN);
+        return 0;
+    }
+
+    RC IndexPageHandle::findPosToInsertKey(int16_t& keyPos, const uint8_t* key, const Attribute& attr) {
         if(counter == 0) {
-            // Case 1: insert the first element
-
+            return ERR_INDEXPAGE_NO_INDEX;
         }
-        else if(isKeySatisfyComparison(key, data + pos + IX::INDEXPAGE_CHILD_PTR_LEN, attr, CompOp::LT_OP)) {
-            // Case 2: new key is smallest
+        // 1. Smallest Key
+        keyPos = IX::INDEXPAGE_CHILD_PTR_LEN;
+        if(isKeySatisfyComparison(key, data + keyPos, attr, CompOp::LT_OP)) {
+            return 0;
+        }
 
+        // 2. Iterate over all following keys
+        keyPos += getEntryLen(data + keyPos, attr);
+        int16_t prevPos = IX::INDEXPAGE_CHILD_PTR_LEN;
+        for(int16_t i = 1; i < counter; i++) {
+            if(isKeySatisfyComparison(key, data + prevPos, attr, CompOp::GE_OP) &&
+               isKeySatisfyComparison(key, data + keyPos, attr, CompOp::LT_OP)) {
+                break;
+            }
+            prevPos = keyPos;
+            keyPos += getEntryLen(data + keyPos, attr);
+        }
+
+        return 0;
+    }
+
+    RC IndexPageHandle::insertIndex(const uint8_t* key, const Attribute& attr, uint32_t newChildPtr) {
+        RC ret = 0;
+        if(hasEnoughSpace(key, attr)) {
+            ret = insertIndexWithEnoughSpace(key, attr, newChildPtr);
+            if(ret) return ret;
         }
         else {
-            // Case 3: iterate over other elements
-            for (int16_t index = 0; index < counter; index) {
-                int16_t curKeyLen = getKeyLen(data + pos + IX::INDEXPAGE_CHILD_PTR_LEN, attr);
-                if (isKeySatisfyComparison(key, data + pos + IX::INDEXPAGE_CHILD_PTR_LEN, attr, CompOp::GE_OP)) {
+            // Not enough space, need to split
+            uint32_t newIndexNum;
+            ret = splitPageAndInsertIndex(newIndexNum, key, attr, newChildPtr);
+            if(ret) return ret;
 
-                }
+            if(parentPtr == IX::PAGE_PTR_NULL) {
+                // No parent ptr, need to add one
+                
+            }
+            else {
+                IndexPageHandle parentPH(fh, parentPtr);
+                parentPH.insertIndex(key, attr, newIndexNum);
             }
         }
         return 0;
     }
 
-    RC IndexPageHandle::insertIndex() {
+    RC IndexPageHandle::insertIndexWithEnoughSpace(const uint8_t* key, const Attribute& attr, uint32_t newPageNum) {
+        RC ret = 0;
+        int16_t insertPos = 0;
+        ret = findPosToInsertKey(insertPos, key, attr);
+        if(ret) return ret;
+        // Shift following data right
+        if(insertPos > freeBytePtr) {
+            return ERR_PTR_BEYONG_FREEBYTE;
+        }
+        int16_t newEntryLen = getEntryLen(key, attr);
+        if(insertPos < freeBytePtr) {
+            // Insert Entry in the middle, Need to shift entries right
+            ret = shiftRecordRight(insertPos, newEntryLen);
+            if(ret) {
+                return ret;
+            }
+        }
+        ret = writeIndex(insertPos, key, attr, newPageNum);
+        if(ret) return ret;
+        // Update Free Byte Ptr
+        setFreeBytePointer(freeBytePtr + newEntryLen);
+        // Update Counter
+        addCounterByOne();
+        return 0;
+    }
 
+    RC IndexPageHandle::writeIndex(int16_t pos, const uint8_t* key, const Attribute& attr, uint32_t newPageNum) {
+        RC ret = 0;
+        int keyLen = getKeyLen(key, attr);
+        memcpy(data + pos, key, keyLen);
+        pos += keyLen;
+        memcpy(data + pos, &newPageNum, IX::INDEXPAGE_CHILD_PTR_LEN);
+        return 0;
+    }
+
+    // TODO
+    RC IndexPageHandle::splitPageAndInsertIndex(uint32_t & newIndexNum, const uint8_t* key, const Attribute& attr, uint32_t newChildPtr) {
+        RC ret = 0;
+        // 0. Append a new page
+        ret = fh.appendEmptyPage();
+        if(ret) return ret;
+        uint32_t newIndexPtr = fh.getLastPageIndex();
+
+        return 0;
+    }
+
+    int16_t IndexPageHandle::getEntryLen(const uint8_t* key, const Attribute& attr) {
+        return getKeyLen(key, attr) + IX::INDEXPAGE_CHILD_PTR_LEN;
     }
 
     RC IndexPageHandle::print(const Attribute &attr, std::ostream &out) {
@@ -104,13 +214,18 @@ namespace PeterDB {
     }
 
 
-    bool hasEnoughSpace(const uint8_t* key, const Attribute &attr) {
-
+    bool IndexPageHandle::hasEnoughSpace(const uint8_t* key, const Attribute &attr) {
+        return getFreeSpace() >= getKeyLen(key, attr) + IX::INDEXPAGE_CHILD_PTR_LEN;
     }
 
     int16_t IndexPageHandle::getIndexHeaderLen() {
         return getHeaderLen();
     }
+
+    void IndexPageHandle::flushIndexHeader() {
+        flushHeader();
+    }
+
     int16_t IndexPageHandle::getFreeSpace() {
         return PAGE_SIZE - freeBytePtr - getIndexHeaderLen();
     }

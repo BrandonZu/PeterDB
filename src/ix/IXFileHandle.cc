@@ -191,6 +191,16 @@ namespace PeterDB {
         fs->flush();
         return 0;
     }
+    RC IXFileHandle::setRoot(uint32_t newRoot) {
+        if(!isOpen()) {
+            return ERR_FILE_NOT_OPEN;
+        }
+        fs->clear();
+        fs->seekp(IX::FILE_HIDDEN_PAGE_NUM * PAGE_SIZE, fs->beg);  // Page 1 is Root Page
+        fs->write((char *)(&newRoot), IX::FILE_ROOT_LEN);
+        fs->flush();
+        return 0;
+    }
 
     std::string IXFileHandle::getFileName() {
         return fileName;

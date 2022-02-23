@@ -18,7 +18,6 @@ namespace PeterDB {
         const int32_t FILE_COUNTER_NUM = 3;
         const int32_t FILE_COUNTER_LEN = 4;
         const int32_t FILE_ROOT_LEN = 4;
-        const int32_t FILE_TYPE_LEN = 4;
         const uint32_t FILE_ROOT_NOT_EXIST = 0;
         const uint32_t FILE_ROOT_NULL = 1;
 
@@ -39,6 +38,9 @@ namespace PeterDB {
         const int16_t LEAFPAGE_ENTRY_PAGE_LEN = 4;
         const int16_t LEAFPAGE_ENTRY_SLOT_LEN = 2;
 
+        // Page Pointer
+        const uint32_t PAGE_PTR_NULL = 0;
+        const uint32_t PAGE_PTR_ROOT = 1;
     }
 
     class IX_ScanIterator;
@@ -64,7 +66,8 @@ namespace PeterDB {
 
         // Insert an entry into the given index that is indicated by the given ixFileHandle.
         RC insertEntry(IXFileHandle &ixFileHandle, const Attribute &attr, const void *key, const RID &rid);
-        RC insertEntryRecur(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid, uint32_t pageNum);
+        RC insertEntryRecur(IXFileHandle &ixFileHandle, const Attribute &attr, const void *key,
+                            const RID &rid, uint32_t pageNum);
 
         // Delete an entry from the given index that is indicated by the given ixFileHandle.
         RC deleteEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid);
@@ -138,11 +141,13 @@ namespace PeterDB {
         RC createRootPage();
         RC readRoot();
         RC flushRoot();
+        RC setRoot(uint32_t newRoot);
 
         std::string getFileName();
         bool isOpen();
         bool isRootExist();
         bool isRootNull();
+
         uint32_t getPageCounter();
         uint32_t getLastPageIndex();
     };
@@ -171,13 +176,15 @@ namespace PeterDB {
 
         RC shiftRecordLeft(int16_t dataNeedShiftStartPos, int16_t dist);
         RC shiftRecordRight(int16_t dataNeedShiftStartPos, int16_t dist);
-    protected:
+
+    public:
         int16_t getKeyLen(const uint8_t* key, const Attribute &attr);
         int32_t getKeyInt(const uint8_t* key);
         float getKeyReal(const uint8_t* key);
         std::string getKeyString(const uint8_t* key);
 
         int16_t getHeaderLen();
+        void flushHeader();
 
         int16_t getPageType();
         void setPageType(int16_t type);
@@ -194,53 +201,66 @@ namespace PeterDB {
         int16_t getParentPtrOffset();
         uint32_t getParentPtr();
         void setParentPtr(uint32_t parent);
+        bool isParentPtrNull();
     };
 
-    class IndexPageHandle: IXPageHandle {
+    class IndexPageHandle: public IXPageHandle {
     public:
         // For existed page
         IndexPageHandle(IXPageHandle& pageHandle);
-        // For new page
-        IndexPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent);
+        IndexPageHandle(IXFileHandle& fileHandle, uint32_t page);
+        // Initialize new page containing one entry
+        IndexPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent, uint32_t leftPage, uint8_t* key, uint32_t rightPage, const Attribute &attr);
         ~IndexPageHandle();
 
         // Get target child page, if not exist, append one
         RC getTargetChild(uint32_t& childPtr, const uint8_t* key, const Attribute &attr);
 
-        RC insertIndex();
+        RC findPosToInsertKey(int16_t& keyPos, const uint8_t* key, const Attribute& attr);
+        RC insertIndex(const uint8_t* key, const Attribute& attr, uint32_t newChildPtr);
+        RC insertIndexWithEnoughSpace(const uint8_t* key, const Attribute& attr, uint32_t newPageNum);
+        RC writeIndex(int16_t pos, const uint8_t* key, const Attribute& attr, uint32_t newPageNum);
 
-        // TODO split page
-        RC splitPage();
+        RC splitPageAndInsertIndex(uint32_t & newIndexNum, const uint8_t* key, const Attribute& attr, uint32_t newChildPtr);
 
         RC print(const Attribute &attr, std::ostream &out);
 
+        int16_t getEntryLen(const uint8_t* key, const Attribute& attr);
+
         bool hasEnoughSpace(const uint8_t* key, const Attribute &attr);
         int16_t getIndexHeaderLen();
+        void flushIndexHeader();
         int16_t getFreeSpace();
 
     };
 
-    class LeafPageHandle: IXPageHandle {
+    class LeafPageHandle: public IXPageHandle {
     public:
         uint32_t nextPtr;
     public:
         // For existed page
         LeafPageHandle(IXPageHandle& pageHandle);
+        LeafPageHandle(IXFileHandle& fileHandle, uint32_t page);
         // For new page
         LeafPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent, uint32_t next);
+        // For split page
+        LeafPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent, uint32_t next, uint8_t* entryData, int16_t dataLen, int16_t entryCounter);
         ~LeafPageHandle();
 
         RC insertEntry(const uint8_t* key, const RID& entry, const Attribute& attr);
         RC writeEntry(int16_t pos, const uint8_t* key, const RID& entry, const Attribute& attr);
 
-        // TODO split page
-        RC splitPage();
+        RC getFirstKey(uint8_t* keyData, const Attribute& attr);
+
+        RC splitPageAndInsertEntry(uint32_t& newLeafNum, uint8_t* key, const RID& entry, const Attribute& attr);
 
         RC print(const Attribute &attr, std::ostream &out);
 
-        bool hasEnoughSpace(const uint8_t* key, const Attribute &attr);
+        bool hasEnoughSpace(const uint8_t* key, const Attribute& attr);
         int16_t getEntryLen(const uint8_t* key, const Attribute& attr);
         int16_t getLeafHeaderLen();
+        void flushLeafHeader();
+
         int16_t getFreeSpace();
 
         int16_t getNextPtrOffset();

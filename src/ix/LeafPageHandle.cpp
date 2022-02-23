@@ -4,6 +4,9 @@ namespace PeterDB {
     LeafPageHandle::LeafPageHandle(IXPageHandle& pageHandle): IXPageHandle(pageHandle) {
         nextPtr = getNextPtr();
     }
+    LeafPageHandle::LeafPageHandle(IXFileHandle& fileHandle, uint32_t page): IXPageHandle(fileHandle, page) {
+        nextPtr = getNextPtr();
+    }
 
     LeafPageHandle::LeafPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent, uint32_t next): IXPageHandle(fileHandle, page) {
         setPageType(IX::PAGE_TYPE_LEAF);
@@ -13,7 +16,19 @@ namespace PeterDB {
         setNextPtr(next);
     }
 
+    LeafPageHandle::LeafPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent, uint32_t next,
+                                   uint8_t* entryData, int16_t dataLen, int16_t entryCounter): IXPageHandle(fileHandle, page) {
+        memcpy(data, entryData, dataLen);
+
+        setPageType(IX::PAGE_TYPE_LEAF);
+        setCounter(entryCounter);
+        setFreeBytePointer(dataLen);
+        setParentPtr(parent);
+        setNextPtr(next);
+    }
+
     LeafPageHandle::~LeafPageHandle() {
+        flushLeafHeader();
         fh.writePage(pageNum, data);
     }
 
@@ -80,6 +95,62 @@ namespace PeterDB {
         pos += IX::LEAFPAGE_ENTRY_SLOT_LEN;
     }
 
+    RC LeafPageHandle::getFirstKey(uint8_t* keyData, const Attribute& attr) {
+        if(counter < 1) {
+            return ERR_KEY_NOT_EXIST;
+        }
+        int keyLen = getKeyLen(keyData, attr);
+        memcpy(keyData, data, keyLen);
+        return 0;
+    }
+
+    RC LeafPageHandle::splitPageAndInsertEntry(uint32_t& newLeafNum, uint8_t* key, const RID& entry, const Attribute& attr) {
+        RC ret = 0;
+        // 0. Append a new page
+        ret = fh.appendEmptyPage();
+        if(ret) return ret;
+        newLeafNum = fh.getLastPageIndex();
+
+        int16_t moveStartIndex = counter / 2;
+        // 1. Find move data start position and length
+        int16_t moveStartPos = 0, moveLen = 0;
+        for(int16_t i = 0; i < moveStartIndex; i++) {
+            moveStartPos += getEntryLen(data + moveStartPos, attr);
+        }
+
+        // 2. Insert new entry into old page or new page
+        bool insertIntoOld = false;
+        if(isKeySatisfyComparison(key, data + moveStartPos, attr, CompOp::LE_OP)) {
+            insertIntoOld = true;
+        }
+
+        // 3. Move data to new page and set metadata
+        moveLen = freeBytePtr - moveStartPos;
+        if(moveLen <= 0) {
+            return ERR_PTR_BEYONG_FREEBYTE;
+        }
+        LeafPageHandle newPage(fh, newLeafNum, parentPtr, nextPtr, data + moveStartPos,
+                               moveLen, counter - moveStartIndex);
+
+        // 4. Compact old page and maintain metadata
+        freeBytePtr -= moveLen;
+        counter = moveStartIndex;
+
+        // 5. Link old page to new page
+        setNextPtr(newLeafNum);
+
+        // 6. Insert new entry
+        if(insertIntoOld) {
+            ret = this->insertEntry(key, entry, attr);
+            if(ret) return ret;
+        }
+        else {
+            ret = newPage.insertEntry(key, entry, attr);
+            if(ret) return ret;
+        }
+        return 0;
+    }
+
     RC LeafPageHandle::print(const Attribute &attr, std::ostream &out) {
         RC ret = 0;
         out << "{\"keys\": [";
@@ -127,6 +198,12 @@ namespace PeterDB {
     int16_t LeafPageHandle::getLeafHeaderLen() {
         return getHeaderLen() + IX::LEAFPAGE_NEXT_PTR_LEN;
     }
+
+    void LeafPageHandle::flushLeafHeader() {
+        flushHeader();
+        setNextPtr(nextPtr);
+    }
+
     int16_t LeafPageHandle::getFreeSpace() {
         return PAGE_SIZE - getLeafHeaderLen() - freeBytePtr;
     }

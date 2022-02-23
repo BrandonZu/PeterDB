@@ -68,6 +68,9 @@ namespace PeterDB {
     const int32_t ERR_PAGE_INTERNAL = 403;
     const int32_t ERR_CREATE_ROOT = 404;
     const int32_t ERR_ROOT_NOT_EXIST_OR_NULL = 405;
+    const int32_t ERR_PTR_BEYONG_FREEBYTE = 406;
+    const int32_t ERR_KEY_NOT_EXIST = 407;
+    const int32_t ERR_INDEXPAGE_NO_INDEX = 408;
 }
 
 #endif //PETERDB_ERRORCODE_H

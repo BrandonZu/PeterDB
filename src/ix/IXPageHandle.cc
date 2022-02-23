@@ -164,6 +164,12 @@ namespace PeterDB {
     int16_t IXPageHandle::getHeaderLen() {
         return IX::PAGE_TYPE_LEN + IX::PAGE_FREEBYTE_PTR_LEN + IX::PAGE_COUNTER_LEN + IX::PAGE_PARENT_PTR_LEN;
     }
+    void IXPageHandle::flushHeader() {
+        setPageType(pageType);
+        setFreeBytePointer(freeBytePtr);
+        setCounter(counter);
+        setParentPtr(parentPtr);
+    }
 
     int16_t IXPageHandle::getPageType() {
         int16_t type;
@@ -212,6 +218,9 @@ namespace PeterDB {
     }
     void IXPageHandle::setParentPtr(uint32_t parent) {
         memcpy(data + getParentPtrOffset(), &parent, IX::PAGE_PARENT_PTR_LEN);
+    }
+    bool IXPageHandle::isParentPtrNull() {
+        return parentPtr == IX::PAGE_PTR_NULL;
     }
 
 }
