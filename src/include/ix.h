@@ -17,9 +17,8 @@ namespace PeterDB {
         const int32_t FILE_ROOT_PAGE_NUM = 1;
         const int32_t FILE_COUNTER_NUM = 3;
         const int32_t FILE_COUNTER_LEN = 4;
+        const int32_t FILE_ROOTPAGE_PTR_LEN = 4;
         const int32_t FILE_ROOT_LEN = 4;
-        const uint32_t FILE_ROOT_NOT_EXIST = 0;
-        const uint32_t FILE_ROOT_NULL = 1;
 
         // IX Page Common
         const int16_t PAGE_TYPE_LEN = 2;
@@ -40,7 +39,6 @@ namespace PeterDB {
 
         // Page Pointer
         const uint32_t PAGE_PTR_NULL = 0;
-        const uint32_t PAGE_PTR_ROOT = 1;
     }
 
     class IX_ScanIterator;
@@ -119,6 +117,7 @@ namespace PeterDB {
         std::string fileName;
         std::fstream* fs;
 
+        uint32_t rootPagePtr;
         uint32_t root;
     public:
         IXFileHandle();
@@ -145,7 +144,7 @@ namespace PeterDB {
 
         std::string getFileName();
         bool isOpen();
-        bool isRootExist();
+        bool isRootPageExist();
         bool isRootNull();
 
         uint32_t getPageCounter();

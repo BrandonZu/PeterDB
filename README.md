@@ -16,15 +16,15 @@
  - CLion takes care of the building. Select executables (tests) from the top-right configurations.
  
 ### If you are not using CLion and want to use the command line `cmake` tool:
- - From the repo root directory, create and go into a build directory
+ - From the repo rootPagePtr directory, create and go into a build directory
  
  `mkdir -p cmake-build-debug && cd cmake-build-debug`
 
- - Generate makefiles with `cmake` in the build directory by specifying the project root directory as the source:
+ - Generate makefiles with `cmake` in the build directory by specifying the project rootPagePtr directory as the source:
  
  `cmake ../` 
  
-  your makefiles should be written to `[root]/cmake-build-debug`
+  your makefiles should be written to `[rootPagePtr]/cmake-build-debug`
 
  - Build the project in the build directory:
  
@@ -41,7 +41,7 @@
  `make clean`
  
  or simply remove the build directory:
- `rm -rf [root]/cmake-build-debug`
+ `rm -rf [rootPagePtr]/cmake-build-debug`
  
 
 ### Project Instruction

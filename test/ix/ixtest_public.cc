@@ -164,7 +164,7 @@ namespace PeterDBTesting {
 
 
         // check counters
-        EXPECT_EQ(rcAfter - rc, 2); // one for tree root pointer, and one for tree node
+        EXPECT_EQ(rcAfter - rc, 2); // one for tree rootPagePtr pointer, and one for tree node
         EXPECT_IN_RANGE(wcAfter - wc, 1, 2); // write to update the first tree node, persist counters
         EXPECT_EQ(acAfter - ac, 0); // no pages appended when deleting an entry
 
@@ -669,7 +669,7 @@ namespace PeterDBTesting {
 
         // check counters
         EXPECT_GE(rcAfter - rc, 4);
-        // for scan and iteration, at least 4 pages needed (1 tree root pointer, 3 tree nodes)
+        // for scan and iteration, at least 4 pages needed (1 tree rootPagePtr pointer, 3 tree nodes)
         EXPECT_IN_RANGE(wcAfter - wc, 0, 1); // persist counters
         EXPECT_EQ(acAfter - ac, 0); // no page appended during iteration.
 
@@ -681,7 +681,7 @@ namespace PeterDBTesting {
     TEST_F(IX_Test, split_rotate_and_promote_on_insertion) {
         // Checks whether the insertion is implemented correctly (split should happen)
         // Functions tested
-        // 1. Insert entries to make root full
+        // 1. Insert entries to make rootPagePtr full
         // 2. Print BTree
         // 3. Insert one more entries to watch the shape of the BTree
 
@@ -703,7 +703,7 @@ namespace PeterDBTesting {
             ASSERT_EQ(ix.insertEntry(ixFileHandle, empNameAttr, &key, rid), success)
                                         << "indexManager::insertEntryWithEnoughSpace() should succeed.";
             if (i == 5) {
-                // print BTree, by this time the BTree should have height of 1 - one root (c*) with two leaf nodes
+                // print BTree, by this time the BTree should have height of 1 - one rootPagePtr (c*) with two leaf nodes
                 // (2 + 3) or (3 + 2)
                 std::stringstream stream;
                 ASSERT_EQ(ix.printBTree(ixFileHandle, empNameAttr, stream), success)

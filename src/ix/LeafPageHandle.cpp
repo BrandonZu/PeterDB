@@ -137,6 +137,7 @@ namespace PeterDB {
         pos += IX::LEAFPAGE_ENTRY_PAGE_LEN;
         memcpy(data + pos, &entry.slotNum, IX::LEAFPAGE_ENTRY_SLOT_LEN);
         pos += IX::LEAFPAGE_ENTRY_SLOT_LEN;
+        return 0;
     }
 
     RC LeafPageHandle::getFirstKey(uint8_t* keyData, const Attribute& attr) {
@@ -265,6 +266,7 @@ namespace PeterDB {
         return nextPtr;
     }
     void LeafPageHandle::setNextPtr(uint32_t next) {
-        memcpy(data + getNextPtrOffset(), &nextPtr, IX::LEAFPAGE_NEXT_PTR_LEN);
+        memcpy(data + getNextPtrOffset(), &next, IX::LEAFPAGE_NEXT_PTR_LEN);
+        this->nextPtr = next;
     }
 }

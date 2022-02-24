@@ -11,7 +11,8 @@ namespace PeterDB {
         ixWritePageCounter = 0;
         ixAppendPageCounter = 0;
         fs = nullptr;
-        root = 0;
+        rootPagePtr = IX::PAGE_PTR_NULL;
+        root = IX::PAGE_PTR_NULL;
     }
 
     IXFileHandle::~IXFileHandle() {
@@ -32,10 +33,6 @@ namespace PeterDB {
         }
 
         ret = readMetaData();
-        if(ret) {
-            return ret;
-        }
-        ret = readRoot();
         if(ret) {
             return ret;
         }
@@ -62,7 +59,7 @@ namespace PeterDB {
         }
 
         fs->clear();
-        fs->seekg((pageNum + IX::FILE_HIDDEN_PAGE_NUM + IX::FILE_ROOT_PAGE_NUM) * PAGE_SIZE, fs->beg);  // Page is 0-indexed
+        fs->seekg(pageNum * PAGE_SIZE, fs->beg);  // Page is 0-indexed
         fs->read((char *)data, PAGE_SIZE);
         if(!fs->good()) {
             return ERR_READ_PAGE;
@@ -81,7 +78,7 @@ namespace PeterDB {
         }
 
         fs->clear();
-        fs->seekp((pageNum + IX::FILE_HIDDEN_PAGE_NUM + IX::FILE_ROOT_PAGE_NUM) * PAGE_SIZE, fs->beg);  // Page is 0-indexed
+        fs->seekp(pageNum * PAGE_SIZE, fs->beg);  // Page is 0-indexed
         fs->write((char *)data, PAGE_SIZE);
         fs->flush(); // IMPORTANT!
         if(!fs->good()) {
@@ -127,11 +124,11 @@ namespace PeterDB {
     }
 
     uint32_t IXFileHandle::getLastPageIndex() {
-        return ixAppendPageCounter - 1;     // Page is 0-indexed
+        return ixAppendPageCounter - 1;     // Page is 0-indexed, page 0: hidden page; page 1: root page
     }
 
     // Meta Data Format
-    // Read | Write | Append
+    // Read | Write | Append | RootPage
     RC IXFileHandle::readMetaData() {
         if(!isOpen()) {
             return ERR_FILE_NOT_OPEN;
@@ -141,6 +138,7 @@ namespace PeterDB {
         fs->read((char *)(&ixReadPageCounter), IX::FILE_COUNTER_LEN);
         fs->read((char *)(&ixWritePageCounter), IX::FILE_COUNTER_LEN);
         fs->read((char *)(&ixAppendPageCounter), IX::FILE_COUNTER_LEN);
+        fs->read((char *)(&rootPagePtr), IX::FILE_ROOTPAGE_PTR_LEN);
         return 0;
     }
     RC IXFileHandle::flushMetaData() {
@@ -152,6 +150,7 @@ namespace PeterDB {
         fs->write((char *)(&ixReadPageCounter), IX::FILE_COUNTER_LEN);
         fs->write((char *)(&ixWritePageCounter), IX::FILE_COUNTER_LEN);
         fs->write((char *)(&ixAppendPageCounter), IX::FILE_COUNTER_LEN);
+        fs->write((char *)(&rootPagePtr), IX::FILE_ROOTPAGE_PTR_LEN);
         return 0;
     }
 
@@ -160,23 +159,23 @@ namespace PeterDB {
             return ERR_FILE_NOT_OPEN;
         }
         RC ret = 0;
-        if(ixAppendPageCounter != IX::FILE_HIDDEN_PAGE_NUM) {
-            return ERR_CREATE_ROOT;
-        }
         ret = appendEmptyPage();
         if(ret) {
             return ret;
         }
-        root = IX::FILE_ROOT_NULL;
-        flushRoot();
+        rootPagePtr = getLastPageIndex();
+        flushMetaData();
         return 0;
     }
     RC IXFileHandle::readRoot() {
         if(!isOpen()) {
             return ERR_FILE_NOT_OPEN;
         }
+        if(!isRootPageExist()) {
+            return ERR_ROOTPAGE_NOT_EXIST;
+        }
         fs->clear();
-        fs->seekg(IX::FILE_HIDDEN_PAGE_NUM * PAGE_SIZE, fs->beg);  // Page 1 is Root Page
+        fs->seekg(rootPagePtr * PAGE_SIZE, fs->beg);
         fs->read((char *)(&root), IX::FILE_ROOT_LEN);
         fs->flush();
         return 0;
@@ -186,17 +185,19 @@ namespace PeterDB {
             return ERR_FILE_NOT_OPEN;
         }
         fs->clear();
-        fs->seekp(IX::FILE_HIDDEN_PAGE_NUM * PAGE_SIZE, fs->beg);  // Page 1 is Root Page
+        fs->seekp(rootPagePtr * PAGE_SIZE, fs->beg);
         fs->write((char *)(&root), IX::FILE_ROOT_LEN);
         fs->flush();
         return 0;
     }
+
     RC IXFileHandle::setRoot(uint32_t newRoot) {
+        root = newRoot;
         if(!isOpen()) {
             return ERR_FILE_NOT_OPEN;
         }
         fs->clear();
-        fs->seekp(IX::FILE_HIDDEN_PAGE_NUM * PAGE_SIZE, fs->beg);  // Page 1 is Root Page
+        fs->seekp(rootPagePtr * PAGE_SIZE, fs->beg);
         fs->write((char *)(&newRoot), IX::FILE_ROOT_LEN);
         fs->flush();
         return 0;
@@ -210,12 +211,12 @@ namespace PeterDB {
         return fs && fs->is_open();
     }
 
-    bool IXFileHandle::isRootExist() {
-        return root != IX::FILE_ROOT_NOT_EXIST;
+    bool IXFileHandle::isRootPageExist() {
+        return rootPagePtr != IX::PAGE_PTR_NULL;
     }
 
     bool IXFileHandle::isRootNull() {
-        return root == IX::FILE_ROOT_NULL;  // Page 0 is the hidden page
+        return root == IX::PAGE_PTR_NULL;
     }
 }
 

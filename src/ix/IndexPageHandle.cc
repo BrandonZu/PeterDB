@@ -260,11 +260,12 @@ namespace PeterDB {
                 out << ",";
             }
         }
-        // Last Child if exist
+        // Last Child
         memcpy(&child, data + offset, IX::INDEXPAGE_CHILD_PTR_LEN);
-        if(child >= IX::FILE_HIDDEN_PAGE_NUM + IX::FILE_ROOT_PAGE_NUM) {
-            children.push(child);
+        if(child < IX::FILE_HIDDEN_PAGE_NUM) {
+            return ERR_INDEXPAGE_LAST_CHILD_NOT_EXIST;
         }
+        children.push(child);
         out << "]," << std::endl;
         // 2. Children
         out << "\"children\": [" << std::endl;

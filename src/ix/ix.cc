@@ -76,7 +76,7 @@ namespace PeterDB {
         if(!ixFileHandle.isOpen()) {
             return ERR_FILE_NOT_OPEN;
         }
-        if(!ixFileHandle.isRootExist()) {
+        if(!ixFileHandle.isRootPageExist()) {
             // Root Page not exist
             ret = ixFileHandle.createRootPage();
             if(ret) {
@@ -90,17 +90,17 @@ namespace PeterDB {
             if(ret) {
                 return ret;
             }
-            uint32_t leafPageNum = ixFileHandle.getLastPageIndex();
-            ixFileHandle.root = ixFileHandle.getLastPageIndex();
-            LeafPageHandle leafPageHandle(ixFileHandle, leafPageNum, IX::PAGE_PTR_NULL, IX::PAGE_PTR_NULL);
+            uint32_t leafPage = ixFileHandle.getLastPageIndex();
+            LeafPageHandle leafPageHandle(ixFileHandle, leafPage, IX::PAGE_PTR_NULL, IX::PAGE_PTR_NULL);
             ret = leafPageHandle.insertEntryWithEnoughSpace((uint8_t *) key, rid, attr);
             if(ret) {
                 return ret;
             }
+            ixFileHandle.setRoot(leafPage);
             return 0;
         }
 
-        ret = insertEntryRecur(ixFileHandle, attr, key, rid, ixFileHandle.root);
+        ret = insertEntryRecur(ixFileHandle, attr, key, rid, ixFileHandle.rootPagePtr);
         if(ret) {
             return ret;
         }
@@ -148,9 +148,13 @@ namespace PeterDB {
 
     RC IndexManager::printBTree(IXFileHandle &ixFileHandle, const Attribute &attr, std::ostream &out) const {
         RC ret = 0;
-        if(ixFileHandle.isRootNull() || !ixFileHandle.isRootExist()) {
-            return ERR_ROOT_NOT_EXIST_OR_NULL;
+        if(!ixFileHandle.isRootPageExist()) {
+            return ERR_ROOTPAGE_NOT_EXIST;
         }
+        if(ixFileHandle.isRootNull()) {
+            return ERR_ROOT_NULL;
+        }
+
         IXPageHandle page(ixFileHandle, ixFileHandle.root);
         if(page.isTypeIndex()) {
             IndexPageHandle indexPH(page);

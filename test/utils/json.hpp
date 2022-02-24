@@ -2657,7 +2657,7 @@ json.exception.out_of_range.401 | array index 3 is out of range | The provided a
 json.exception.out_of_range.402 | array index '-' (3) is out of range | The special array index `-` in a JSON Pointer never describes a valid element of the array, but the index past the end. That is, it can only be used to add elements at this position, but not to read it.
 json.exception.out_of_range.403 | key 'foo' not found | The provided key was not found in the JSON object.
 json.exception.out_of_range.404 | unresolved reference token 'foo' | A reference token in a JSON Pointer could not be resolved.
-json.exception.out_of_range.405 | JSON pointer has no parentPtr | The JSON Patch operations 'remove' and 'add' can not be applied to the root element of the JSON value.
+json.exception.out_of_range.405 | JSON pointer has no parentPtr | The JSON Patch operations 'remove' and 'add' can not be applied to the rootPagePtr element of the JSON value.
 json.exception.out_of_range.406 | number overflow parsing '10E1000' | A parsed number could not be stored as without changing it to NaN or INF.
 json.exception.out_of_range.407 | number overflow serializing '9223372036854775808' | UBJSON and BSON only support integer numbers up to 9223372036854775807. (until version 3.8.0) |
 json.exception.out_of_range.408 | excessive array size: 8658170730974374167 | The size (following `#`) of an UBJSON array or object exceeds the maximal capacity. |
@@ -5526,7 +5526,7 @@ return errored;
 private:
 /*!
     @invariant If the ref stack is empty, then the passed value will be the new
-               root.
+               rootPagePtr.
     @invariant If the ref stack contains a value, then it is an array or an
                object to which we can add elements
     */
@@ -5771,7 +5771,7 @@ private:
                callback function with an empty array or object, respectively.
 
     @invariant If the ref stack is empty, then the passed value will be the new
-               root.
+               rootPagePtr.
     @invariant If the ref stack contains a value, then it is an array or an
                object to which we can add elements
 
@@ -11814,8 +11814,8 @@ return json_pointer(ptr) /= array_idx;
 /*!
     @brief returns the parentPtr of this JSON pointer
 
-    @return parentPtr of this JSON pointer; in case this JSON pointer is the root,
-            the root itself is returned
+    @return parentPtr of this JSON pointer; in case this JSON pointer is the rootPagePtr,
+            the rootPagePtr itself is returned
 
     @complexity Linear in the length of the JSON pointer.
 
@@ -11907,9 +11907,9 @@ reference_tokens.push_back(std::move(token));
 }
 
 /*!
-    @brief return whether pointer points to the root document
+    @brief return whether pointer points to the rootPagePtr document
 
-    @return true iff the JSON pointer points to the root document
+    @return true iff the JSON pointer points to the rootPagePtr document
 
     @complexity Constant.
 
@@ -24783,7 +24783,7 @@ return patch_operations::invalid;
 // wrapper for "add" operation; add value at ptr
 const auto operation_add = [&result](json_pointer & ptr, basic_json val)
 {
-// adding to the root of the target document means replacing it
+// adding to the rootPagePtr of the target document means replacing it
 if (ptr.empty())
 {
 result = val;

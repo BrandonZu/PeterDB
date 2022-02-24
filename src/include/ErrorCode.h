@@ -67,10 +67,12 @@ namespace PeterDB {
     const int32_t ERR_PAGE_NOT_ENOUGH_SPACE = 402;
     const int32_t ERR_PAGE_INTERNAL = 403;
     const int32_t ERR_CREATE_ROOT = 404;
-    const int32_t ERR_ROOT_NOT_EXIST_OR_NULL = 405;
-    const int32_t ERR_PTR_BEYONG_FREEBYTE = 406;
-    const int32_t ERR_KEY_NOT_EXIST = 407;
-    const int32_t ERR_INDEXPAGE_NO_INDEX = 408;
+    const int32_t ERR_ROOTPAGE_NOT_EXIST = 405;
+    const int32_t ERR_ROOT_NULL = 406;
+    const int32_t ERR_PTR_BEYONG_FREEBYTE = 407;
+    const int32_t ERR_KEY_NOT_EXIST = 408;
+    const int32_t ERR_INDEXPAGE_NO_INDEX = 409;
+    const int32_t ERR_INDEXPAGE_LAST_CHILD_NOT_EXIST = 410;
 }
 
 #endif //PETERDB_ERRORCODE_H
