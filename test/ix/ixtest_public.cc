@@ -59,7 +59,7 @@ namespace PeterDBTesting {
 
         // insert entry
         ASSERT_EQ(ix.insertEntry(ixFileHandle, ageAttr, &key, rid), success)
-                                    << "indexManager::insertEntry() should succeed.";
+                                    << "indexManager::insertEntryWithEnoughSpace() should succeed.";
 
         // collect counters
         ASSERT_EQ(ixFileHandle.collectCounterValues(rcAfter, wcAfter, acAfter), success)
@@ -95,7 +95,7 @@ namespace PeterDBTesting {
 
         // Insert one entry
         ASSERT_EQ(ix.insertEntry(ixFileHandle, ageAttr, &key, rid), success)
-                                    << "indexManager::insertEntry() should succeed.";
+                                    << "indexManager::insertEntryWithEnoughSpace() should succeed.";
 
         // collect counters
         ASSERT_EQ(ixFileHandle.collectCounterValues(rc, wc, ac), success)
@@ -148,7 +148,7 @@ namespace PeterDBTesting {
 
         // Insert one entry
         ASSERT_EQ(ix.insertEntry(ixFileHandle, ageAttr, &key, rid), success)
-                                    << "indexManager::insertEntry() should succeed.";
+                                    << "indexManager::insertEntryWithEnoughSpace() should succeed.";
 
         // collect counters
         ASSERT_EQ(ixFileHandle.collectCounterValues(rc, wc, ac), success)
@@ -492,7 +492,7 @@ namespace PeterDBTesting {
             rid.slotNum = (unsigned) (key * salt * seed + seed) % SHRT_MAX;
 
             ASSERT_EQ(ix.insertEntry(ixFileHandle, ageAttr, &key, rid), success)
-                                        << "indexManager::insertEntry() should succeed.";
+                                        << "indexManager::insertEntryWithEnoughSpace() should succeed.";
 
             reInsertedRecordNum += 1;
             if (reInsertedRecordNum % 20000 == 0) {
@@ -608,7 +608,7 @@ namespace PeterDBTesting {
             prepareKeyAndRid(i, key, rid);
 
             ASSERT_EQ(ix.insertEntry(ixFileHandle, empNameAttr, &key, rid), success)
-                                        << "indexManager::insertEntry() should succeed.";
+                                        << "indexManager::insertEntryWithEnoughSpace() should succeed.";
 
             if (i == testedAscii) {
                 rids.emplace_back(rid);
@@ -621,7 +621,7 @@ namespace PeterDBTesting {
             prepareKeyAndRid(testedAscii, key, rid);
             rid.slotNum = rid.pageNum + 1;
             ASSERT_EQ(ix.insertEntry(ixFileHandle, empNameAttr, &key, rid), success)
-                                        << "indexManager::insertEntry() should succeed.";
+                                        << "indexManager::insertEntryWithEnoughSpace() should succeed.";
 
             rids.emplace_back(rid);
         }
@@ -701,7 +701,7 @@ namespace PeterDBTesting {
             // Prepare a key
             prepareKeyAndRid(k, key, rid, empNameAttr.length);
             ASSERT_EQ(ix.insertEntry(ixFileHandle, empNameAttr, &key, rid), success)
-                                        << "indexManager::insertEntry() should succeed.";
+                                        << "indexManager::insertEntryWithEnoughSpace() should succeed.";
             if (i == 5) {
                 // print BTree, by this time the BTree should have height of 1 - one root (c*) with two leaf nodes
                 // (2 + 3) or (3 + 2)
@@ -739,7 +739,7 @@ namespace PeterDBTesting {
             rid.slotNum = i + 2;
 
             ASSERT_EQ(ix.insertEntry(ixFileHandle, ageAttr, &key, rid), success)
-                                        << "indexManager::insertEntry() should succeed.";
+                                        << "indexManager::insertEntryWithEnoughSpace() should succeed.";
         }
 
         // Actually, this should print out only one page.
@@ -775,7 +775,7 @@ namespace PeterDBTesting {
             rid.slotNum = i;
 
             ASSERT_EQ(ix.insertEntry(ixFileHandle, ageAttr, &compVal1, rid), success)
-                                        << "indexManager::insertEntry() should succeed.";
+                                        << "indexManager::insertEntryWithEnoughSpace() should succeed.";
 
             rid.pageNum = i + 10;
             rid.slotNum = i;
@@ -847,7 +847,7 @@ namespace PeterDBTesting {
             prepareKeyAndRid(i, key, rid, empNameAttr.length);
 
             ASSERT_EQ(ix.insertEntry(ixFileHandle, empNameAttr, &key, rid), success)
-                                        << "indexManager::insertEntry() should succeed.";
+                                        << "indexManager::insertEntryWithEnoughSpace() should succeed.";
         }
 
         // print BTree, by this time the BTree should have height of 2

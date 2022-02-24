@@ -154,7 +154,7 @@ namespace PeterDB {
 
     class IXPageHandle {
     public:
-        IXFileHandle& fh;
+        IXFileHandle& ixFileHandle;
         uint32_t pageNum;
 
         int16_t pageType;
@@ -211,6 +211,8 @@ namespace PeterDB {
         IndexPageHandle(IXFileHandle& fileHandle, uint32_t page);
         // Initialize new page containing one entry
         IndexPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent, uint32_t leftPage, uint8_t* key, uint32_t rightPage, const Attribute &attr);
+        // Initialize new page with existing entries
+        IndexPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent, uint8_t* entryData, int16_t dataLen, int16_t entryCounter);
         ~IndexPageHandle();
 
         // Get target child page, if not exist, append one
@@ -218,10 +220,10 @@ namespace PeterDB {
 
         RC findPosToInsertKey(int16_t& keyPos, const uint8_t* key, const Attribute& attr);
         RC insertIndex(const uint8_t* key, const Attribute& attr, uint32_t newChildPtr);
-        RC insertIndexWithEnoughSpace(const uint8_t* key, const Attribute& attr, uint32_t newPageNum);
+        RC insertIndexWithEnoughSpace(const uint8_t* key, const Attribute& attr, uint32_t child);
         RC writeIndex(int16_t pos, const uint8_t* key, const Attribute& attr, uint32_t newPageNum);
 
-        RC splitPageAndInsertIndex(uint32_t & newIndexNum, const uint8_t* key, const Attribute& attr, uint32_t newChildPtr);
+        RC splitPageAndInsertIndex(uint8_t * middleKey, uint32_t & newIndexPage, const uint8_t* key, const Attribute& attr, uint32_t child);
 
         RC print(const Attribute &attr, std::ostream &out);
 
@@ -248,6 +250,7 @@ namespace PeterDB {
         ~LeafPageHandle();
 
         RC insertEntry(const uint8_t* key, const RID& entry, const Attribute& attr);
+        RC insertEntryWithEnoughSpace(const uint8_t* key, const RID& entry, const Attribute& attr);
         RC writeEntry(int16_t pos, const uint8_t* key, const RID& entry, const Attribute& attr);
 
         RC getFirstKey(uint8_t* keyData, const Attribute& attr);

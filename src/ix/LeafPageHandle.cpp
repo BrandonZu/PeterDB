@@ -29,10 +29,54 @@ namespace PeterDB {
 
     LeafPageHandle::~LeafPageHandle() {
         flushLeafHeader();
-        fh.writePage(pageNum, data);
+        ixFileHandle.writePage(pageNum, data);
     }
 
-    RC LeafPageHandle::insertEntry(const uint8_t* key, const RID& entry, const Attribute& attr) {
+    RC LeafPageHandle::insertEntry(const uint8_t* key, const RID& rid, const Attribute& attr) {
+        RC ret = 0;
+        if(hasEnoughSpace((uint8_t*)key, attr)) {
+            ret = insertEntryWithEnoughSpace((uint8_t *) key, rid, attr);
+            if(ret) return ret;
+        }
+        else {
+            // Not enough space in Leaf Page, split Leaf Page
+            uint32_t newLeafPageNum;
+            ret = splitPageAndInsertEntry(newLeafPageNum, (uint8_t *) key, rid, attr);
+            if(ret) return ret;
+            LeafPageHandle newPH(ixFileHandle, newLeafPageNum);
+
+            if(isParentPtrNull()) {
+                // Insert a new index page
+                ret = ixFileHandle.appendEmptyPage();
+                if(ret) return ret;
+                uint32_t newIndexPageNum = ixFileHandle.getLastPageIndex();
+
+                // Insert new key into index page
+                uint8_t newParentKey[PAGE_SIZE];
+                ret = newPH.getFirstKey(newParentKey, attr);
+                if(ret) return ret;
+                IndexPageHandle newIndexPH(ixFileHandle, newIndexPageNum, IX::PAGE_PTR_NULL,
+                                           this->pageNum, newParentKey, newPH.pageNum, attr);
+
+                // Set pointers
+                setParentPtr(newIndexPageNum);
+                newPH.setParentPtr(newIndexPageNum);
+                ixFileHandle.setRoot(newIndexPageNum);
+            }
+            else {
+                // Insert an entry into parent node
+                uint8_t newParentKey[PAGE_SIZE];
+                ret = newPH.getFirstKey(newParentKey, attr);
+                if(ret) return ret;
+                IndexPageHandle newIndexPH(ixFileHandle, parentPtr);
+                ret = newIndexPH.insertIndex(newParentKey, attr, newLeafPageNum);
+                if(ret) return ret;
+            }
+        }
+        return 0;
+    }
+
+    RC LeafPageHandle::insertEntryWithEnoughSpace(const uint8_t* key, const RID& entry, const Attribute& attr) {
         RC ret = 0;
         if(getFreeSpace() < getEntryLen(key, attr)) {
             return ERR_PAGE_NOT_ENOUGH_SPACE;
@@ -107,9 +151,9 @@ namespace PeterDB {
     RC LeafPageHandle::splitPageAndInsertEntry(uint32_t& newLeafNum, uint8_t* key, const RID& entry, const Attribute& attr) {
         RC ret = 0;
         // 0. Append a new page
-        ret = fh.appendEmptyPage();
+        ret = ixFileHandle.appendEmptyPage();
         if(ret) return ret;
-        newLeafNum = fh.getLastPageIndex();
+        newLeafNum = ixFileHandle.getLastPageIndex();
 
         int16_t moveStartIndex = counter / 2;
         // 1. Find move data start position and length
@@ -117,10 +161,14 @@ namespace PeterDB {
         for(int16_t i = 0; i < moveStartIndex; i++) {
             moveStartPos += getEntryLen(data + moveStartPos, attr);
         }
+        // If new entry should be inserted into new page, move one less entry to new page
+        if(isKeySatisfyComparison(key, data + moveStartPos, attr, CompOp::GE_OP)) {
+            moveStartPos += getEntryLen(data + moveStartPos, attr);
+        }
 
         // 2. Insert new entry into old page or new page
         bool insertIntoOld = false;
-        if(isKeySatisfyComparison(key, data + moveStartPos, attr, CompOp::LE_OP)) {
+        if(isKeySatisfyComparison(key, data + moveStartPos, attr, CompOp::LT_OP)) {
             insertIntoOld = true;
         }
 
@@ -129,7 +177,7 @@ namespace PeterDB {
         if(moveLen <= 0) {
             return ERR_PTR_BEYONG_FREEBYTE;
         }
-        LeafPageHandle newPage(fh, newLeafNum, parentPtr, nextPtr, data + moveStartPos,
+        LeafPageHandle newPage(ixFileHandle, newLeafNum, parentPtr, nextPtr, data + moveStartPos,
                                moveLen, counter - moveStartIndex);
 
         // 4. Compact old page and maintain metadata
@@ -141,11 +189,11 @@ namespace PeterDB {
 
         // 6. Insert new entry
         if(insertIntoOld) {
-            ret = this->insertEntry(key, entry, attr);
+            ret = this->insertEntryWithEnoughSpace(key, entry, attr);
             if(ret) return ret;
         }
         else {
-            ret = newPage.insertEntry(key, entry, attr);
+            ret = newPage.insertEntryWithEnoughSpace(key, entry, attr);
             if(ret) return ret;
         }
         return 0;

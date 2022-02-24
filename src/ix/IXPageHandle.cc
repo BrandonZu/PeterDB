@@ -1,15 +1,15 @@
 #include "src/include/ix.h"
 
 namespace PeterDB {
-    IXPageHandle::IXPageHandle(IXFileHandle& fileHandle, uint32_t page): fh(fileHandle), pageNum(page) {
-        fh.readPage(pageNum, data);
+    IXPageHandle::IXPageHandle(IXFileHandle& fileHandle, uint32_t page): ixFileHandle(fileHandle), pageNum(page) {
+        ixFileHandle.readPage(pageNum, data);
         freeBytePtr = getFreeBytePointer();
         pageType = getPageType();
         counter = getCounter();
         parentPtr = getParentPtr();
     }
 
-    IXPageHandle::IXPageHandle(IXPageHandle& pageHandle): fh(pageHandle.fh) {
+    IXPageHandle::IXPageHandle(IXPageHandle& pageHandle): ixFileHandle(pageHandle.ixFileHandle) {
         pageNum = pageHandle.pageNum;
         pageType = pageHandle.pageType;
         freeBytePtr = pageHandle.freeBytePtr;
@@ -20,7 +20,7 @@ namespace PeterDB {
     }
 
     IXPageHandle::~IXPageHandle() {
-        fh.writePage(pageNum, data);
+        ixFileHandle.writePage(pageNum, data);
     }
 
     bool IXPageHandle::isTypeIndex() {

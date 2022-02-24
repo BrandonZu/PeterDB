@@ -93,7 +93,7 @@ namespace PeterDB {
             uint32_t leafPageNum = ixFileHandle.getLastPageIndex();
             ixFileHandle.root = ixFileHandle.getLastPageIndex();
             LeafPageHandle leafPageHandle(ixFileHandle, leafPageNum, IX::PAGE_PTR_NULL, IX::PAGE_PTR_NULL);
-            ret = leafPageHandle.insertEntry((uint8_t*)key, rid, attr);
+            ret = leafPageHandle.insertEntryWithEnoughSpace((uint8_t *) key, rid, attr);
             if(ret) {
                 return ret;
             }
@@ -111,6 +111,7 @@ namespace PeterDB {
                                       const RID &rid, uint32_t pageNum) {
         RC ret = 0;
         IXPageHandle pageHandle(ixFileHandle, pageNum);
+        // TODO Change recursion to iteration
         if(pageHandle.isTypeIndex()) {
             IndexPageHandle indexPH(pageHandle);
             uint32_t childPage;
@@ -119,47 +120,9 @@ namespace PeterDB {
             return insertEntryRecur(ixFileHandle, attr, key, rid, childPage);
         }
         else if(pageHandle.isTypeLeaf()) {
-            LeafPageHandle oldPH(pageHandle);
-            if(oldPH.hasEnoughSpace((uint8_t*)key, attr)) {
-                ret = oldPH.insertEntry((uint8_t*)key, rid, attr);
-                if(ret) return ret;
-                return 0;
-            }
-            else {
-                // Not enough space, need split
-                uint32_t newLeafPageNum;
-                oldPH.splitPageAndInsertEntry(newLeafPageNum, (uint8_t *) key, rid, attr);
-                LeafPageHandle newPH(ixFileHandle, newLeafPageNum);
-
-                if(oldPH.isParentPtrNull()) {
-                    // Insert a new index page
-                    ret = ixFileHandle.appendEmptyPage();
-                    if(ret) return ret;
-                    uint32_t newIndexPageNum = ixFileHandle.getLastPageIndex();
-
-                    // Insert new key into index page
-                    uint8_t newParentKey[PAGE_SIZE];
-                    ret = newPH.getFirstKey(newParentKey, attr);
-                    if(ret) return ret;
-                    IndexPageHandle newIndexPH(ixFileHandle, newIndexPageNum, IX::PAGE_PTR_NULL,
-                                               oldPH.pageNum, newParentKey, newPH.pageNum, attr);
-
-                    // Set pointers
-                    oldPH.setParentPtr(newIndexPageNum);
-                    newPH.setParentPtr(newIndexPageNum);
-                    ixFileHandle.setRoot(newIndexPageNum);
-                    return 0;
-                }
-                else {
-                    uint8_t newParentKey[PAGE_SIZE];
-                    ret = newPH.getFirstKey(newParentKey, attr);
-                    if(ret) return ret;
-                    IndexPageHandle newIndexPH(ixFileHandle, oldPH.parentPtr);
-                    ret = newIndexPH.insertIndex(newParentKey, attr, newLeafPageNum);
-                    if(ret) return ret;
-                    return 0;
-                }
-            }
+            LeafPageHandle leafPH(pageHandle);
+            ret = leafPH.insertEntry((uint8_t *)key, rid, attr);
+            if(ret) return ret;
         }
         else {
             return ERR_PAGE_TYPE_UNKNOWN;
@@ -169,7 +132,8 @@ namespace PeterDB {
 
     RC
     IndexManager::deleteEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid) {
-        return -1;
+        RC ret = 0;
+        return ERR_TODO;
     }
 
     RC IndexManager::scan(IXFileHandle &ixFileHandle,
@@ -179,7 +143,7 @@ namespace PeterDB {
                           bool lowKeyInclusive,
                           bool highKeyInclusive,
                           IX_ScanIterator &ix_ScanIterator) {
-        return -1;
+        return ERR_TODO;
     }
 
     RC IndexManager::printBTree(IXFileHandle &ixFileHandle, const Attribute &attr, std::ostream &out) const {
