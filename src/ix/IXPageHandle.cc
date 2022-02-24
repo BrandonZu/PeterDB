@@ -30,7 +30,31 @@ namespace PeterDB {
         return pageType == IX::PAGE_TYPE_LEAF;
     }
 
-    bool IXPageHandle::isKeySatisfyComparison(const uint8_t* key1, const uint8_t* key2, const Attribute& attr, const CompOp op) {
+    bool IXPageHandle::isCompositeKeyMeetCompCondition(const uint8_t* key1, const RID& rid1, const uint8_t* key2, const RID& rid2, const Attribute& attr, const CompOp op) {
+        switch (op) {
+            case GT_OP:
+                return isKeyMeetCompCondition(key1, key2, attr, GT_OP) ||
+                       (isKeyMeetCompCondition(key1, key2, attr, EQ_OP) && isEntryMeetCompCondition(rid1, rid2, GT_OP));
+            case GE_OP:
+                return isKeyMeetCompCondition(key1, key2, attr, GE_OP) ||
+                       (isKeyMeetCompCondition(key1, key2, attr, EQ_OP) && isEntryMeetCompCondition(rid1, rid2, GE_OP));
+            case LT_OP:
+                return isKeyMeetCompCondition(key1, key2, attr, LT_OP) ||
+                       (isKeyMeetCompCondition(key1, key2, attr, EQ_OP) && isEntryMeetCompCondition(rid1, rid2, LT_OP));
+            case LE_OP:
+                return isKeyMeetCompCondition(key1, key2, attr, LE_OP) ||
+                       (isKeyMeetCompCondition(key1, key2, attr, EQ_OP) && isEntryMeetCompCondition(rid1, rid2, LE_OP));
+            case NE_OP:
+                return !(isKeyMeetCompCondition(key1, key2, attr, EQ_OP) && isEntryMeetCompCondition(rid1, rid2, EQ_OP));
+            case EQ_OP:
+                return isKeyMeetCompCondition(key1, key2, attr, EQ_OP) && isEntryMeetCompCondition(rid1, rid2, EQ_OP);
+            default:
+                return false;
+        }
+        return false;
+    }
+
+    bool IXPageHandle::isKeyMeetCompCondition(const uint8_t* key1, const uint8_t* key2, const Attribute& attr, const CompOp op) {
         switch (attr.type) {
             case TypeInt:
                 int32_t int1;
@@ -97,6 +121,26 @@ namespace PeterDB {
                         return false;
                 }
                 break;
+        }
+        return false;
+    }
+
+    bool IXPageHandle::isEntryMeetCompCondition(const RID& rid1, const RID& rid2, const CompOp op) {
+        switch (op) {
+            case GT_OP:
+                return rid1.pageNum > rid2.pageNum || (rid1.pageNum == rid2.pageNum && rid1.slotNum > rid2.slotNum);
+            case GE_OP:
+                return rid1.pageNum >= rid2.pageNum || (rid1.pageNum == rid2.pageNum && rid1.slotNum >= rid2.slotNum);
+            case LT_OP:
+                return rid1.pageNum < rid2.pageNum || (rid1.pageNum == rid2.pageNum && rid1.slotNum < rid2.slotNum);
+            case LE_OP:
+                return rid1.pageNum <= rid2.pageNum || (rid1.pageNum == rid2.pageNum && rid1.slotNum <= rid2.slotNum);
+            case NE_OP:
+                return !(rid1.pageNum == rid2.pageNum && rid1.slotNum == rid2.slotNum);
+            case EQ_OP:
+                return rid1.pageNum == rid2.pageNum && rid1.slotNum == rid2.slotNum;
+            default:
+                return false;
         }
         return false;
     }

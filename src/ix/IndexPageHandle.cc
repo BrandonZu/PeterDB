@@ -67,7 +67,7 @@ namespace PeterDB {
 
         // 1. Smallest Key
         keyPos = IX::INDEXPAGE_CHILD_PTR_LEN;
-        if(isKeySatisfyComparison(key, data + keyPos, attr, CompOp::LT_OP)) {
+        if(isKeyMeetCompCondition(key, data + keyPos, attr, CompOp::LT_OP)) {
             return 0;
         }
 
@@ -75,8 +75,8 @@ namespace PeterDB {
         keyPos += getEntryLen(data + keyPos, attr);
         int16_t prevPos = IX::INDEXPAGE_CHILD_PTR_LEN;
         for(int16_t i = 1; i < counter; i++) {
-            if(isKeySatisfyComparison(key, data + prevPos, attr, CompOp::GE_OP) &&
-               isKeySatisfyComparison(key, data + keyPos, attr, CompOp::LT_OP)) {
+            if(isKeyMeetCompCondition(key, data + prevPos, attr, CompOp::GE_OP) &&
+               isKeyMeetCompCondition(key, data + keyPos, attr, CompOp::LT_OP)) {
                 break;
             }
             prevPos = keyPos;

@@ -171,7 +171,9 @@ namespace PeterDB {
         bool isTypeIndex();
         bool isTypeLeaf();
 
-        bool isKeySatisfyComparison(const uint8_t* key1, const uint8_t* key2, const Attribute& attr, const CompOp op);
+        bool isCompositeKeyMeetCompCondition(const uint8_t* key1, const RID& rid1, const uint8_t* key2, const RID& rid2, const Attribute& attr, const CompOp op);
+        bool isKeyMeetCompCondition(const uint8_t* key1, const uint8_t* key2, const Attribute& attr, const CompOp op);
+        bool isEntryMeetCompCondition(const RID& rid1, const RID& rid2, const CompOp op);
 
         RC shiftRecordLeft(int16_t dataNeedShiftStartPos, int16_t dist);
         RC shiftRecordRight(int16_t dataNeedShiftStartPos, int16_t dist);
@@ -260,6 +262,8 @@ namespace PeterDB {
 
         bool hasEnoughSpace(const uint8_t* key, const Attribute& attr);
         int16_t getEntryLen(const uint8_t* key, const Attribute& attr);
+        void getRid(const uint8_t* keyStartPos, const Attribute& attr, RID& rid);
+
         int16_t getLeafHeaderLen();
         void flushLeafHeader();
 

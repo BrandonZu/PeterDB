@@ -83,26 +83,31 @@ namespace PeterDB {
         }
 
         int16_t pos = 0;
-
         if(counter == 0) {
             // Case 1: the first entry
             pos = 0;
         }
-        else if(isKeySatisfyComparison(key, data, attr, CompOp::LT_OP)) {
-            // Case 2: new key is the smallest
-            pos = 0;
-        }
         else {
-            // Case 3: Iterate over other keys
+            // Case 2: Iterate over other keys
+            RID prevRid, curRid;
             int16_t prev = 0;
-            pos = getEntryLen(key, attr);
-            for (int16_t index = 1; index < counter; index++) {
-                if (isKeySatisfyComparison(key, data + prev, attr, CompOp::GE_OP) &&
-                    isKeySatisfyComparison(key, data + pos, attr, CompOp::LT_OP)) {
-                    break;
+            getRid(data, attr, prevRid);
+            // Smaller than the first entry
+            if(isCompositeKeyMeetCompCondition(key, entry, data, prevRid, attr, LT_OP)) {
+                pos = 0;
+            }
+            else {
+                pos = getEntryLen(key, attr);
+                for (int16_t index = 1; index < counter; index++) {
+                    getRid(data + pos, attr, curRid);
+                    if (isCompositeKeyMeetCompCondition(key, entry, data + prev, prevRid, attr, GE_OP) &&
+                        isCompositeKeyMeetCompCondition(key, entry, data + pos, curRid, attr, LT_OP)) {
+                        break;
+                    }
+                    prevRid = curRid;
+                    prev = pos;
+                    pos += getEntryLen(data + pos, attr);
                 }
-                prev = pos;
-                pos += getEntryLen(data + pos, attr);
             }
         }
 
@@ -163,13 +168,16 @@ namespace PeterDB {
             moveStartPos += getEntryLen(data + moveStartPos, attr);
         }
         // If new entry should be inserted into new page, move one less entry to new page
-        if(isKeySatisfyComparison(key, data + moveStartPos, attr, CompOp::GE_OP)) {
+        RID tmpRid;
+        getRid(data + moveStartPos, attr, tmpRid);
+        if(isCompositeKeyMeetCompCondition(key, entry, data + moveStartPos, tmpRid, attr, CompOp::GE_OP)) {
             moveStartPos += getEntryLen(data + moveStartPos, attr);
         }
 
         // 2. Insert new entry into old page or new page
+        getRid(data + moveStartPos, attr, tmpRid);
         bool insertIntoOld = false;
-        if(isKeySatisfyComparison(key, data + moveStartPos, attr, CompOp::LT_OP)) {
+        if(isCompositeKeyMeetCompCondition(key, entry, data + moveStartPos, tmpRid, attr, CompOp::LT_OP)) {
             insertIntoOld = true;
         }
 
@@ -242,6 +250,13 @@ namespace PeterDB {
     }
     int16_t LeafPageHandle::getEntryLen(const uint8_t* key, const Attribute& attr) {
         return getKeyLen(key, attr) + IX::LEAFPAGE_ENTRY_PAGE_LEN + IX::LEAFPAGE_ENTRY_SLOT_LEN;
+    }
+
+    void LeafPageHandle::getRid(const uint8_t* keyStartPos, const Attribute& attr, RID& rid) {
+        int16_t pos = 0;
+        pos += getKeyLen(keyStartPos, attr);
+        memcpy(&rid.pageNum, data + getKeyLen(data, attr), IX::LEAFPAGE_ENTRY_PAGE_LEN);
+        memcpy(&rid.slotNum, data + getKeyLen(data, attr) + IX::LEAFPAGE_ENTRY_PAGE_LEN, IX::LEAFPAGE_ENTRY_SLOT_LEN);
     }
 
     int16_t LeafPageHandle::getLeafHeaderLen() {
