@@ -349,6 +349,7 @@ namespace PeterDB {
         ret = rbfm_ScanIterator.open(fileHandle, recordDescriptor, conditionAttribute, compOp, value, attributeNames);
         if(ret) {
             LOG(ERROR) << "Fail to open a scanner! @ RecordBasedFileManager::scan" << std::endl;
+            return ret;
         }
         return 0;
     }
