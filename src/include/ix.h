@@ -193,6 +193,12 @@ namespace PeterDB {
         uint32_t getParentPtr();
         void setParentPtr(uint32_t parent);
         bool isParentPtrNull();
+
+    protected:
+        int16_t getPageTypeFromData();
+        int16_t getFreeBytePointerFromData();
+        int16_t getCounterFromData();
+        uint32_t getParentPtrFromData();
     };
 
     class IndexPageHandle: public IXPageHandle {
@@ -244,6 +250,9 @@ namespace PeterDB {
         RC insertEntryWithEnoughSpace(const uint8_t* key, const RID& entry, const Attribute& attr);
         RC writeEntry(int16_t pos, const uint8_t* key, const RID& entry, const Attribute& attr);
         RC findFirstKeyMeetCompCondition(int16_t& pos, const uint8_t* key, const Attribute& attr, CompOp op);
+        RC findFirstCompositeKeyMeetCompCondition(int16_t& pos, const uint8_t* key, const RID& rid, const Attribute& attr, CompOp op);
+
+        RC deleteEntry(const uint8_t* key, const RID& entry, const Attribute& attr);
 
         RC getFirstKey(uint8_t* keyData, const Attribute& attr);
 
@@ -268,6 +277,7 @@ namespace PeterDB {
 
         int16_t getNextPtrOffset();
         uint32_t getNextPtr();
+        uint32_t getNextPtrFromData();
         void setNextPtr(uint32_t next);
     };
 

@@ -193,7 +193,9 @@ namespace PeterDB {
     }
 
     uint32_t IXFileHandle::getRoot() {
-        readRoot();
+        if(isRootNull()) {
+            readRoot();
+        }
         return root;
     }
 

@@ -74,6 +74,7 @@ namespace PeterDB {
     const int32_t ERR_INDEXPAGE_NO_INDEX = 409;
     const int32_t ERR_INDEXPAGE_LAST_CHILD_NOT_EXIST = 410;
     const int32_t ERR_LEAF_NOT_FOUND = 411;
+    const int32_t ERR_LEAFNODE_ENTRY_NOT_EXIST = 412;
 }
 
 #endif //PETERDB_ERRORCODE_H

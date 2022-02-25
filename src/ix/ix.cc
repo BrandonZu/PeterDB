@@ -113,8 +113,20 @@ namespace PeterDB {
     RC
     IndexManager::deleteEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid) {
         RC ret = 0;
+        if(!ixFileHandle.isRootPageExist()) {
+            return ERR_ROOTPAGE_NOT_EXIST;
+        }
+        if(ixFileHandle.isRootNull()) {
+            return ERR_ROOT_NULL;
+        }
 
-        return ERR_TODO;
+        uint32_t leafPage;
+        ret = findTargetLeafNode(ixFileHandle, leafPage, (uint8_t *)key, attribute);
+        if(ret) return ret;
+        LeafPageHandle leafPH(ixFileHandle, leafPage);
+        ret = leafPH.deleteEntry((uint8_t *)key, rid, attribute);
+        if(ret) return ret;
+        return 0;
     }
 
     RC IndexManager::scan(IXFileHandle &ixFileHandle,

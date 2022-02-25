@@ -2,10 +2,10 @@
 
 namespace PeterDB {
     LeafPageHandle::LeafPageHandle(IXPageHandle& pageHandle): IXPageHandle(pageHandle) {
-        nextPtr = getNextPtr();
+        nextPtr = getNextPtrFromData();
     }
     LeafPageHandle::LeafPageHandle(IXFileHandle& fileHandle, uint32_t page): IXPageHandle(fileHandle, page) {
-        nextPtr = getNextPtr();
+        nextPtr = getNextPtrFromData();
     }
 
     LeafPageHandle::LeafPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent, uint32_t next): IXPageHandle(fileHandle, page) {
@@ -146,6 +146,36 @@ namespace PeterDB {
         return 0;
     }
 
+    RC LeafPageHandle::findFirstCompositeKeyMeetCompCondition(int16_t& pos, const uint8_t* key, const RID& rid, const Attribute& attr, CompOp op) {
+        pos = 0;
+        RID curRID;
+        for (int16_t index = 0; index < counter; index++) {
+            getRid(data + pos, attr, curRID);
+            if (isCompositeKeyMeetCompCondition(key, rid, data + pos, curRID, attr, op)) {
+                break;
+            }
+            pos += getEntryLen(data + pos, attr);
+        }
+        return 0;
+    }
+
+    RC LeafPageHandle::deleteEntry(const uint8_t* key, const RID& entry, const Attribute& attr) {
+        RC ret = 0;
+        int16_t slotPos = 0;
+        findFirstCompositeKeyMeetCompCondition(slotPos, (uint8_t *)key, entry, attr, EQ_OP);
+        if(slotPos >= freeBytePtr) {
+            return ERR_LEAFNODE_ENTRY_NOT_EXIST;
+        }
+        int16_t curEntryLen = getEntryLen(data + slotPos, attr);
+        int16_t dataNeedMovePos = slotPos + curEntryLen;
+        if(dataNeedMovePos < freeBytePtr) {
+            shiftRecordLeft(dataNeedMovePos, curEntryLen);
+        }
+        freeBytePtr -= curEntryLen;
+        counter--;
+        return 0;
+    }
+
     RC LeafPageHandle::getFirstKey(uint8_t* keyData, const Attribute& attr) {
         if(counter < 1) {
             return ERR_KEY_NOT_EXIST;
@@ -192,6 +222,7 @@ namespace PeterDB {
 
         // 4. Compact old page and maintain metadata
         freeBytePtr -= moveLen;
+        setFreeBytePointer(freeBytePtr);
         counter = moveStartIndex;
 
         // 5. Link old page to new page
@@ -297,6 +328,9 @@ namespace PeterDB {
         return PAGE_SIZE - getHeaderLen() - IX::LEAFPAGE_NEXT_PTR_LEN;
     }
     uint32_t LeafPageHandle::getNextPtr() {
+        return nextPtr;
+    }
+    uint32_t LeafPageHandle::getNextPtrFromData() {
         uint32_t nextPtr;
         memcpy(&nextPtr, data + getNextPtrOffset(), IX::LEAFPAGE_NEXT_PTR_LEN);
         return nextPtr;

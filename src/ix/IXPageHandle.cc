@@ -4,10 +4,10 @@ namespace PeterDB {
     IXPageHandle::IXPageHandle(IXFileHandle& fileHandle, uint32_t page): ixFileHandle(fileHandle), pageNum(page) {
         ixFileHandle.readPage(pageNum, data);
 
-        freeBytePtr = getFreeBytePointer();
-        pageType = getPageType();
-        counter = getCounter();
-        parentPtr = getParentPtr();
+        freeBytePtr = getFreeBytePointerFromData();
+        pageType = getPageTypeFromData();
+        counter = getCounterFromData();
+        parentPtr = getParentPtrFromData();
     }
 
     IXPageHandle::IXPageHandle(IXPageHandle& pageHandle): ixFileHandle(pageHandle.ixFileHandle) {
@@ -227,6 +227,9 @@ namespace PeterDB {
     }
 
     int16_t IXPageHandle::getPageType() {
+        return pageType;
+    }
+    int16_t IXPageHandle::getPageTypeFromData() {
         int16_t type;
         memcpy(&type, data + PAGE_SIZE - IX::PAGE_TYPE_LEN, IX::PAGE_TYPE_LEN);
         return type;
@@ -240,6 +243,9 @@ namespace PeterDB {
         return PAGE_SIZE - IX::PAGE_TYPE_LEN - IX::PAGE_FREEBYTE_PTR_LEN;
     }
     int16_t IXPageHandle::getFreeBytePointer() {
+        return freeBytePtr;
+    }
+    int16_t IXPageHandle::getFreeBytePointerFromData() {
         int16_t ptr;
         memcpy(&ptr, data + getFreeBytePointerOffset(), IX::PAGE_FREEBYTE_PTR_LEN);
         return ptr;
@@ -253,6 +259,9 @@ namespace PeterDB {
         return PAGE_SIZE - IX::PAGE_TYPE_LEN - IX::PAGE_FREEBYTE_PTR_LEN - IX::PAGE_COUNTER_LEN;
     }
     int16_t IXPageHandle::getCounter() {
+        return counter;
+    }
+    int16_t IXPageHandle::getCounterFromData() {
         int16_t counter;
         memcpy(&counter, data + getCounterOffset(), IX::PAGE_COUNTER_LEN);
         return counter;
@@ -262,7 +271,6 @@ namespace PeterDB {
         this->counter = counter;
     }
     void IXPageHandle::addCounterByOne() {
-        int16_t counter = getCounter();
         setCounter(counter + 1);
     }
 
@@ -270,6 +278,9 @@ namespace PeterDB {
         return PAGE_SIZE - IX::PAGE_TYPE_LEN - IX::PAGE_FREEBYTE_PTR_LEN - IX::PAGE_COUNTER_LEN - IX::PAGE_PARENT_PTR_LEN;
     }
     uint32_t IXPageHandle::getParentPtr() {
+        return parentPtr;
+    }
+    uint32_t IXPageHandle::getParentPtrFromData() {
         uint32_t parent;
         memcpy(&parent, data + getParentPtrOffset(), IX::PAGE_PARENT_PTR_LEN);
         return parent;
