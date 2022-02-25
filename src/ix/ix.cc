@@ -125,7 +125,7 @@ namespace PeterDB {
                           bool highKeyInclusive,
                           IX_ScanIterator &ix_ScanIterator) {
         RC ret = 0;
-        ret = ix_ScanIterator.open(ixFileHandle, attribute, (uint8_t*)lowKey, (uint8_t*)highKey, lowKeyInclusive, highKeyInclusive);
+        ret = ix_ScanIterator.open(&ixFileHandle, attribute, (uint8_t*)lowKey, (uint8_t*)highKey, lowKeyInclusive, highKeyInclusive);
         if(ret) return ret;
         return 0;
     }
@@ -139,7 +139,7 @@ namespace PeterDB {
             return ERR_ROOT_NULL;
         }
 
-        uint32_t curPageNum = ixFileHandle.root;
+        uint32_t curPageNum = ixFileHandle.getRoot();
         while(curPageNum != IX::PAGE_PTR_NULL && curPageNum < ixFileHandle.getPageCounter()) {
             IXPageHandle curPagePH(ixFileHandle, curPageNum);
             if(curPagePH.isTypeLeaf()) {
@@ -149,8 +149,7 @@ namespace PeterDB {
             ret = indexPH.getTargetChild(curPageNum, key, attr);
             if (ret) return ret;
         }
-        IXPageHandle curPagePH(ixFileHandle, curPageNum);
-        if(curPagePH.isTypeLeaf()) {
+        if(curPageNum != IX::PAGE_PTR_NULL && curPageNum < ixFileHandle.getPageCounter()) {
             leafPageNum = curPageNum;
         }
         else {
@@ -168,7 +167,7 @@ namespace PeterDB {
             return ERR_ROOT_NULL;
         }
 
-        IXPageHandle page(ixFileHandle, ixFileHandle.root);
+        IXPageHandle page(ixFileHandle, ixFileHandle.getRoot());
         if(page.isTypeIndex()) {
             IndexPageHandle indexPH(page);
             indexPH.print(attr, out);

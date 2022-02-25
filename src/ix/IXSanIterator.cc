@@ -11,10 +11,10 @@ namespace PeterDB {
 
     IX_ScanIterator::~IX_ScanIterator() = default;
 
-    RC IX_ScanIterator::open(IXFileHandle &fileHandle, const Attribute& attr, const uint8_t* lowKey,
+    RC IX_ScanIterator::open(IXFileHandle* fileHandle, const Attribute& attr, const uint8_t* lowKey,
                              const uint8_t* highKey, bool lowKeyInclusive, bool highKeyInclusive) {
         RC ret = 0;
-        this->ixFileHandle = fileHandle;
+        this->ixFileHandlePtr = fileHandle;
         this->attr = attr;
         this->lowKey = lowKey;
         this->highKey = highKey;
@@ -22,20 +22,20 @@ namespace PeterDB {
         this->highKeyInclusive = highKeyInclusive;
         entryExceedUpperBound = false;
 
-        if(!ixFileHandle.isRootPageExist()) {
+        if(!ixFileHandlePtr->isRootPageExist()) {
             return ERR_ROOTPAGE_NOT_EXIST;
         }
-        if(ixFileHandle.isRootNull()) {
+        if(ixFileHandlePtr->isRootNull()) {
             return ERR_ROOT_NULL;
         }
         // Find the right leaf node to start scanning
-        ret = IndexManager::instance().findTargetLeafNode(ixFileHandle, curLeafPage, lowKey, attr);
+        ret = IndexManager::instance().findTargetLeafNode(*ixFileHandlePtr, curLeafPage, lowKey, attr);
         if(ret) return ret;
 
         // Skip empty pages
         curSlotPos = 0;
-        while(curLeafPage != IX::PAGE_PTR_NULL && curLeafPage < ixFileHandle.getPageCounter()) {
-            LeafPageHandle leafPH(ixFileHandle, curLeafPage);
+        while(curLeafPage != IX::PAGE_PTR_NULL && curLeafPage < ixFileHandlePtr->getPageCounter()) {
+            LeafPageHandle leafPH(*ixFileHandlePtr, curLeafPage);
             if(!leafPH.isEmpty()) {
                 break;
             }
@@ -47,8 +47,8 @@ namespace PeterDB {
             return 0;
         }
 
-        while(curLeafPage < ixFileHandle.getPageCounter()) {
-            LeafPageHandle leafPH(ixFileHandle, curLeafPage);
+        while(curLeafPage < ixFileHandlePtr->getPageCounter()) {
+            LeafPageHandle leafPH(*ixFileHandlePtr, curLeafPage);
             if(lowKeyInclusive) {
                 leafPH.findFirstKeyMeetCompCondition(curSlotPos, lowKey, attr, LE_OP);
             }
@@ -63,8 +63,8 @@ namespace PeterDB {
                 // Reach the end, go to next non-empty page
                 curLeafPage++;
                 curSlotPos = 0;
-                while(curLeafPage != IX::PAGE_PTR_NULL && curLeafPage < ixFileHandle.getPageCounter()) {
-                    LeafPageHandle leafPH(ixFileHandle, curLeafPage);
+                while(curLeafPage != IX::PAGE_PTR_NULL && curLeafPage < ixFileHandlePtr->getPageCounter()) {
+                    LeafPageHandle leafPH(*ixFileHandlePtr, curLeafPage);
                     if(!leafPH.isEmpty()) {
                         break;
                     }
@@ -83,26 +83,41 @@ namespace PeterDB {
 
     RC IX_ScanIterator::getNextEntry(RID &rid, void *key) {
         RC ret = 0;
-        if(curLeafPage >= ixFileHandle.getPageCounter()) {
+        if(curLeafPage >= ixFileHandlePtr->getPageCounter()) {
             return IX_EOF;
         }
         if(highKey && entryExceedUpperBound) {
             return IX_EOF;
         }
 
-        LeafPageHandle leafPageHandle(ixFileHandle, curLeafPage);
+        // Read current entry and check if it meets condition
+        LeafPageHandle leafPageHandle(*ixFileHandlePtr, curLeafPage);
         ret = leafPageHandle.getEntry(curSlotPos, (uint8_t *) key, rid, attr);
         if(ret) return ret;
+        if(highKey && highKeyInclusive &&
+           leafPageHandle.isKeyMeetCompCondition((uint8_t *)key, highKey, attr, GT_OP)) {
+            entryExceedUpperBound = true;
+            return IX_EOF;
+        }
+        if(highKey && !highKeyInclusive &&
+           leafPageHandle.isKeyMeetCompCondition((uint8_t *)key, highKey, attr, GE_OP)) {
+            entryExceedUpperBound = true;
+            return IX_EOF;
+        }
 
-        curLeafPage++;
-        curSlotPos = 0;
-        while(curLeafPage != IX::PAGE_PTR_NULL && curLeafPage < ixFileHandle.getPageCounter()) {
-            LeafPageHandle leafPH(ixFileHandle, curLeafPage);
-            if(!leafPH.isEmpty()) {
-                break;
-            }
-            curLeafPage = leafPH.getNextPtr();
+        curSlotPos = leafPageHandle.getNextEntryPos(curSlotPos, attr);
+        if(curSlotPos == leafPageHandle.getFreeBytePointer()) {
+            // Reach the end of current page
+            curLeafPage++;
             curSlotPos = 0;
+            while (curLeafPage != IX::PAGE_PTR_NULL && curLeafPage < ixFileHandlePtr->getPageCounter()) {
+                LeafPageHandle leafPH(*ixFileHandlePtr, curLeafPage);
+                if (!leafPH.isEmpty()) {
+                    break;
+                }
+                curLeafPage = leafPH.getNextPtr();
+                curSlotPos = 0;
+            }
         }
         return 0;
     }

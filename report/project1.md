@@ -77,7 +77,7 @@ record from the page.
 
     class RecordPageHandle {
     public:
-        FileHandle& ixFileHandle;
+        FileHandle& ixFileHandlePtr;
         PageNum pageNum;
     
         short freeBytePointer;

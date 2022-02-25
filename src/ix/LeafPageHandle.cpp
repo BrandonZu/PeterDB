@@ -30,6 +30,7 @@ namespace PeterDB {
     LeafPageHandle::~LeafPageHandle() {
         flushLeafHeader();
         ixFileHandle.writePage(pageNum, data);
+        ixFileHandle.ixWritePageCounter--;
     }
 
     RC LeafPageHandle::insertEntry(const uint8_t* key, const RID& rid, const Attribute& attr) {

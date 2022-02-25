@@ -134,7 +134,7 @@ The main functions are shown as below.
 
     class RecordPageHandle {
     public:
-        FileHandle& ixFileHandle;
+        FileHandle& ixFileHandlePtr;
         PageNum pageNum;
 
         int16_t freeBytePointer;

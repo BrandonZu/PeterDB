@@ -3,6 +3,7 @@
 namespace PeterDB {
     IXPageHandle::IXPageHandle(IXFileHandle& fileHandle, uint32_t page): ixFileHandle(fileHandle), pageNum(page) {
         ixFileHandle.readPage(pageNum, data);
+
         freeBytePtr = getFreeBytePointer();
         pageType = getPageType();
         counter = getCounter();
@@ -12,6 +13,7 @@ namespace PeterDB {
     IXPageHandle::IXPageHandle(IXPageHandle& pageHandle): ixFileHandle(pageHandle.ixFileHandle) {
         // Write current page's data to disk
         ixFileHandle.writePage(pageNum, data);
+        ixFileHandle.ixWritePageCounter--;
 
         // Copy values
         pageNum = pageHandle.pageNum;
@@ -25,10 +27,7 @@ namespace PeterDB {
 
     IXPageHandle::~IXPageHandle() {
         ixFileHandle.writePage(pageNum, data);
-    }
-
-    RC IXPageHandle::close() {
-        return ixFileHandle.writePage(pageNum, data);
+        ixFileHandle.ixWritePageCounter--;
     }
 
     bool IXPageHandle::isOpen() {

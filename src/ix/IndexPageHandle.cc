@@ -45,6 +45,7 @@ namespace PeterDB {
     IndexPageHandle::~IndexPageHandle() {
         flushIndexHeader();
         ixFileHandle.writePage(pageNum, data);
+        ixFileHandle.ixWritePageCounter--;
     }
 
     RC IndexPageHandle::getTargetChild(uint32_t& childPtr, const uint8_t* key, const Attribute &attr) {

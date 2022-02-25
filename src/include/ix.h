@@ -122,8 +122,11 @@ namespace PeterDB {
         RC flushMetaData();
 
         RC createRootPage();
+
         RC readRoot();
         RC flushRoot();
+
+        uint32_t getRoot();
         RC setRoot(uint32_t newRoot);
 
         std::string getFileName();
@@ -147,12 +150,12 @@ namespace PeterDB {
 
         uint8_t data[PAGE_SIZE] = {};
 
+        bool isForCheck;
+
     public:
         IXPageHandle(IXFileHandle& fileHandle, uint32_t page);
         IXPageHandle(IXPageHandle& pageHandle);
         ~IXPageHandle();
-
-        RC close();
 
         bool isOpen();
         bool isTypeIndex();
@@ -270,7 +273,7 @@ namespace PeterDB {
 
     class IX_ScanIterator {
     public:
-        IXFileHandle ixFileHandle;
+        IXFileHandle* ixFileHandlePtr;
         Attribute attr;
         const uint8_t* lowKey;
         bool lowKeyInclusive;
@@ -287,7 +290,7 @@ namespace PeterDB {
         // Destructor
         ~IX_ScanIterator();
 
-        RC open(IXFileHandle &ixFileHandle, const Attribute& attr,
+        RC open(IXFileHandle* ixFileHandle, const Attribute& attr,
                 const uint8_t* lowKey, const uint8_t* highKey,
                 bool lowKeyInclusive, bool highKeyInclusive);
 

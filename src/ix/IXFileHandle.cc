@@ -177,7 +177,7 @@ namespace PeterDB {
         fs->clear();
         fs->seekg(rootPagePtr * PAGE_SIZE, fs->beg);
         fs->read((char *)(&root), IX::FILE_ROOT_LEN);
-        fs->flush();
+        ixReadPageCounter++;
         return 0;
     }
     RC IXFileHandle::flushRoot() {
@@ -188,7 +188,13 @@ namespace PeterDB {
         fs->seekp(rootPagePtr * PAGE_SIZE, fs->beg);
         fs->write((char *)(&root), IX::FILE_ROOT_LEN);
         fs->flush();
+        ixWritePageCounter++;
         return 0;
+    }
+
+    uint32_t IXFileHandle::getRoot() {
+        readRoot();
+        return root;
     }
 
     RC IXFileHandle::setRoot(uint32_t newRoot) {
