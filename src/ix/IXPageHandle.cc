@@ -10,6 +10,10 @@ namespace PeterDB {
     }
 
     IXPageHandle::IXPageHandle(IXPageHandle& pageHandle): ixFileHandle(pageHandle.ixFileHandle) {
+        // Write current page's data to disk
+        ixFileHandle.writePage(pageNum, data);
+
+        // Copy values
         pageNum = pageHandle.pageNum;
         pageType = pageHandle.pageType;
         freeBytePtr = pageHandle.freeBytePtr;
@@ -21,6 +25,14 @@ namespace PeterDB {
 
     IXPageHandle::~IXPageHandle() {
         ixFileHandle.writePage(pageNum, data);
+    }
+
+    RC IXPageHandle::close() {
+        return ixFileHandle.writePage(pageNum, data);
+    }
+
+    bool IXPageHandle::isOpen() {
+        return ixFileHandle.isOpen();
     }
 
     bool IXPageHandle::isTypeIndex() {

@@ -20,8 +20,8 @@ My record format design is shown as below.
 
 1. Mask(2 bytes): Reserved for future use
 2. AttrNum(2 bytes): Number of attributes
-3. Attr Directory(2 * AttrNum bytes): Each attribute has a pointer which points to the ending position of its byte sequence
-4. Attr Value(it depends): Concatenation of attribute's conditionAttrValue
+3. Attr Directory(2 * AttrNum bytes): Each attr has a pointer which points to the ending position of its byte sequence
+4. Attr Value(it depends): Concatenation of attr's conditionAttrValue
 
 
 - Describe how you store a null field.

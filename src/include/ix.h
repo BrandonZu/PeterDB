@@ -64,8 +64,6 @@ namespace PeterDB {
 
         // Insert an entry into the given index that is indicated by the given ixFileHandle.
         RC insertEntry(IXFileHandle &ixFileHandle, const Attribute &attr, const void *key, const RID &rid);
-        RC insertEntryRecur(IXFileHandle &ixFileHandle, const Attribute &attr, const void *key,
-                            const RID &rid, uint32_t pageNum);
 
         // Delete an entry from the given index that is indicated by the given ixFileHandle.
         RC deleteEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid);
@@ -79,6 +77,8 @@ namespace PeterDB {
                 bool highKeyInclusive,
                 IX_ScanIterator &ix_ScanIterator);
 
+        RC findTargetLeafNode(IXFileHandle &ixFileHandle, uint32_t& leafPageNum, const uint8_t* key, const Attribute& attr);
+
         // Print the B+ tree in pre-order (in a JSON record format)
         RC printBTree(IXFileHandle &ixFileHandle, const Attribute &attribute, std::ostream &out) const;
 
@@ -89,22 +89,6 @@ namespace PeterDB {
         IndexManager &operator=(const IndexManager &) = default;                    // Prevent assignment
     private:
         bool isFileExists(std::string fileName);
-    };
-
-    class IX_ScanIterator {
-    public:
-
-        // Constructor
-        IX_ScanIterator();
-
-        // Destructor
-        ~IX_ScanIterator();
-
-        // Get next matching entry
-        RC getNextEntry(RID &rid, void *key);
-
-        // Terminate index scan
-        RC close();
     };
 
     class IXFileHandle {
@@ -168,6 +152,9 @@ namespace PeterDB {
         IXPageHandle(IXPageHandle& pageHandle);
         ~IXPageHandle();
 
+        RC close();
+
+        bool isOpen();
         bool isTypeIndex();
         bool isTypeLeaf();
 
@@ -253,6 +240,7 @@ namespace PeterDB {
         RC insertEntry(const uint8_t* key, const RID& entry, const Attribute& attr);
         RC insertEntryWithEnoughSpace(const uint8_t* key, const RID& entry, const Attribute& attr);
         RC writeEntry(int16_t pos, const uint8_t* key, const RID& entry, const Attribute& attr);
+        RC findFirstKeyMeetCompCondition(int16_t& pos, const uint8_t* key, const Attribute& attr, CompOp op);
 
         RC getFirstKey(uint8_t* keyData, const Attribute& attr);
 
@@ -264,14 +252,50 @@ namespace PeterDB {
         int16_t getEntryLen(const uint8_t* key, const Attribute& attr);
         void getRid(const uint8_t* keyStartPos, const Attribute& attr, RID& rid);
 
+        // For Scan
+        int16_t getNextEntryPos(int16_t curEntryPos, const Attribute &attr);
+        RC getEntry(int16_t pos, uint8_t* key, RID& rid, const Attribute& attr);
+
+        // MetaData
         int16_t getLeafHeaderLen();
         void flushLeafHeader();
 
         int16_t getFreeSpace();
+        bool isEmpty();
 
         int16_t getNextPtrOffset();
         uint32_t getNextPtr();
         void setNextPtr(uint32_t next);
+    };
+
+    class IX_ScanIterator {
+    public:
+        IXFileHandle ixFileHandle;
+        Attribute attr;
+        const uint8_t* lowKey;
+        bool lowKeyInclusive;
+        const uint8_t* highKey;
+        bool highKeyInclusive;
+
+        uint32_t curLeafPage;
+        int16_t curSlotPos;
+        bool entryExceedUpperBound;
+    public:
+        // Constructor
+        IX_ScanIterator();
+
+        // Destructor
+        ~IX_ScanIterator();
+
+        RC open(IXFileHandle &ixFileHandle, const Attribute& attr,
+                const uint8_t* lowKey, const uint8_t* highKey,
+                bool lowKeyInclusive, bool highKeyInclusive);
+
+        // Get next matching entry
+        RC getNextEntry(RID &rid, void *key);
+
+        // Terminate index scan
+        RC close();
     };
 
 }// namespace PeterDB

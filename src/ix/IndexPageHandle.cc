@@ -49,6 +49,10 @@ namespace PeterDB {
 
     RC IndexPageHandle::getTargetChild(uint32_t& childPtr, const uint8_t* key, const Attribute &attr) {
         RC ret = 0;
+        if(key == nullptr) {    // For scanner, get the first child
+            memcpy(&childPtr, data, IX::INDEXPAGE_CHILD_PTR_LEN);
+            return 0;
+        }
         int16_t pos = 0;
         ret = findPosToInsertKey(pos, key, attr);
         if(ret) return ret;
@@ -65,21 +69,12 @@ namespace PeterDB {
             return 0;
         }
 
-        // 1. Smallest Key
+        // 1. Iterate over all following keys
         keyPos = IX::INDEXPAGE_CHILD_PTR_LEN;
-        if(isKeyMeetCompCondition(key, data + keyPos, attr, CompOp::LT_OP)) {
-            return 0;
-        }
-
-        // 2. Iterate over all following keys
-        keyPos += getEntryLen(data + keyPos, attr);
-        int16_t prevPos = IX::INDEXPAGE_CHILD_PTR_LEN;
-        for(int16_t i = 1; i < counter; i++) {
-            if(isKeyMeetCompCondition(key, data + prevPos, attr, CompOp::GE_OP) &&
-               isKeyMeetCompCondition(key, data + keyPos, attr, CompOp::LT_OP)) {
+        for(int16_t i = 0; i < counter; i++) {
+            if(isKeyMeetCompCondition(key, data + keyPos, attr, CompOp::LT_OP)) {
                 break;
             }
-            prevPos = keyPos;
             keyPos += getEntryLen(data + keyPos, attr);
         }
 

@@ -23,10 +23,10 @@
 | Name        | Type    | Length(Max) | Comment                                    |
 |-------------|---------|-------------|--------------------------------------------|
 | table-id    | Int     | 4           | ID of the table, starting from zero        |
-| column-name | Varchar | 50 | name of the attribute                      | 
-| column-type | Int     | 4 | type of the attribute |
-| column-length   | Int     | 4 | (max)length of the attribute      | 
-| column-pos | Int     | 4 | position of the attribute, 0 based |
+| column-name | Varchar | 50 | name of the attr                      | 
+| column-type | Int     | 4 | type of the attr |
+| column-length   | Int     | 4 | (max)length of the attr      | 
+| column-pos | Int     | 4 | position of the attr, 0 based |
 
 ### 3. Internal Record Format
 - Show your record format design.
@@ -42,7 +42,7 @@
 1. Mask: Indicate whether this record is pointer \
    0 -> Real Record; 1 -> Pointer
 2. AttrNum: Number of attributes
-3. Attr Directory: Store each attribute's ending position of its byte sequence
+3. Attr Directory: Store each attr's ending position of its byte sequence
 4. Attr Value: Concatenation of attributes' byte sequences
 
 - Describe how you store a null field.
@@ -52,7 +52,7 @@ The ending position of a null field stored in the directory is -1
 - Describe how you store a VarChar field.
 
 Store all characters in the Attr Value, without '\0' \
-The length of the VarChar could be computed using the end position of current attribute and last attribute which is not null
+The length of the VarChar could be computed using the end position of current attr and last attr which is not null
 
 - Describe how your record design satisfies O(1) field access.
 
@@ -113,7 +113,7 @@ One. The first page of a file is reserved.
    1. If next record does not exist, add the page index by 1 and set the slot index to 0
    2. If next record exist
       1. If NO_OP, found!
-      2. If comparison attribute is NULL, continue to find next record
+      2. If comparison attr is NULL, continue to find next record
       3. Check if this record meets condition. If it does, found! If not, continue to find next record
 2. Transform selected attributes into API Data format and return
 
@@ -161,7 +161,7 @@ The main functions are shown as below.
 
         // Update Record
         RC updateRecord(int16_t slotIndex, uint8_t byteSeq[], int16_t recordLen);
-        RC setRecordPointToNewRecord(int16_t curSlotIndex, const RID& newRecordPos);
+        RC setRecordPointToNewRecord(int16_t curSlotPos, const RID& newRecordPos);
 
         // Helper Functions
         // Shift records left to avoid empty holes between records

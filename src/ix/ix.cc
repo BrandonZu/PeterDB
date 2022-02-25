@@ -100,39 +100,20 @@ namespace PeterDB {
             return 0;
         }
 
-        ret = insertEntryRecur(ixFileHandle, attr, key, rid, ixFileHandle.rootPagePtr);
-        if(ret) {
-            return ret;
-        }
-        return 0;
-    }
+        uint32_t leafPageNum;
+        ret = findTargetLeafNode(ixFileHandle, leafPageNum, (uint8_t*)key, attr);
+        if(ret) return ret;
 
-    RC IndexManager::insertEntryRecur(IXFileHandle &ixFileHandle, const Attribute &attr, const void *key,
-                                      const RID &rid, uint32_t pageNum) {
-        RC ret = 0;
-        IXPageHandle pageHandle(ixFileHandle, pageNum);
-        // TODO Change recursion to iteration
-        if(pageHandle.isTypeIndex()) {
-            IndexPageHandle indexPH(pageHandle);
-            uint32_t childPage;
-            ret = indexPH.getTargetChild(childPage, (uint8_t *)key, attr);
-            if(ret) return ret;
-            return insertEntryRecur(ixFileHandle, attr, key, rid, childPage);
-        }
-        else if(pageHandle.isTypeLeaf()) {
-            LeafPageHandle leafPH(pageHandle);
-            ret = leafPH.insertEntry((uint8_t *)key, rid, attr);
-            if(ret) return ret;
-        }
-        else {
-            return ERR_PAGE_TYPE_UNKNOWN;
-        }
+        LeafPageHandle leafPH(ixFileHandle, leafPageNum);
+        ret = leafPH.insertEntry((uint8_t *)key, rid, attr);
+        if(ret) return ret;
         return 0;
     }
 
     RC
     IndexManager::deleteEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid) {
         RC ret = 0;
+
         return ERR_TODO;
     }
 
@@ -143,8 +124,39 @@ namespace PeterDB {
                           bool lowKeyInclusive,
                           bool highKeyInclusive,
                           IX_ScanIterator &ix_ScanIterator) {
+        RC ret = 0;
+        ret = ix_ScanIterator.open(ixFileHandle, attribute, (uint8_t*)lowKey, (uint8_t*)highKey, lowKeyInclusive, highKeyInclusive);
+        if(ret) return ret;
+        return 0;
+    }
 
-        return ERR_TODO;
+    RC IndexManager::findTargetLeafNode(IXFileHandle &ixFileHandle, uint32_t& leafPageNum, const uint8_t* key, const Attribute& attr) {
+        RC ret = 0;
+        if(!ixFileHandle.isRootPageExist()) {
+            return ERR_ROOTPAGE_NOT_EXIST;
+        }
+        if(ixFileHandle.isRootNull()) {
+            return ERR_ROOT_NULL;
+        }
+
+        uint32_t curPageNum = ixFileHandle.root;
+        while(curPageNum != IX::PAGE_PTR_NULL && curPageNum < ixFileHandle.getPageCounter()) {
+            IXPageHandle curPagePH(ixFileHandle, curPageNum);
+            if(curPagePH.isTypeLeaf()) {
+                break;
+            }
+            IndexPageHandle indexPH(curPagePH);
+            ret = indexPH.getTargetChild(curPageNum, key, attr);
+            if (ret) return ret;
+        }
+        IXPageHandle curPagePH(ixFileHandle, curPageNum);
+        if(curPagePH.isTypeLeaf()) {
+            leafPageNum = curPageNum;
+        }
+        else {
+            return ERR_LEAF_NOT_FOUND;
+        }
+        return 0;
     }
 
     RC IndexManager::printBTree(IXFileHandle &ixFileHandle, const Attribute &attr, std::ostream &out) const {

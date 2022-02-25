@@ -89,25 +89,14 @@ namespace PeterDB {
         }
         else {
             // Case 2: Iterate over other keys
-            RID prevRid, curRid;
-            int16_t prev = 0;
-            getRid(data, attr, prevRid);
-            // Smaller than the first entry
-            if(isCompositeKeyMeetCompCondition(key, entry, data, prevRid, attr, LT_OP)) {
-                pos = 0;
-            }
-            else {
-                pos = getEntryLen(key, attr);
-                for (int16_t index = 1; index < counter; index++) {
-                    getRid(data + pos, attr, curRid);
-                    if (isCompositeKeyMeetCompCondition(key, entry, data + prev, prevRid, attr, GE_OP) &&
-                        isCompositeKeyMeetCompCondition(key, entry, data + pos, curRid, attr, LT_OP)) {
-                        break;
-                    }
-                    prevRid = curRid;
-                    prev = pos;
-                    pos += getEntryLen(data + pos, attr);
+            RID curRid;
+            pos = 0;
+            for (int16_t index = 0; index < counter; index++) {
+                getRid(data + pos, attr, curRid);
+                if (isCompositeKeyMeetCompCondition(key, entry, data + pos, curRid, attr, LT_OP)) {
+                    break;
                 }
+                pos += getEntryLen(data + pos, attr);
             }
         }
 
@@ -142,6 +131,17 @@ namespace PeterDB {
         pos += IX::LEAFPAGE_ENTRY_PAGE_LEN;
         memcpy(data + pos, &entry.slotNum, IX::LEAFPAGE_ENTRY_SLOT_LEN);
         pos += IX::LEAFPAGE_ENTRY_SLOT_LEN;
+        return 0;
+    }
+
+    RC LeafPageHandle::findFirstKeyMeetCompCondition(int16_t& pos, const uint8_t* key, const Attribute& attr, CompOp op) {
+        pos = 0;
+        for (int16_t index = 0; index < counter; index++) {
+            if (isKeyMeetCompCondition(key, data + pos, attr, op)) {
+                break;
+            }
+            pos += getEntryLen(data + pos, attr);
+        }
         return 0;
     }
 
@@ -259,6 +259,23 @@ namespace PeterDB {
         memcpy(&rid.slotNum, data + getKeyLen(data, attr) + IX::LEAFPAGE_ENTRY_PAGE_LEN, IX::LEAFPAGE_ENTRY_SLOT_LEN);
     }
 
+    int16_t LeafPageHandle::getNextEntryPos(int16_t curEntryPos, const Attribute &attr) {
+        return curEntryPos + getEntryLen(data + curEntryPos, attr);
+    }
+    RC LeafPageHandle::getEntry(int16_t pos, uint8_t* key, RID &rid, const Attribute &attr) {
+        if(pos >= freeBytePtr) {
+            return ERR_PTR_BEYONG_FREEBYTE;
+        }
+        int16_t keyLen = getKeyLen(data + pos, attr);
+        memcpy(key, data + pos, keyLen);
+        pos += keyLen;
+        memcpy(&rid.pageNum, data + pos, IX::LEAFPAGE_ENTRY_PAGE_LEN);
+        pos += IX::LEAFPAGE_ENTRY_PAGE_LEN;
+        memcpy(&rid.slotNum, data + pos, IX::LEAFPAGE_ENTRY_SLOT_LEN);
+        pos += IX::LEAFPAGE_ENTRY_SLOT_LEN;
+        return 0;
+    }
+
     int16_t LeafPageHandle::getLeafHeaderLen() {
         return getHeaderLen() + IX::LEAFPAGE_NEXT_PTR_LEN;
     }
@@ -270,6 +287,9 @@ namespace PeterDB {
 
     int16_t LeafPageHandle::getFreeSpace() {
         return PAGE_SIZE - getLeafHeaderLen() - freeBytePtr;
+    }
+    bool LeafPageHandle::isEmpty() {
+        return counter == 0;
     }
 
     int16_t LeafPageHandle::getNextPtrOffset() {
