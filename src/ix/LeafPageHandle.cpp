@@ -23,46 +23,18 @@ namespace PeterDB {
         setNextPtr(nextPtr);
     }
 
-    RC LeafPageHandle::insertEntry(const uint8_t* key, const RID& rid, const Attribute& attr) {
+    RC LeafPageHandle::insertEntry(const uint8_t* key, const RID& rid, const Attribute& attr, uint8_t* middleKey, uint32_t& newChild, bool& isNewChildNull) {
         RC ret = 0;
         if(hasEnoughSpace((uint8_t*)key, attr)) {
             ret = insertEntryWithEnoughSpace((uint8_t *) key, rid, attr);
             if(ret) return ret;
+            isNewChildNull = true;
         }
         else {
             // Not enough space in Leaf Page, split Leaf Page
-            uint32_t newLeafPageNum;
-            ret = splitPageAndInsertEntry(newLeafPageNum, (uint8_t *) key, rid, attr);
+            ret = splitPageAndInsertEntry(middleKey, newChild, (uint8_t *) key, rid, attr);
             if(ret) return ret;
-            LeafPageHandle newPH(ixFileHandle, newLeafPageNum);
-
-            if(isParentPtrNull()) {
-                // Insert a new index page
-                ret = ixFileHandle.appendEmptyPage();
-                if(ret) return ret;
-                uint32_t newIndexPageNum = ixFileHandle.getLastPageIndex();
-
-                // Insert new key into index page
-                uint8_t newParentKey[PAGE_SIZE];
-                ret = newPH.getFirstKey(newParentKey, attr);
-                if(ret) return ret;
-                IndexPageHandle newIndexPH(ixFileHandle, newIndexPageNum, IX::PAGE_PTR_NULL,
-                                           this->pageNum, newParentKey, newPH.pageNum, attr);
-
-                // Set pointers
-                setParentPtr(newIndexPageNum);
-                newPH.setParentPtr(newIndexPageNum);
-                ixFileHandle.setRoot(newIndexPageNum);
-            }
-            else {
-                // Insert an entry into parent node
-                uint8_t newParentKey[PAGE_SIZE];
-                ret = newPH.getFirstKey(newParentKey, attr);
-                if(ret) return ret;
-                IndexPageHandle newIndexPH(ixFileHandle, parentPtr);
-                ret = newIndexPH.insertIndex(newParentKey, attr, newLeafPageNum);
-                if(ret) return ret;
-            }
+            isNewChildNull = false;
         }
         return 0;
     }
@@ -175,7 +147,7 @@ namespace PeterDB {
         return 0;
     }
 
-    RC LeafPageHandle::splitPageAndInsertEntry(uint32_t& newLeafNum, uint8_t* key, const RID& entry, const Attribute& attr) {
+    RC LeafPageHandle::splitPageAndInsertEntry(uint8_t* middleKey, uint32_t& newLeafNum, uint8_t* key, const RID& entry, const Attribute& attr) {
         RC ret = 0;
         // 0. Append a new page
         ret = ixFileHandle.appendEmptyPage();
@@ -216,7 +188,8 @@ namespace PeterDB {
         setFreeBytePointer(freeBytePtr);
         counter = moveStartIndex;
 
-        // 5. Link old page to new page
+        // 5. Insert new page into the linked list
+        newPage.setNextPtr(this->nextPtr);
         setNextPtr(newLeafNum);
 
         // 6. Insert new entry
@@ -228,6 +201,10 @@ namespace PeterDB {
             ret = newPage.insertEntryWithEnoughSpace(key, entry, attr);
             if(ret) return ret;
         }
+
+        // 7. Pass new middle key
+        newPage.getFirstKey(middleKey, attr);
+
         return 0;
     }
 

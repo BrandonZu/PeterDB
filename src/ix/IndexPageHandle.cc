@@ -70,11 +70,13 @@ namespace PeterDB {
         return 0;
     }
 
-    RC IndexPageHandle::insertIndex(const uint8_t* key, const Attribute& attr, uint32_t newChildPtr) {
+    RC IndexPageHandle::insertIndex(uint8_t* middleKey, uint32_t& newChildPage, bool& isNewChildNull,
+                                    const uint8_t* key, const Attribute& attr, uint32_t newChildPtr) {
         RC ret = 0;
         if(hasEnoughSpace(key, attr)) {
             ret = insertIndexWithEnoughSpace(key, attr, newChildPtr);
             if(ret) return ret;
+            isNewChildNull = true;
         }
         else {
             // Not enough space, need to split index page
@@ -82,26 +84,7 @@ namespace PeterDB {
             uint8_t middleKey[PAGE_SIZE];
             ret = splitPageAndInsertIndex(middleKey, newIndexPage, key, attr, newChildPtr);
             if(ret) return ret;
-            IndexPageHandle newPH(ixFileHandle, newIndexPage);
-            // Insert new entry and child ptrs into parent page
-            if(isParentPtrNull()) {
-                // No parent page, need to add a parent node page
-                ret = ixFileHandle.appendEmptyPage();
-                if(ret) return ret;
-                uint32_t newParentPage = ixFileHandle.getLastPageIndex();
-                IndexPageHandle parentPH(ixFileHandle, newParentPage, IX::PAGE_PTR_NULL,
-                                         this->pageNum, middleKey, newIndexPage, attr);
-                // Set Parent Pointers
-                setParentPtr(newParentPage);
-                newPH.setParentPtr(newParentPage);
-            }
-            else {
-                // Insert one entry into parent page
-                IndexPageHandle parentPH(ixFileHandle, parentPtr);
-                parentPH.insertIndex(key, attr, newIndexPage);
-                // New Page Set Parent Pointers
-                newPH.setParentPtr(parentPtr);
-            }
+            isNewChildNull = false;
         }
         return 0;
     }

@@ -64,6 +64,8 @@ namespace PeterDB {
 
         // Insert an entry into the given index that is indicated by the given ixFileHandle.
         RC insertEntry(IXFileHandle &ixFileHandle, const Attribute &attr, const void *key, const RID &rid);
+        RC insertEntryRecur(IXFileHandle &ixFileHandle, uint32_t pageNum, const Attribute &attr, const uint8_t *key, const RID &rid,
+                            uint8_t* middleKey, uint32_t& newChildPage, bool& isNewChildNull);
 
         // Delete an entry from the given index that is indicated by the given ixFileHandle.
         RC deleteEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid);
@@ -222,7 +224,7 @@ namespace PeterDB {
         RC getTargetChild(uint32_t& childPtr, const uint8_t* key, const Attribute &attr);
 
         RC findPosToInsertKey(int16_t& keyPos, const uint8_t* key, const Attribute& attr);
-        RC insertIndex(const uint8_t* key, const Attribute& attr, uint32_t newChildPtr);
+        RC insertIndex(uint8_t* middleKey, uint32_t& newChildPage, bool& isNewChildNull, const uint8_t* key, const Attribute& attr, uint32_t newChildPtr);
         RC insertIndexWithEnoughSpace(const uint8_t* key, const Attribute& attr, uint32_t child);
         RC writeIndex(int16_t pos, const uint8_t* key, const Attribute& attr, uint32_t newPageNum);
 
@@ -251,7 +253,7 @@ namespace PeterDB {
         LeafPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent, uint32_t next, uint8_t* entryData, int16_t dataLen, int16_t entryCounter);
         ~LeafPageHandle();
 
-        RC insertEntry(const uint8_t* key, const RID& entry, const Attribute& attr);
+        RC insertEntry(const uint8_t* key, const RID& entry, const Attribute& attr, uint8_t* middleKey, uint32_t& newChild, bool& isNewChildNull);
         RC insertEntryWithEnoughSpace(const uint8_t* key, const RID& entry, const Attribute& attr);
         RC writeEntry(int16_t pos, const uint8_t* key, const RID& entry, const Attribute& attr);
         RC findFirstKeyMeetCompCondition(int16_t& pos, const uint8_t* key, const Attribute& attr, CompOp op);
@@ -261,7 +263,7 @@ namespace PeterDB {
 
         RC getFirstKey(uint8_t* keyData, const Attribute& attr);
 
-        RC splitPageAndInsertEntry(uint32_t& newLeafNum, uint8_t* key, const RID& entry, const Attribute& attr);
+        RC splitPageAndInsertEntry(uint8_t* middleKey, uint32_t& newLeafNum, uint8_t* key, const RID& entry, const Attribute& attr);
 
         RC print(const Attribute &attr, std::ostream &out);
 
