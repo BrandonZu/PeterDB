@@ -10,9 +10,9 @@ namespace PeterDB {
     }
 
     // Initialize the new page with one key
-    IndexPageHandle::IndexPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent,
+    IndexPageHandle::IndexPageHandle(IXFileHandle& fileHandle, uint32_t page,
                                      uint32_t leftPage, uint8_t* key, uint32_t rightPage, const Attribute &attr):
-                                     IXPageHandle(fileHandle, page, IX::PAGE_TYPE_INDEX, 0, 1, parent) {
+                                     IXPageHandle(fileHandle, page, IX::PAGE_TYPE_INDEX, 0, 1) {
         int16_t pos = 0;
         // Write left page pointer
         memcpy(data + pos, &leftPage, IX::INDEXPAGE_CHILD_PTR_LEN);
@@ -29,9 +29,9 @@ namespace PeterDB {
     }
 
     // Initialize new page with existing entries
-    IndexPageHandle::IndexPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent,
+    IndexPageHandle::IndexPageHandle(IXFileHandle& fileHandle, uint32_t page,
                                      uint8_t* entryData, int16_t dataLen, int16_t entryCounter):
-                                     IXPageHandle(fileHandle, entryData, dataLen, page, IX::PAGE_TYPE_INDEX, dataLen, entryCounter, parent) {
+                                     IXPageHandle(fileHandle, entryData, dataLen, page, IX::PAGE_TYPE_INDEX, dataLen, entryCounter) {
     }
 
     IndexPageHandle::~IndexPageHandle() = default;
@@ -70,21 +70,31 @@ namespace PeterDB {
         return 0;
     }
 
-    RC IndexPageHandle::insertIndex(uint8_t* middleKey, uint32_t& newChildPage, bool& isNewChildNull,
-                                    const uint8_t* key, const Attribute& attr, uint32_t newChildPtr) {
+    RC IndexPageHandle::insertIndex(uint8_t* middleKey, uint32_t& newChildPage, bool& isNewChildExist,
+                                    const uint8_t* keyToInsert, const Attribute& attr, uint32_t childPtrToInsert) {
         RC ret = 0;
-        if(hasEnoughSpace(key, attr)) {
-            ret = insertIndexWithEnoughSpace(key, attr, newChildPtr);
+        if(hasEnoughSpace(keyToInsert, attr)) {
+            ret = insertIndexWithEnoughSpace(keyToInsert, attr, childPtrToInsert);
             if(ret) return ret;
-            isNewChildNull = true;
+            isNewChildExist = false;
         }
         else {
             // Not enough space, need to split index page
-            uint32_t newIndexPage;
             uint8_t middleKey[PAGE_SIZE];
-            ret = splitPageAndInsertIndex(middleKey, newIndexPage, key, attr, newChildPtr);
+            ret = splitPageAndInsertIndex(middleKey, newChildPage, keyToInsert, attr, childPtrToInsert);
             if(ret) return ret;
-            isNewChildNull = false;
+            isNewChildExist = true;
+
+            if(ixFileHandle.getRoot() == pageNum) {
+                // Insert new index page
+                ret = ixFileHandle.appendEmptyPage();
+                if(ret) return ret;
+                uint32_t newParentPage = ixFileHandle.getLastPageIndex();
+
+                IndexPageHandle newIndexPH(ixFileHandle, newParentPage,
+                                           pageNum, middleKey, newChildPage, attr);
+                ixFileHandle.setRoot(newParentPage);
+            }
         }
         return 0;
     }
@@ -130,7 +140,7 @@ namespace PeterDB {
         if(ret) return ret;
         newIndexPage = ixFileHandle.getLastPageIndex();
 
-        // 1. Middle key - 3 Cases
+        // 1. Push up middle key - 3 Cases
         int16_t newKeyInsertPos;
         ret = findPosToInsertKey(newKeyInsertPos, key, attr);
         if(ret) return ret;
@@ -150,10 +160,10 @@ namespace PeterDB {
             // Move Data
             moveStartPos = prevPos + getKeyLen(data + prevPos, attr);
             moveLen = freeBytePtr - moveStartPos;
-            IndexPageHandle newIndexPH(ixFileHandle, newIndexPage, IX::PAGE_PTR_NULL, data + moveStartPos, moveLen, counter - curIndex);
+            IndexPageHandle newIndexPH(ixFileHandle, newIndexPage, data + moveStartPos, moveLen, counter - curIndex);
             // Cur Page set counters
-            setFreeBytePointer(prevPos);
-            setCounter(prevIndex);
+            freeBytePtr = prevPos;
+            counter = prevIndex;
             // Insert Key into old page
             ret = insertIndexWithEnoughSpace(key, attr, child);
             if(ret) return ret;
@@ -167,10 +177,10 @@ namespace PeterDB {
             moveLen = freeBytePtr - curPos + IX::INDEXPAGE_CHILD_PTR_LEN;
             memcpy(dataToMove, &child, IX::INDEXPAGE_CHILD_PTR_LEN);
             memcpy(dataToMove + IX::INDEXPAGE_CHILD_PTR_LEN, key + curPos, freeBytePtr - curPos);
-            IndexPageHandle newIndexPH(ixFileHandle, newIndexPage, IX::PAGE_PTR_NULL, dataToMove, moveLen, counter - curIndex);
+            IndexPageHandle newIndexPH(ixFileHandle, newIndexPage, dataToMove, moveLen, counter - curIndex);
             // Cur Page set counters
-            setParentPtr(curPos);
-            setCounter(prevIndex + 1);
+            freeBytePtr = curPos;
+            counter = prevIndex + 1;
         }
         else {
             // Case 3: Current Key will be middle page
@@ -178,10 +188,10 @@ namespace PeterDB {
             // Move Data
             moveStartPos = curPos + getKeyLen(data + curPos, attr);
             moveLen = freeBytePtr - moveStartPos;
-            IndexPageHandle newIndexPH(ixFileHandle, newIndexPage, IX::PAGE_PTR_NULL, data + moveStartPos, moveLen, counter - curIndex - 1);
+            IndexPageHandle newIndexPH(ixFileHandle, newIndexPage, data + moveStartPos, moveLen, counter - curIndex - 1);
             // Cur Page set counters
-            setFreeBytePointer(curPos);
-            setCounter(prevIndex + 1);
+            freeBytePtr = curPos;
+            counter = prevIndex + 1;
             // Insert Key into new page
             ret = newIndexPH.insertIndexWithEnoughSpace(key, attr, child);
             if(ret) return ret;

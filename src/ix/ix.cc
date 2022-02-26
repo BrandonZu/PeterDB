@@ -91,7 +91,7 @@ namespace PeterDB {
                 return ret;
             }
             uint32_t leafPage = ixFileHandle.getLastPageIndex();
-            LeafPageHandle leafPageHandle(ixFileHandle, leafPage, IX::PAGE_PTR_NULL, IX::PAGE_PTR_NULL);
+            LeafPageHandle leafPageHandle(ixFileHandle, leafPage, IX::PAGE_PTR_NULL);
             ret = leafPageHandle.insertEntryWithEnoughSpace((uint8_t *) key, rid, attr);
             if(ret) {
                 return ret;
@@ -102,56 +102,47 @@ namespace PeterDB {
 
         uint8_t newKey[PAGE_SIZE];
         uint32_t newChildPage;
-        bool isNewChildNull = true;
-        ret = insertEntryRecur(ixFileHandle, ixFileHandle.root, attr, (uint8_t *)key, rid, newKey, newChildPage, isNewChildNull);
+        bool isNewChildExist = false;
+        ret = insertEntryRecur(ixFileHandle, ixFileHandle.getRoot(), attr, (uint8_t *)key, rid, newKey, newChildPage, isNewChildExist);
         if(ret) return ret;
         return 0;
-
-//        uint32_t leafPageNum;
-//        ret = findTargetLeafNode(ixFileHandle, leafPageNum, (uint8_t*)key, attr);
-//        if(ret) return ret;
-//
-//        LeafPageHandle leafPH(ixFileHandle, leafPageNum);
-//        ret = leafPH.insertEntry((uint8_t *)key, rid, attr);
-//        if(ret) return ret;
     }
 
-    RC IndexManager::insertEntryRecur(IXFileHandle &ixFileHandle, uint32_t pageNum, const Attribute &attr, const uint8_t *key, const RID &rid,
-                                      uint8_t* middleKey, uint32_t& newChildPage, bool& isNewChildNull) {
+    RC IndexManager::insertEntryRecur(IXFileHandle &ixFileHandle, uint32_t pageNum, const Attribute &attr, const uint8_t *keyToInsert, const RID &ridToInsert,
+                                      uint8_t* middleKey, uint32_t& newChildPage, bool& isNewChildExist) {
         RC ret = 0;
         IXPageHandle pageFH(ixFileHandle, pageNum);
         if(pageFH.isTypeIndex()) {
             uint32_t oldChild;
-            IndexPageHandle indexPH(pageFH);
-            ret = indexPH.getTargetChild(oldChild, key, attr);
-            if (ret) return ret;
-            ret = insertEntryRecur(ixFileHandle, oldChild, attr, key, rid, middleKey, newChildPage, isNewChildNull);
+            IndexPageHandle curIndexPH(pageFH);
+            curIndexPH.getTargetChild(oldChild, keyToInsert, attr);
+            ret = insertEntryRecur(ixFileHandle, oldChild, attr, keyToInsert, ridToInsert, middleKey, newChildPage, isNewChildExist);
             if (ret) return ret;
 
-            if(isNewChildNull) {
+            if(!isNewChildExist) {
                 return 0;
             }
             else {
-                if(pageNum == ixFileHandle.root) {
-                    // Insert new index page
-                    ret = ixFileHandle.appendEmptyPage();
-                    if(ret) return ret;
-                    uint32_t newIndexPageNum = ixFileHandle.getLastPageIndex();
-
-                    IndexPageHandle newIndexPH(ixFileHandle, newIndexPageNum, IX::PAGE_PTR_NULL,
-                                               oldChild, middleKey, newChildPage, attr);
-                    ixFileHandle.setRoot(newIndexPageNum);
-                    return 0;
-                }
-
-                ret = indexPH.insertIndex(middleKey, newChildPage, isNewChildNull, key, attr, newChildPage);
+                ret = curIndexPH.insertIndex(middleKey, newChildPage, isNewChildExist, keyToInsert, attr, newChildPage);
                 if(ret) return ret;
             }
         }
         else if(pageFH.isTypeLeaf()) {
             LeafPageHandle leafPH(pageFH);
-            ret = leafPH.insertEntry(key, rid, attr, middleKey, newChildPage, isNewChildNull);
+            ret = leafPH.insertEntry(keyToInsert, ridToInsert, attr, middleKey, newChildPage, isNewChildExist);
             if(ret) return ret;
+
+            // Corner Case: Leaf node needs to split and there isn't any index page yet
+            if(isNewChildExist && pageNum == ixFileHandle.getRoot()) {
+                // Insert new index page
+                ret = ixFileHandle.appendEmptyPage();
+                if(ret) return ret;
+                uint32_t newIndexPageNum = ixFileHandle.getLastPageIndex();
+
+                IndexPageHandle newIndexPH(ixFileHandle, newIndexPageNum,
+                                           pageNum, middleKey, newChildPage, attr);
+                ixFileHandle.setRoot(newIndexPageNum);
+            }
         }
         else {
             return ERR_PAGE_TYPE_UNKNOWN;

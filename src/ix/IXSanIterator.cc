@@ -20,6 +20,9 @@ namespace PeterDB {
         this->highKey = highKey;
         this->lowKeyInclusive = lowKeyInclusive;
         this->highKeyInclusive = highKeyInclusive;
+
+        curLeafPage = 0;
+        curSlotPos = 0;
         entryExceedUpperBound = false;
 
         if(!ixFileHandlePtr->isRootPageExist()) {

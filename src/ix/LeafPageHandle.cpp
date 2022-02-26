@@ -8,14 +8,14 @@ namespace PeterDB {
         nextPtr = getNextPtrFromData();
     }
 
-    LeafPageHandle::LeafPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent, uint32_t next):
-        IXPageHandle(fileHandle, page, IX::PAGE_TYPE_LEAF, 0, 0, parent) {
+    LeafPageHandle::LeafPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t next):
+        IXPageHandle(fileHandle, page, IX::PAGE_TYPE_LEAF, 0, 0) {
         setNextPtr(next);
     }
 
-    LeafPageHandle::LeafPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent, uint32_t next,
+    LeafPageHandle::LeafPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t next,
                                    uint8_t* entryData, int16_t dataLen, int16_t entryCounter):
-                                   IXPageHandle(fileHandle, entryData, dataLen, page, IX::PAGE_TYPE_LEAF, dataLen, entryCounter, parent) {
+                                   IXPageHandle(fileHandle, entryData, dataLen, page, IX::PAGE_TYPE_LEAF, dataLen, entryCounter) {
         setNextPtr(next);
     }
 
@@ -23,18 +23,18 @@ namespace PeterDB {
         setNextPtr(nextPtr);
     }
 
-    RC LeafPageHandle::insertEntry(const uint8_t* key, const RID& rid, const Attribute& attr, uint8_t* middleKey, uint32_t& newChild, bool& isNewChildNull) {
+    RC LeafPageHandle::insertEntry(const uint8_t* key, const RID& rid, const Attribute& attr, uint8_t* middleKey, uint32_t& newChild, bool& isNewChildExist) {
         RC ret = 0;
         if(hasEnoughSpace((uint8_t*)key, attr)) {
             ret = insertEntryWithEnoughSpace((uint8_t *) key, rid, attr);
             if(ret) return ret;
-            isNewChildNull = true;
+            isNewChildExist = false;
         }
         else {
             // Not enough space in Leaf Page, split Leaf Page
             ret = splitPageAndInsertEntry(middleKey, newChild, (uint8_t *) key, rid, attr);
             if(ret) return ret;
-            isNewChildNull = false;
+            isNewChildExist = true;
         }
         return 0;
     }
@@ -180,7 +180,7 @@ namespace PeterDB {
         if(moveLen < 0) {
             return ERR_PTR_BEYONG_FREEBYTE;
         }
-        LeafPageHandle newPage(ixFileHandle, newLeafNum, parentPtr, nextPtr, data + moveStartPos,
+        LeafPageHandle newPage(ixFileHandle, newLeafNum, nextPtr, data + moveStartPos,
                                moveLen, counter - moveStartIndex);
 
         // 4. Compact old page and maintain metadata

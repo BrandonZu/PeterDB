@@ -27,7 +27,6 @@ namespace PeterDB {
         const int16_t PAGE_TYPE_LEAF = 2;
         const int16_t PAGE_FREEBYTE_PTR_LEN = 2;
         const int16_t PAGE_COUNTER_LEN = 2;
-        const int16_t PAGE_PARENT_PTR_LEN = 4;
 
         // Index Page
         const int16_t INDEXPAGE_CHILD_PTR_LEN = 4;
@@ -64,8 +63,8 @@ namespace PeterDB {
 
         // Insert an entry into the given index that is indicated by the given ixFileHandle.
         RC insertEntry(IXFileHandle &ixFileHandle, const Attribute &attr, const void *key, const RID &rid);
-        RC insertEntryRecur(IXFileHandle &ixFileHandle, uint32_t pageNum, const Attribute &attr, const uint8_t *key, const RID &rid,
-                            uint8_t* middleKey, uint32_t& newChildPage, bool& isNewChildNull);
+        RC insertEntryRecur(IXFileHandle &ixFileHandle, uint32_t pageNum, const Attribute &attr, const uint8_t *keyToInsert, const RID &ridToInsert,
+                            uint8_t* middleKey, uint32_t& newChildPage, bool& isNewChildExist);
 
         // Delete an entry from the given index that is indicated by the given ixFileHandle.
         RC deleteEntry(IXFileHandle &ixFileHandle, const Attribute &attribute, const void *key, const RID &rid);
@@ -148,20 +147,16 @@ namespace PeterDB {
         int16_t pageType;
         int16_t freeBytePtr;
         int16_t counter;
-        uint32_t parentPtr;
 
         uint8_t data[PAGE_SIZE] = {};
         uint8_t origin[PAGE_SIZE] = {};
-
-        bool isForCheck;
-
     public:
         // Existed page
         IXPageHandle(IXFileHandle& fileHandle, uint32_t page);
         // New page with data
-        IXPageHandle(IXFileHandle& fileHandle, uint8_t* newData, int16_t dataLen, uint32_t page, int16_t type, int16_t freeByte, int16_t counter, uint32_t parent);
+        IXPageHandle(IXFileHandle& fileHandle, uint8_t* newData, int16_t dataLen, uint32_t page, int16_t type, int16_t freeByte, int16_t counter);
         // New Page
-        IXPageHandle(IXFileHandle& fileHandle, uint32_t page, int16_t type, int16_t freeByte, int16_t counter, uint32_t parent);
+        IXPageHandle(IXFileHandle& fileHandle, uint32_t page, int16_t type, int16_t freeByte, int16_t counter);
         IXPageHandle(IXPageHandle& pageHandle);
         ~IXPageHandle();
 
@@ -197,16 +192,10 @@ namespace PeterDB {
         void setCounter(int16_t counter);
         void addCounterByOne();
 
-        int16_t getParentPtrOffset();
-        uint32_t getParentPtr();
-        void setParentPtr(uint32_t parent);
-        bool isParentPtrNull();
-
     protected:
         int16_t getPageTypeFromData();
         int16_t getFreeBytePointerFromData();
         int16_t getCounterFromData();
-        uint32_t getParentPtrFromData();
     };
 
     class IndexPageHandle: public IXPageHandle {
@@ -215,16 +204,16 @@ namespace PeterDB {
         IndexPageHandle(IXPageHandle& pageHandle);
         IndexPageHandle(IXFileHandle& fileHandle, uint32_t page);
         // Initialize new page containing one entry
-        IndexPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent, uint32_t leftPage, uint8_t* key, uint32_t rightPage, const Attribute &attr);
+        IndexPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t leftPage, uint8_t* key, uint32_t rightPage, const Attribute &attr);
         // Initialize new page with existing entries
-        IndexPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent, uint8_t* entryData, int16_t dataLen, int16_t entryCounter);
+        IndexPageHandle(IXFileHandle& fileHandle, uint32_t page, uint8_t* entryData, int16_t dataLen, int16_t entryCounter);
         ~IndexPageHandle();
 
         // Get target child page, if not exist, append one
         RC getTargetChild(uint32_t& childPtr, const uint8_t* key, const Attribute &attr);
 
         RC findPosToInsertKey(int16_t& keyPos, const uint8_t* key, const Attribute& attr);
-        RC insertIndex(uint8_t* middleKey, uint32_t& newChildPage, bool& isNewChildNull, const uint8_t* key, const Attribute& attr, uint32_t newChildPtr);
+        RC insertIndex(uint8_t* middleKey, uint32_t& newChildPage, bool& isNewChildExist, const uint8_t* keyToInsert, const Attribute& attr, uint32_t childPtrToInsert);
         RC insertIndexWithEnoughSpace(const uint8_t* key, const Attribute& attr, uint32_t child);
         RC writeIndex(int16_t pos, const uint8_t* key, const Attribute& attr, uint32_t newPageNum);
 
@@ -248,12 +237,12 @@ namespace PeterDB {
         LeafPageHandle(IXPageHandle& pageHandle);
         LeafPageHandle(IXFileHandle& fileHandle, uint32_t page);
         // For new page
-        LeafPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent, uint32_t next);
+        LeafPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t next);
         // For split page
-        LeafPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent, uint32_t next, uint8_t* entryData, int16_t dataLen, int16_t entryCounter);
+        LeafPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t next, uint8_t* entryData, int16_t dataLen, int16_t entryCounter);
         ~LeafPageHandle();
 
-        RC insertEntry(const uint8_t* key, const RID& entry, const Attribute& attr, uint8_t* middleKey, uint32_t& newChild, bool& isNewChildNull);
+        RC insertEntry(const uint8_t* key, const RID& entry, const Attribute& attr, uint8_t* middleKey, uint32_t& newChild, bool& isNewChildExist);
         RC insertEntryWithEnoughSpace(const uint8_t* key, const RID& entry, const Attribute& attr);
         RC writeEntry(int16_t pos, const uint8_t* key, const RID& entry, const Attribute& attr);
         RC findFirstKeyMeetCompCondition(int16_t& pos, const uint8_t* key, const Attribute& attr, CompOp op);
