@@ -193,6 +193,7 @@ namespace PeterDB {
         getRid(data + moveStartPos, attr, tmpRid);
         if(isCompositeKeyMeetCompCondition(key, entry, data + moveStartPos, tmpRid, attr, CompOp::GE_OP)) {
             moveStartPos += getEntryLen(data + moveStartPos, attr);
+            moveStartIndex += 1;
         }
 
         // 2. Insert new entry into old page or new page
@@ -204,7 +205,7 @@ namespace PeterDB {
 
         // 3. Move data to new page and set metadata
         moveLen = freeBytePtr - moveStartPos;
-        if(moveLen <= 0) {
+        if(moveLen < 0) {
             return ERR_PTR_BEYONG_FREEBYTE;
         }
         LeafPageHandle newPage(ixFileHandle, newLeafNum, parentPtr, nextPtr, data + moveStartPos,
