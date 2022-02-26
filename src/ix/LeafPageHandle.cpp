@@ -8,29 +8,19 @@ namespace PeterDB {
         nextPtr = getNextPtrFromData();
     }
 
-    LeafPageHandle::LeafPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent, uint32_t next): IXPageHandle(fileHandle, page) {
-        setPageType(IX::PAGE_TYPE_LEAF);
-        setCounter(0);
-        setFreeBytePointer(0);
-        setParentPtr(parent);
+    LeafPageHandle::LeafPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent, uint32_t next):
+        IXPageHandle(fileHandle, page, IX::PAGE_TYPE_LEAF, 0, 0, parent) {
         setNextPtr(next);
     }
 
     LeafPageHandle::LeafPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent, uint32_t next,
-                                   uint8_t* entryData, int16_t dataLen, int16_t entryCounter): IXPageHandle(fileHandle, page) {
-        memcpy(data, entryData, dataLen);
-
-        setPageType(IX::PAGE_TYPE_LEAF);
-        setCounter(entryCounter);
-        setFreeBytePointer(dataLen);
-        setParentPtr(parent);
+                                   uint8_t* entryData, int16_t dataLen, int16_t entryCounter):
+                                   IXPageHandle(fileHandle, entryData, dataLen, page, IX::PAGE_TYPE_LEAF, dataLen, entryCounter, parent) {
         setNextPtr(next);
     }
 
     LeafPageHandle::~LeafPageHandle() {
-        flushLeafHeader();
-        ixFileHandle.writePage(pageNum, data);
-        ixFileHandle.ixWritePageCounter--;
+        setNextPtr(nextPtr);
     }
 
     RC LeafPageHandle::insertEntry(const uint8_t* key, const RID& rid, const Attribute& attr) {
@@ -102,7 +92,7 @@ namespace PeterDB {
         }
 
         if(pos > freeBytePtr) {
-            return ERR_PAGE_INTERNAL;
+            return ERR_PTR_BEYONG_FREEBYTE;
         }
 
         int16_t entryLen = getEntryLen(key, attr);
@@ -113,11 +103,11 @@ namespace PeterDB {
                 return ret;
             }
         }
+
         writeEntry(pos, key, entry, attr);
-        // Update Free Byte Ptr
-        setFreeBytePointer(freeBytePtr + entryLen);
-        // Update Counter
-        addCounterByOne();
+
+        freeBytePtr += entryLen;
+        counter++;
 
         return 0;
     }
@@ -310,11 +300,6 @@ namespace PeterDB {
 
     int16_t LeafPageHandle::getLeafHeaderLen() {
         return getHeaderLen() + IX::LEAFPAGE_NEXT_PTR_LEN;
-    }
-
-    void LeafPageHandle::flushLeafHeader() {
-        flushHeader();
-        setNextPtr(nextPtr);
     }
 
     int16_t LeafPageHandle::getFreeSpace() {

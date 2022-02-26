@@ -149,11 +149,17 @@ namespace PeterDB {
         uint32_t parentPtr;
 
         uint8_t data[PAGE_SIZE] = {};
+        uint8_t origin[PAGE_SIZE] = {};
 
         bool isForCheck;
 
     public:
+        // Existed page
         IXPageHandle(IXFileHandle& fileHandle, uint32_t page);
+        // New page with data
+        IXPageHandle(IXFileHandle& fileHandle, uint8_t* newData, int16_t dataLen, uint32_t page, int16_t type, int16_t freeByte, int16_t counter, uint32_t parent);
+        // New Page
+        IXPageHandle(IXFileHandle& fileHandle, uint32_t page, int16_t type, int16_t freeByte, int16_t counter, uint32_t parent);
         IXPageHandle(IXPageHandle& pageHandle);
         ~IXPageHandle();
 
@@ -228,7 +234,6 @@ namespace PeterDB {
 
         bool hasEnoughSpace(const uint8_t* key, const Attribute &attr);
         int16_t getIndexHeaderLen();
-        void flushIndexHeader();
         int16_t getFreeSpace();
 
     };
@@ -270,7 +275,6 @@ namespace PeterDB {
 
         // MetaData
         int16_t getLeafHeaderLen();
-        void flushLeafHeader();
 
         int16_t getFreeSpace();
         bool isEmpty();

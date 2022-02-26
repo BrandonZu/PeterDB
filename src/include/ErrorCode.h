@@ -65,7 +65,6 @@ namespace PeterDB {
     const int32_t ERR_KEY_TYPE_NOT_SUPPORT = 400;
     const int32_t ERR_PAGE_TYPE_UNKNOWN = 401;
     const int32_t ERR_PAGE_NOT_ENOUGH_SPACE = 402;
-    const int32_t ERR_PAGE_INTERNAL = 403;
     const int32_t ERR_CREATE_ROOT = 404;
     const int32_t ERR_ROOTPAGE_NOT_EXIST = 405;
     const int32_t ERR_ROOT_NULL = 406;

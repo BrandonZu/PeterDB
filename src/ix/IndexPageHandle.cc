@@ -11,11 +11,8 @@ namespace PeterDB {
 
     // Initialize the new page with one key
     IndexPageHandle::IndexPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent,
-                                     uint32_t leftPage, uint8_t* key, uint32_t rightPage, const Attribute &attr): IXPageHandle(fileHandle, page) {
-        setPageType(IX::PAGE_TYPE_INDEX);
-        setCounter(1);
-        setParentPtr(parent);
-
+                                     uint32_t leftPage, uint8_t* key, uint32_t rightPage, const Attribute &attr):
+                                     IXPageHandle(fileHandle, page, IX::PAGE_TYPE_INDEX, 0, 1, parent) {
         int16_t pos = 0;
         // Write left page pointer
         memcpy(data + pos, &leftPage, IX::INDEXPAGE_CHILD_PTR_LEN);
@@ -33,20 +30,11 @@ namespace PeterDB {
 
     // Initialize new page with existing entries
     IndexPageHandle::IndexPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t parent,
-                                     uint8_t* entryData, int16_t dataLen, int16_t entryCounter): IXPageHandle(fileHandle, page) {
-        memcpy(data, entryData, dataLen);
-
-        setPageType(IX::PAGE_TYPE_INDEX);
-        setCounter(entryCounter);
-        setFreeBytePointer(dataLen);
-        setParentPtr(parent);
+                                     uint8_t* entryData, int16_t dataLen, int16_t entryCounter):
+                                     IXPageHandle(fileHandle, entryData, dataLen, page, IX::PAGE_TYPE_INDEX, dataLen, entryCounter, parent) {
     }
 
-    IndexPageHandle::~IndexPageHandle() {
-        flushIndexHeader();
-        ixFileHandle.writePage(pageNum, data);
-        ixFileHandle.ixWritePageCounter--;
-    }
+    IndexPageHandle::~IndexPageHandle() = default;
 
     RC IndexPageHandle::getTargetChild(uint32_t& childPtr, const uint8_t* key, const Attribute &attr) {
         RC ret = 0;
@@ -123,24 +111,23 @@ namespace PeterDB {
         int16_t insertPos = 0;
         ret = findPosToInsertKey(insertPos, key, attr);
         if(ret) return ret;
-        // Shift following data right
+
         if(insertPos > freeBytePtr) {
             return ERR_PTR_BEYONG_FREEBYTE;
         }
-        int16_t newEntryLen = getEntryLen(key, attr);
+        int16_t entryLen = getEntryLen(key, attr);
         if(insertPos < freeBytePtr) {
             // Insert Entry in the middle, Need to shift entries right
-            ret = shiftRecordRight(insertPos, newEntryLen);
+            ret = shiftRecordRight(insertPos, entryLen);
             if(ret) {
                 return ret;
             }
         }
-        ret = writeIndex(insertPos, key, attr, child);
-        if(ret) return ret;
-        // Update Free Byte Ptr
-        setFreeBytePointer(freeBytePtr + newEntryLen);
-        // Update Counter
-        addCounterByOne();
+        writeIndex(insertPos, key, attr, child);
+
+        freeBytePtr += entryLen;
+        counter++;
+
         return 0;
     }
 
@@ -292,10 +279,6 @@ namespace PeterDB {
 
     int16_t IndexPageHandle::getIndexHeaderLen() {
         return getHeaderLen();
-    }
-
-    void IndexPageHandle::flushIndexHeader() {
-        flushHeader();
     }
 
     int16_t IndexPageHandle::getFreeSpace() {

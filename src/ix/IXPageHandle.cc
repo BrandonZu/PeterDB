@@ -3,6 +3,7 @@
 namespace PeterDB {
     IXPageHandle::IXPageHandle(IXFileHandle& fileHandle, uint32_t page): ixFileHandle(fileHandle), pageNum(page) {
         ixFileHandle.readPage(pageNum, data);
+        memcpy(origin, data, PAGE_SIZE);
 
         freeBytePtr = getFreeBytePointerFromData();
         pageType = getPageTypeFromData();
@@ -10,11 +11,21 @@ namespace PeterDB {
         parentPtr = getParentPtrFromData();
     }
 
-    IXPageHandle::IXPageHandle(IXPageHandle& pageHandle): ixFileHandle(pageHandle.ixFileHandle) {
-        // Write current page's data to disk
-        ixFileHandle.writePage(pageNum, data);
-        ixFileHandle.ixWritePageCounter--;
+    // New Page
+    IXPageHandle::IXPageHandle(IXFileHandle& fileHandle, uint32_t page, int16_t type, int16_t freeByte, int16_t counter, uint32_t parent):
+        ixFileHandle(fileHandle), pageNum(page), pageType(type), freeBytePtr(freeByte), counter(counter), parentPtr(parent) {
+        ixFileHandle.readPage(pageNum, data);
+        memcpy(origin, data, PAGE_SIZE);
+    }
 
+    // New Page with data
+    IXPageHandle::IXPageHandle(IXFileHandle& fileHandle, uint8_t* newData, int16_t dataLen, uint32_t page, int16_t type, int16_t freeByte, int16_t counter, uint32_t parent):
+            ixFileHandle(fileHandle), pageNum(page), pageType(type), freeBytePtr(freeByte), counter(counter), parentPtr(parent) {
+        memcpy(data, newData, dataLen);
+        memcpy(origin, newData, dataLen);
+    }
+
+    IXPageHandle::IXPageHandle(IXPageHandle& pageHandle): ixFileHandle(pageHandle.ixFileHandle) {
         // Copy values
         pageNum = pageHandle.pageNum;
         pageType = pageHandle.pageType;
@@ -23,11 +34,14 @@ namespace PeterDB {
         parentPtr = pageHandle.parentPtr;
 
         memcpy(data, pageHandle.data, PAGE_SIZE);
+        memcpy(origin, data, PAGE_SIZE);
     }
 
     IXPageHandle::~IXPageHandle() {
-        ixFileHandle.writePage(pageNum, data);
-        ixFileHandle.ixWritePageCounter--;
+        flushHeader();
+        if(memcmp(origin, data, PAGE_SIZE) != 0) {
+            ixFileHandle.writePage(pageNum, data);
+        }
     }
 
     bool IXPageHandle::isOpen() {
