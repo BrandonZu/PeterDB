@@ -97,7 +97,7 @@ namespace PeterDB {
     RC LeafPageHandle::findFirstKeyMeetCompCondition(int16_t& pos, const uint8_t* key, const Attribute& attr, CompOp op) {
         pos = 0;
         for (int16_t index = 0; index < counter; index++) {
-            if (isKeyMeetCompCondition(key, data + pos, attr, op)) {
+            if (isKeyMeetCompCondition(data + pos, key, attr, op)) {
                 break;
             }
             pos += getEntryLen(data + pos, attr);

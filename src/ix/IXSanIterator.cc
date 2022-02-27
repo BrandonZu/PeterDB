@@ -50,17 +50,17 @@ namespace PeterDB {
             return 0;
         }
 
-        while(curLeafPage < ixFileHandlePtr->getPageCounter()) {
+        while(curLeafPage != IX::PAGE_PTR_NULL && curLeafPage < ixFileHandlePtr->getPageCounter()) {
             LeafPageHandle leafPH(*ixFileHandlePtr, curLeafPage);
             if(lowKeyInclusive) {
-                leafPH.findFirstKeyMeetCompCondition(curSlotPos, lowKey, attr, LE_OP);
+                leafPH.findFirstKeyMeetCompCondition(curSlotPos, lowKey, attr, GE_OP);
             }
             else {
-                leafPH.findFirstKeyMeetCompCondition(curSlotPos, lowKey, attr, LT_OP);
+                leafPH.findFirstKeyMeetCompCondition(curSlotPos, lowKey, attr, GT_OP);
             }
 
             if(curSlotPos != leafPH.getFreeBytePointer()) {
-                curSlotPos = leafPH.getNextEntryPos(curSlotPos, attr);
+                break;
             }
             else {
                 // Reach the end, go to next non-empty page
