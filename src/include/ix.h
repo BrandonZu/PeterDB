@@ -212,7 +212,7 @@ namespace PeterDB {
         RC getTargetChild(uint32_t& childPtr, const uint8_t* key, const RID& rid, const Attribute &attr);
 
         RC findPosToInsertKey(int16_t& curPos, const uint8_t* keyToInsert, const RID& ridToInsert, const Attribute& attr);
-        RC insertIndex(uint8_t* middleKey, uint32_t& newChildPage, bool& isNewChildExist, const uint8_t* keyToInsert, const RID& rid, const Attribute& attr, uint32_t childPtrToInsert);
+        RC insertIndex(uint8_t* middleKey, uint32_t& newChildPage, bool& isNewChildExist, const uint8_t* keyToInsert, const RID& ridToInsert, const Attribute& attr, uint32_t childPtrToInsert);
         RC insertIndexWithEnoughSpace(const uint8_t* key, const RID& rid, const Attribute& attr, uint32_t childPage);
         RC writeIndex(int16_t pos, const uint8_t* key, const RID& rid, const Attribute& attr, uint32_t newPageNum);
 
@@ -242,7 +242,7 @@ namespace PeterDB {
         ~LeafPageHandle();
 
         RC insertEntry(const uint8_t* key, const RID& entry, const Attribute& attr, uint8_t* middleKey, uint32_t& newChild, bool& isNewChildExist);
-        RC insertEntryWithEnoughSpace(const uint8_t* key, const RID& entry, const Attribute& attr);
+        RC insertEntryWithEnoughSpace(const uint8_t* key, const RID& rid, const Attribute& attr);
         RC writeEntry(int16_t pos, const uint8_t* key, const RID& entry, const Attribute& attr);
         RC findFirstKeyMeetCompCondition(int16_t& pos, const uint8_t* key, const Attribute& attr, CompOp op);
         RC findFirstCompositeKeyMeetCompCondition(int16_t& pos, const uint8_t* key, const RID& rid, const Attribute& attr, CompOp op);
@@ -251,7 +251,7 @@ namespace PeterDB {
 
         RC getFirstCompKey(uint8_t* compKeyData, const Attribute& attr);
 
-        RC splitPageAndInsertEntry(uint8_t* middleKey, uint32_t& newLeafPage, const uint8_t* key, const RID& entry, const Attribute& attr);
+        RC splitPageAndInsertEntry(uint8_t* middleKey, uint32_t& newLeafPage, const uint8_t* key, const RID& rid, const Attribute& attr);
 
         RC print(const Attribute &attr, std::ostream &out);
 

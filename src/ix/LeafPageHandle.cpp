@@ -36,7 +36,7 @@ namespace PeterDB {
         return 0;
     }
 
-    RC LeafPageHandle::insertEntryWithEnoughSpace(const uint8_t* key, const RID& entry, const Attribute& attr) {
+    RC LeafPageHandle::insertEntryWithEnoughSpace(const uint8_t* key, const RID& rid, const Attribute& attr) {
         RC ret = 0;
         if(getFreeSpace() < getEntryLen(key, attr)) {
             return ERR_PAGE_NOT_ENOUGH_SPACE;
@@ -53,7 +53,7 @@ namespace PeterDB {
             pos = 0;
             for (int16_t index = 0; index < counter; index++) {
                 getRid(data + pos, attr, curRid);
-                if (isCompositeKeyMeetCompCondition(key, entry, data + pos, curRid, attr, LT_OP)) {
+                if (isCompositeKeyMeetCompCondition(key, rid, data + pos, curRid, attr, LT_OP)) {
                     break;
                 }
                 pos += getEntryLen(data + pos, attr);
@@ -73,7 +73,7 @@ namespace PeterDB {
             }
         }
 
-        writeEntry(pos, key, entry, attr);
+        writeEntry(pos, key, rid, attr);
 
         freeBytePtr += entryLen;
         counter++;
@@ -139,12 +139,12 @@ namespace PeterDB {
         if(counter < 1) {
             return ERR_KEY_NOT_EXIST;
         }
-        int compKeyLen = getKeyLen(compKeyData, attr) + IX::PAGE_RID_LEN;
+        int compKeyLen = getEntryLen(data, attr);
         memcpy(compKeyData, data, compKeyLen);
         return 0;
     }
 
-    RC LeafPageHandle::splitPageAndInsertEntry(uint8_t* middleKey, uint32_t& newLeafPage, const uint8_t* key, const RID& entry, const Attribute& attr) {
+    RC LeafPageHandle::splitPageAndInsertEntry(uint8_t* middleKey, uint32_t& newLeafPage, const uint8_t* key, const RID& rid, const Attribute& attr) {
         RC ret = 0;
         // 0. Append a new page
         ret = ixFileHandle.appendEmptyPage();
@@ -177,12 +177,12 @@ namespace PeterDB {
         // 5. Insert new entry into old page or new page
         RID tmpRid;
         getRid(data + moveStartPos, attr, tmpRid);
-        if(isCompositeKeyMeetCompCondition(key, entry, data + moveStartPos, tmpRid, attr, CompOp::LT_OP)) {
-            ret = this->insertEntryWithEnoughSpace(key, entry, attr);
+        if(isCompositeKeyMeetCompCondition(key, rid, data + moveStartPos, tmpRid, attr, CompOp::LT_OP)) {
+            ret = this->insertEntryWithEnoughSpace(key, rid, attr);
             if(ret) return ret;
         }
         else {
-            ret = newLeafPageHandle.insertEntryWithEnoughSpace(key, entry, attr);
+            ret = newLeafPageHandle.insertEntryWithEnoughSpace(key, rid, attr);
             if(ret) return ret;
         }
 

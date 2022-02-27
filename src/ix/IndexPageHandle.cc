@@ -67,17 +67,16 @@ namespace PeterDB {
     }
 
     RC IndexPageHandle::insertIndex(uint8_t* middleKey, uint32_t& newChildPage, bool& isNewChildExist,
-                                    const uint8_t* keyToInsert, const RID& rid, const Attribute& attr, uint32_t childPtrToInsert) {
+                                    const uint8_t* keyToInsert, const RID& ridToInsert, const Attribute& attr, uint32_t childPtrToInsert) {
         RC ret = 0;
         if(hasEnoughSpace(keyToInsert, attr)) {
-            ret = insertIndexWithEnoughSpace(keyToInsert, rid, attr, childPtrToInsert);
+            ret = insertIndexWithEnoughSpace(keyToInsert, ridToInsert, attr, childPtrToInsert);
             if(ret) return ret;
             isNewChildExist = false;
         }
         else {
             // Not enough space, need to split index page
-            uint8_t middleKey[PAGE_SIZE];
-            ret = splitPageAndInsertIndex(middleKey, newChildPage, keyToInsert, rid, attr, childPtrToInsert);
+            ret = splitPageAndInsertIndex(middleKey, newChildPage, keyToInsert, ridToInsert, attr, childPtrToInsert);
             if(ret) return ret;
             isNewChildExist = true;
 

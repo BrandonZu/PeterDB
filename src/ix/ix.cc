@@ -128,7 +128,14 @@ namespace PeterDB {
                 return 0;
             }
             else {
-                ret = curIndexPH.insertIndex(middleKey, newChildPage, isNewChildExist, keyToInsert, ridToInsert, attr, newChildPage);
+                // Insert <returned middle composite key, new child page pointer> into current index page
+                int16_t compKeyLen = curIndexPH.getCompositeKeyLen(middleKey, attr);
+                uint8_t tmpCompKey[compKeyLen];
+                RID tmpRid;
+                memcpy(tmpCompKey, middleKey, compKeyLen);
+                memcpy(&tmpRid.pageNum, middleKey + compKeyLen, IX::PAGE_RID_PAGE_LEN);
+                memcpy(&tmpRid.slotNum, middleKey + compKeyLen + IX::PAGE_RID_PAGE_LEN, IX::PAGE_RID_SLOT_LEN);
+                ret = curIndexPH.insertIndex(middleKey, newChildPage, isNewChildExist, tmpCompKey, tmpRid, attr, newChildPage);
                 if(ret) return ret;
             }
         }
