@@ -87,10 +87,10 @@ namespace PeterDB {
         memcpy(data + pos, key, keyLen);
         pos += keyLen;
         // Write RID
-        memcpy(data + pos, &entry.pageNum, IX::LEAFPAGE_ENTRY_PAGE_LEN);
-        pos += IX::LEAFPAGE_ENTRY_PAGE_LEN;
-        memcpy(data + pos, &entry.slotNum, IX::LEAFPAGE_ENTRY_SLOT_LEN);
-        pos += IX::LEAFPAGE_ENTRY_SLOT_LEN;
+        memcpy(data + pos, &entry.pageNum, IX::PAGE_RID_PAGE_LEN);
+        pos += IX::PAGE_RID_PAGE_LEN;
+        memcpy(data + pos, &entry.slotNum, IX::PAGE_RID_SLOT_LEN);
+        pos += IX::PAGE_RID_SLOT_LEN;
         return 0;
     }
 
@@ -135,12 +135,12 @@ namespace PeterDB {
         return 0;
     }
 
-    RC LeafPageHandle::getFirstKey(uint8_t* keyData, const Attribute& attr) {
+    RC LeafPageHandle::getFirstCompKey(uint8_t* compKeyData, const Attribute& attr) {
         if(counter < 1) {
             return ERR_KEY_NOT_EXIST;
         }
-        int keyLen = getKeyLen(keyData, attr);
-        memcpy(keyData, data, keyLen);
+        int compKeyLen = getKeyLen(compKeyData, attr) + IX::PAGE_RID_LEN;
+        memcpy(compKeyData, data, compKeyLen);
         return 0;
     }
 
@@ -163,15 +163,15 @@ namespace PeterDB {
 
         // 2. Move data to new page and set metadata
         int16_t moveLen = freeBytePtr - moveStartPos;
-        LeafPageHandle newPage(ixFileHandle, newLeafPage, nextPtr, data + moveStartPos,
-                               moveLen, counter - moveStartIndex);
+        LeafPageHandle newLeafPageHandle(ixFileHandle, newLeafPage, nextPtr, data + moveStartPos,
+                                         moveLen, counter - moveStartIndex);
 
         // 3. Compact old page and maintain metadata
         freeBytePtr -= moveLen;
         counter = moveStartIndex;
 
         // 4. Insert new leaf page into the leaf page linked list
-        newPage.setNextPtr(this->nextPtr);
+        newLeafPageHandle.setNextPtr(this->nextPtr);
         nextPtr = newLeafPage;
 
         // 5. Insert new entry into old page or new page
@@ -182,12 +182,12 @@ namespace PeterDB {
             if(ret) return ret;
         }
         else {
-            ret = newPage.insertEntryWithEnoughSpace(key, entry, attr);
+            ret = newLeafPageHandle.insertEntryWithEnoughSpace(key, entry, attr);
             if(ret) return ret;
         }
 
-        // 6. Return new middle key
-        newPage.getFirstKey(middleKey, attr);
+        // 6. Return new middle composite key
+        newLeafPageHandle.getFirstCompKey(middleKey, attr);
 
         return 0;
     }
@@ -215,10 +215,10 @@ namespace PeterDB {
             }
             offset += getKeyLen(data + offset, attr);
 
-            memcpy(&pageNum, data + offset, IX::LEAFPAGE_ENTRY_PAGE_LEN);
+            memcpy(&pageNum, data + offset, IX::PAGE_RID_PAGE_LEN);
             offset += IX::INDEXPAGE_CHILD_PTR_LEN;
-            memcpy(&slotNum, data + offset, IX::LEAFPAGE_ENTRY_SLOT_LEN);
-            offset += IX::LEAFPAGE_ENTRY_SLOT_LEN;
+            memcpy(&slotNum, data + offset, IX::PAGE_RID_SLOT_LEN);
+            offset += IX::PAGE_RID_SLOT_LEN;
             out << ":[(" << pageNum << "," << slotNum <<")]\"";
 
             if(i != counter - 1) {
@@ -233,14 +233,7 @@ namespace PeterDB {
         return getFreeSpace() >= getEntryLen(key, attr);
     }
     int16_t LeafPageHandle::getEntryLen(const uint8_t* key, const Attribute& attr) {
-        return getKeyLen(key, attr) + IX::LEAFPAGE_ENTRY_PAGE_LEN + IX::LEAFPAGE_ENTRY_SLOT_LEN;
-    }
-
-    void LeafPageHandle::getRid(const uint8_t* keyStartPos, const Attribute& attr, RID& rid) {
-        int16_t pos = 0;
-        pos += getKeyLen(keyStartPos, attr);
-        memcpy(&rid.pageNum, data + getKeyLen(data, attr), IX::LEAFPAGE_ENTRY_PAGE_LEN);
-        memcpy(&rid.slotNum, data + getKeyLen(data, attr) + IX::LEAFPAGE_ENTRY_PAGE_LEN, IX::LEAFPAGE_ENTRY_SLOT_LEN);
+        return getKeyLen(key, attr) + IX::PAGE_RID_PAGE_LEN + IX::PAGE_RID_SLOT_LEN;
     }
 
     int16_t LeafPageHandle::getNextEntryPos(int16_t curEntryPos, const Attribute &attr) {
@@ -253,10 +246,10 @@ namespace PeterDB {
         int16_t keyLen = getKeyLen(data + pos, attr);
         memcpy(key, data + pos, keyLen);
         pos += keyLen;
-        memcpy(&rid.pageNum, data + pos, IX::LEAFPAGE_ENTRY_PAGE_LEN);
-        pos += IX::LEAFPAGE_ENTRY_PAGE_LEN;
-        memcpy(&rid.slotNum, data + pos, IX::LEAFPAGE_ENTRY_SLOT_LEN);
-        pos += IX::LEAFPAGE_ENTRY_SLOT_LEN;
+        memcpy(&rid.pageNum, data + pos, IX::PAGE_RID_PAGE_LEN);
+        pos += IX::PAGE_RID_PAGE_LEN;
+        memcpy(&rid.slotNum, data + pos, IX::PAGE_RID_SLOT_LEN);
+        pos += IX::PAGE_RID_SLOT_LEN;
         return 0;
     }
 

@@ -120,7 +120,7 @@ namespace PeterDB {
         if(pageType == IX::PAGE_TYPE_INDEX) {
             uint32_t oldChild;
             IndexPageHandle curIndexPH(ixFileHandle, pageNum);
-            curIndexPH.getTargetChild(oldChild, keyToInsert, attr);
+            curIndexPH.getTargetChild(oldChild, keyToInsert, ridToInsert, attr);
             ret = insertEntryRecur(ixFileHandle, oldChild, attr, keyToInsert, ridToInsert, middleKey, newChildPage, isNewChildExist);
             if (ret) return ret;
 
@@ -128,7 +128,7 @@ namespace PeterDB {
                 return 0;
             }
             else {
-                ret = curIndexPH.insertIndex(middleKey, newChildPage, isNewChildExist, keyToInsert, attr, newChildPage);
+                ret = curIndexPH.insertIndex(middleKey, newChildPage, isNewChildExist, keyToInsert, ridToInsert, attr, newChildPage);
                 if(ret) return ret;
             }
         }
@@ -166,7 +166,7 @@ namespace PeterDB {
         }
 
         uint32_t leafPage;
-        ret = findTargetLeafNode(ixFileHandle, leafPage, (uint8_t *)key, attribute);
+        ret = findTargetLeafNode(ixFileHandle, leafPage, (uint8_t *)key, rid, attribute);
         if(ret) return ret;
         LeafPageHandle leafPH(ixFileHandle, leafPage);
         ret = leafPH.deleteEntry((uint8_t *)key, rid, attribute);
@@ -187,7 +187,7 @@ namespace PeterDB {
         return 0;
     }
 
-    RC IndexManager::findTargetLeafNode(IXFileHandle &ixFileHandle, uint32_t& leafPageNum, const uint8_t* key, const Attribute& attr) {
+    RC IndexManager::findTargetLeafNode(IXFileHandle &ixFileHandle, uint32_t& leafPageNum, const uint8_t* key, const RID& rid, const Attribute& attr) {
         RC ret = 0;
         if(!ixFileHandle.isRootPageExist()) {
             return ERR_ROOTPAGE_NOT_EXIST;
@@ -209,7 +209,7 @@ namespace PeterDB {
             }
 
             IndexPageHandle indexPH(ixFileHandle, curPageNum);
-            ret = indexPH.getTargetChild(curPageNum, key, attr);
+            ret = indexPH.getTargetChild(curPageNum, key, rid, attr);
             if (ret) return ret;
         }
         if(curPageNum != IX::PAGE_PTR_NULL && curPageNum < ixFileHandle.getPageCounter()) {

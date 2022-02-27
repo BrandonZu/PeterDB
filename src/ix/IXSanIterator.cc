@@ -32,7 +32,8 @@ namespace PeterDB {
             return ERR_ROOT_NULL;
         }
         // Find the right leaf node to start scanning
-        ret = IndexManager::instance().findTargetLeafNode(*ixFileHandlePtr, curLeafPage, lowKey, attr);
+        RID smallestRID = {0, 0};
+        ret = IndexManager::instance().findTargetLeafNode(*ixFileHandlePtr, curLeafPage, lowKey, smallestRID, attr);
         if(ret) return ret;
 
         // Skip empty pages

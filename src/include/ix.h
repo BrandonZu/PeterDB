@@ -27,14 +27,15 @@ namespace PeterDB {
         const int16_t PAGE_TYPE_LEAF = 2;
         const int16_t PAGE_FREEBYTE_PTR_LEN = 2;
         const int16_t PAGE_COUNTER_LEN = 2;
+        const int16_t PAGE_RID_PAGE_LEN = 4;
+        const int16_t PAGE_RID_SLOT_LEN = 2;
+        const int16_t PAGE_RID_LEN = PAGE_RID_PAGE_LEN + PAGE_RID_SLOT_LEN;
 
         // Index Page
         const int16_t INDEXPAGE_CHILD_PTR_LEN = 4;
 
         // Leaf Page
         const int16_t LEAFPAGE_NEXT_PTR_LEN = 4;
-        const int16_t LEAFPAGE_ENTRY_PAGE_LEN = 4;
-        const int16_t LEAFPAGE_ENTRY_SLOT_LEN = 2;
 
         // Page Pointer
         const uint32_t PAGE_PTR_NULL = 0;
@@ -78,7 +79,7 @@ namespace PeterDB {
                 bool highKeyInclusive,
                 IX_ScanIterator &ix_ScanIterator);
 
-        RC findTargetLeafNode(IXFileHandle &ixFileHandle, uint32_t& leafPageNum, const uint8_t* key, const Attribute& attr);
+        RC findTargetLeafNode(IXFileHandle &ixFileHandle, uint32_t& leafPageNum, const uint8_t* key, const RID& rid, const Attribute& attr);
 
         // Print the B+ tree in pre-order (in a JSON record format)
         RC printBTree(IXFileHandle &ixFileHandle, const Attribute &attribute, std::ostream &out) const;
@@ -164,7 +165,7 @@ namespace PeterDB {
 
         bool isCompositeKeyMeetCompCondition(const uint8_t* key1, const RID& rid1, const uint8_t* key2, const RID& rid2, const Attribute& attr, const CompOp op);
         bool isKeyMeetCompCondition(const uint8_t* key1, const uint8_t* key2, const Attribute& attr, const CompOp op);
-        bool isEntryMeetCompCondition(const RID& rid1, const RID& rid2, const CompOp op);
+        bool isRidMeetCompCondition(const RID& rid1, const RID& rid2, const CompOp op);
 
         RC shiftRecordLeft(int16_t dataNeedShiftStartPos, int16_t dist);
         RC shiftRecordRight(int16_t dataNeedMoveStartPos, int16_t dist);
@@ -188,7 +189,8 @@ namespace PeterDB {
         int16_t getCounterOffset();
         int16_t getCounter();
         void setCounter(int16_t counter);
-        void addCounterByOne();
+
+        void getRid(const uint8_t* keyData, const Attribute& attr, RID& rid);
 
     protected:
         int16_t getPageTypeFromData();
@@ -207,17 +209,18 @@ namespace PeterDB {
         ~IndexPageHandle();
 
         // Get target child page, if not exist, append one
-        RC getTargetChild(uint32_t& childPtr, const uint8_t* key, const Attribute &attr);
+        RC getTargetChild(uint32_t& childPtr, const uint8_t* key, const RID& rid, const Attribute &attr);
 
-        RC findPosToInsertKey(int16_t& keyPos, const uint8_t* key, const Attribute& attr);
-        RC insertIndex(uint8_t* middleKey, uint32_t& newChildPage, bool& isNewChildExist, const uint8_t* keyToInsert, const Attribute& attr, uint32_t childPtrToInsert);
-        RC insertIndexWithEnoughSpace(const uint8_t* key, const Attribute& attr, uint32_t childPage);
-        RC writeIndex(int16_t pos, const uint8_t* key, const Attribute& attr, uint32_t newPageNum);
+        RC findPosToInsertKey(int16_t& curPos, const uint8_t* keyToInsert, const RID& ridToInsert, const Attribute& attr);
+        RC insertIndex(uint8_t* middleKey, uint32_t& newChildPage, bool& isNewChildExist, const uint8_t* keyToInsert, const RID& rid, const Attribute& attr, uint32_t childPtrToInsert);
+        RC insertIndexWithEnoughSpace(const uint8_t* key, const RID& rid, const Attribute& attr, uint32_t childPage);
+        RC writeIndex(int16_t pos, const uint8_t* key, const RID& rid, const Attribute& attr, uint32_t newPageNum);
 
-        RC splitPageAndInsertIndex(uint8_t * middleKey, uint32_t & newIndexPage, const uint8_t* key, const Attribute& attr, uint32_t child);
+        RC splitPageAndInsertIndex(uint8_t * middleCompKey, uint32_t & newIndexPage, const uint8_t* keyToInsert, const RID& ridToInsert, const Attribute& attr, uint32_t childPtrToInsert);
 
         RC print(const Attribute &attr, std::ostream &out);
 
+        int16_t getCompositeKeyLen(const uint8_t* key, const Attribute& attr);
         int16_t getEntryLen(const uint8_t* key, const Attribute& attr);
 
         bool hasEnoughSpace(const uint8_t* key, const Attribute &attr);
@@ -246,7 +249,7 @@ namespace PeterDB {
 
         RC deleteEntry(const uint8_t* key, const RID& entry, const Attribute& attr);
 
-        RC getFirstKey(uint8_t* keyData, const Attribute& attr);
+        RC getFirstCompKey(uint8_t* compKeyData, const Attribute& attr);
 
         RC splitPageAndInsertEntry(uint8_t* middleKey, uint32_t& newLeafPage, const uint8_t* key, const RID& entry, const Attribute& attr);
 
@@ -254,7 +257,6 @@ namespace PeterDB {
 
         bool hasEnoughSpace(const uint8_t* key, const Attribute& attr);
         int16_t getEntryLen(const uint8_t* key, const Attribute& attr);
-        void getRid(const uint8_t* keyStartPos, const Attribute& attr, RID& rid);
 
         // For Scan
         int16_t getNextEntryPos(int16_t curEntryPos, const Attribute &attr);

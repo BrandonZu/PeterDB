@@ -45,20 +45,20 @@ namespace PeterDB {
         switch (op) {
             case GT_OP:
                 return isKeyMeetCompCondition(key1, key2, attr, GT_OP) ||
-                       (isKeyMeetCompCondition(key1, key2, attr, EQ_OP) && isEntryMeetCompCondition(rid1, rid2, GT_OP));
+                       (isKeyMeetCompCondition(key1, key2, attr, EQ_OP) && isRidMeetCompCondition(rid1, rid2, GT_OP));
             case GE_OP:
                 return isKeyMeetCompCondition(key1, key2, attr, GE_OP) ||
-                       (isKeyMeetCompCondition(key1, key2, attr, EQ_OP) && isEntryMeetCompCondition(rid1, rid2, GE_OP));
+                       (isKeyMeetCompCondition(key1, key2, attr, EQ_OP) && isRidMeetCompCondition(rid1, rid2, GE_OP));
             case LT_OP:
                 return isKeyMeetCompCondition(key1, key2, attr, LT_OP) ||
-                       (isKeyMeetCompCondition(key1, key2, attr, EQ_OP) && isEntryMeetCompCondition(rid1, rid2, LT_OP));
+                       (isKeyMeetCompCondition(key1, key2, attr, EQ_OP) && isRidMeetCompCondition(rid1, rid2, LT_OP));
             case LE_OP:
                 return isKeyMeetCompCondition(key1, key2, attr, LE_OP) ||
-                       (isKeyMeetCompCondition(key1, key2, attr, EQ_OP) && isEntryMeetCompCondition(rid1, rid2, LE_OP));
+                       (isKeyMeetCompCondition(key1, key2, attr, EQ_OP) && isRidMeetCompCondition(rid1, rid2, LE_OP));
             case NE_OP:
-                return !(isKeyMeetCompCondition(key1, key2, attr, EQ_OP) && isEntryMeetCompCondition(rid1, rid2, EQ_OP));
+                return !(isKeyMeetCompCondition(key1, key2, attr, EQ_OP) && isRidMeetCompCondition(rid1, rid2, EQ_OP));
             case EQ_OP:
-                return isKeyMeetCompCondition(key1, key2, attr, EQ_OP) && isEntryMeetCompCondition(rid1, rid2, EQ_OP);
+                return isKeyMeetCompCondition(key1, key2, attr, EQ_OP) && isRidMeetCompCondition(rid1, rid2, EQ_OP);
             default:
                 return false;
         }
@@ -136,7 +136,7 @@ namespace PeterDB {
         return false;
     }
 
-    bool IXPageHandle::isEntryMeetCompCondition(const RID& rid1, const RID& rid2, const CompOp op) {
+    bool IXPageHandle::isRidMeetCompCondition(const RID& rid1, const RID& rid2, const CompOp op) {
         switch (op) {
             case GT_OP:
                 return rid1.pageNum > rid2.pageNum || (rid1.pageNum == rid2.pageNum && rid1.slotNum > rid2.slotNum);
@@ -269,8 +269,12 @@ namespace PeterDB {
         memcpy(data + getCounterOffset(), &counter, IX::PAGE_COUNTER_LEN);
         this->counter = counter;
     }
-    void IXPageHandle::addCounterByOne() {
-        setCounter(counter + 1);
+
+    void IXPageHandle::getRid(const uint8_t* keyData, const Attribute& attr, RID& rid) {
+        int16_t offset = getKeyLen(keyData, attr);
+        memcpy(&rid.pageNum, keyData + offset, IX::PAGE_RID_PAGE_LEN);
+        offset += IX::PAGE_RID_PAGE_LEN;
+        memcpy(&rid.slotNum, keyData + offset, IX::PAGE_RID_SLOT_LEN);
     }
 
 }
