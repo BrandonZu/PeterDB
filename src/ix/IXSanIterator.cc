@@ -5,7 +5,7 @@ namespace PeterDB {
         lowKey = nullptr;
         highKey = nullptr;
         curLeafPage = 0;
-        curSlotPos = 0;
+        remainDataLen = 0;
         entryExceedUpperBound = false;
     }
 
@@ -22,7 +22,7 @@ namespace PeterDB {
         this->highKeyInclusive = highKeyInclusive;
 
         curLeafPage = 0;
-        curSlotPos = 0;
+        remainDataLen = 0;
         entryExceedUpperBound = false;
 
         if(!ixFileHandlePtr->isRootPageExist()) {
@@ -37,15 +37,7 @@ namespace PeterDB {
         if(ret) return ret;
 
         // Skip empty pages
-        curSlotPos = 0;
-        while(curLeafPage != IX::PAGE_PTR_NULL && curLeafPage < ixFileHandlePtr->getPageCounter()) {
-            LeafPageHandle leafPH(*ixFileHandlePtr, curLeafPage);
-            if(!leafPH.isEmpty()) {
-                break;
-            }
-            curLeafPage = leafPH.getNextPtr();
-            curSlotPos = 0;
-        }
+        getNextNonEmptyPage();
 
         if(!lowKey) {
             return 0;
@@ -53,28 +45,22 @@ namespace PeterDB {
 
         while(curLeafPage != IX::PAGE_PTR_NULL && curLeafPage < ixFileHandlePtr->getPageCounter()) {
             LeafPageHandle leafPH(*ixFileHandlePtr, curLeafPage);
-            if(lowKeyInclusive) {
-                leafPH.findFirstKeyMeetCompCondition(curSlotPos, lowKey, attr, GE_OP);
+            int16_t firstEntryPos;
+            if(this->lowKeyInclusive) {
+                leafPH.findFirstKeyMeetCompCondition(firstEntryPos, lowKey, attr, GE_OP);
             }
             else {
-                leafPH.findFirstKeyMeetCompCondition(curSlotPos, lowKey, attr, GT_OP);
+                leafPH.findFirstKeyMeetCompCondition(firstEntryPos, lowKey, attr, GT_OP);
             }
 
-            if(curSlotPos != leafPH.getFreeBytePointer()) {
+            if(firstEntryPos != leafPH.getFreeBytePointer()) {
+                remainDataLen = leafPH.getFreeBytePointer() - firstEntryPos;
                 break;
             }
             else {
                 // Reach the end, go to next non-empty page
                 curLeafPage = leafPH.getNextPtr();
-                curSlotPos = 0;
-                while(curLeafPage != IX::PAGE_PTR_NULL && curLeafPage < ixFileHandlePtr->getPageCounter()) {
-                    LeafPageHandle leafPH(*ixFileHandlePtr, curLeafPage);
-                    if(!leafPH.isEmpty()) {
-                        break;
-                    }
-                    curLeafPage = leafPH.getNextPtr();
-                    curSlotPos = 0;
-                }
+                getNextNonEmptyPage();
             }
         }
 
@@ -95,35 +81,40 @@ namespace PeterDB {
         }
 
         // Read current entry and check if it meets condition
-        LeafPageHandle leafPageHandle(*ixFileHandlePtr, curLeafPage);
-        ret = leafPageHandle.getEntry(curSlotPos, (uint8_t *) key, rid, attr);
-        if(ret) return ret;
+        LeafPageHandle leafPH(*ixFileHandlePtr, curLeafPage);
+        ret = leafPH.getEntry(leafPH.getFreeBytePointer() - remainDataLen, (uint8_t *) key, rid, attr);
+        if(ret) return IX_EOF;
 
         // Check if current entry exceed upper bound
         if(highKey && highKeyInclusive &&
-           leafPageHandle.isKeyMeetCompCondition((uint8_t *)key, highKey, attr, GT_OP)) {
+           leafPH.isKeyMeetCompCondition((uint8_t *)key, highKey, attr, GT_OP)) {
             entryExceedUpperBound = true;
             return IX_EOF;
         }
         if(highKey && !highKeyInclusive &&
-           leafPageHandle.isKeyMeetCompCondition((uint8_t *)key, highKey, attr, GE_OP)) {
+           leafPH.isKeyMeetCompCondition((uint8_t *)key, highKey, attr, GE_OP)) {
             entryExceedUpperBound = true;
             return IX_EOF;
         }
 
-        curSlotPos = leafPageHandle.getNextEntryPos(curSlotPos, attr);
-        if(curSlotPos == leafPageHandle.getFreeBytePointer()) {
+        int16_t nextEntryPos = leafPH.getNextEntryPos(leafPH.getFreeBytePointer() - remainDataLen, attr);
+        remainDataLen = leafPH.getFreeBytePointer() - nextEntryPos;
+        if(remainDataLen == 0) {
             // Reach the end of current page
-            curLeafPage = leafPageHandle.getNextPtr();
-            curSlotPos = 0;
-            while (curLeafPage != IX::PAGE_PTR_NULL && curLeafPage < ixFileHandlePtr->getPageCounter()) {
-                LeafPageHandle leafPH(*ixFileHandlePtr, curLeafPage);
-                if (!leafPH.isEmpty()) {
-                    break;
-                }
-                curLeafPage = leafPH.getNextPtr();
-                curSlotPos = 0;
+            curLeafPage = leafPH.getNextPtr();
+            getNextNonEmptyPage();
+        }
+        return 0;
+    }
+
+    RC IX_ScanIterator::getNextNonEmptyPage() {
+        while(curLeafPage != IX::PAGE_PTR_NULL && curLeafPage < ixFileHandlePtr->getPageCounter()) {
+            LeafPageHandle leafPH(*ixFileHandlePtr, curLeafPage);
+            if(!leafPH.isEmpty()) {
+                remainDataLen = leafPH.getFreeBytePointer();
+                break;
             }
+            curLeafPage = leafPH.getNextPtr();
         }
         return 0;
     }

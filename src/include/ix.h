@@ -182,11 +182,15 @@ namespace PeterDB {
         int16_t getPageType();
         void setPageType(int16_t type);
 
+    protected:
         int16_t getFreeBytePointerOffset();
+    public:
         int16_t getFreeBytePointer();
         void setFreeBytePointer(int16_t ptr);
 
+    protected:
         int16_t getCounterOffset();
+    public:
         int16_t getCounter();
         void setCounter(int16_t counter);
 
@@ -284,7 +288,7 @@ namespace PeterDB {
         bool highKeyInclusive;
 
         uint32_t curLeafPage;
-        int16_t curSlotPos;
+        int16_t remainDataLen;
         bool entryExceedUpperBound;
     public:
         // Constructor
@@ -302,6 +306,9 @@ namespace PeterDB {
 
         // Terminate index scan
         RC close();
+
+    private:
+        RC getNextNonEmptyPage();
     };
 
 }// namespace PeterDB
