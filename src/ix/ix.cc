@@ -129,13 +129,13 @@ namespace PeterDB {
             }
             else {
                 // Insert <returned middle composite key, new child page pointer> into current index page
-                int16_t compKeyLen = curIndexPH.getCompositeKeyLen(middleKey, attr);
-                uint8_t tmpCompKey[compKeyLen];
+                int16_t keyLen = curIndexPH.getKeyLen(middleKey, attr);
+                uint8_t tmpKey[keyLen];
                 RID tmpRid;
-                memcpy(tmpCompKey, middleKey, compKeyLen);
-                memcpy(&tmpRid.pageNum, middleKey + compKeyLen, IX::PAGE_RID_PAGE_LEN);
-                memcpy(&tmpRid.slotNum, middleKey + compKeyLen + IX::PAGE_RID_PAGE_LEN, IX::PAGE_RID_SLOT_LEN);
-                ret = curIndexPH.insertIndex(middleKey, newChildPage, isNewChildExist, tmpCompKey, tmpRid, attr, newChildPage);
+                memcpy(tmpKey, middleKey, keyLen);
+                memcpy(&tmpRid.pageNum, middleKey + keyLen, IX::PAGE_RID_PAGE_LEN);
+                memcpy(&tmpRid.slotNum, middleKey + keyLen + IX::PAGE_RID_PAGE_LEN, IX::PAGE_RID_SLOT_LEN);
+                ret = curIndexPH.insertIndex(middleKey, newChildPage, isNewChildExist, tmpKey, tmpRid, attr, newChildPage);
                 if(ret) return ret;
             }
         }
@@ -154,6 +154,7 @@ namespace PeterDB {
                 IndexPageHandle newIndexPH(ixFileHandle, newIndexPageNum,
                                            pageNum, middleKey, newChildPage, attr);
                 ixFileHandle.setRoot(newIndexPageNum);
+                isNewChildExist = false;
             }
         }
         else {
