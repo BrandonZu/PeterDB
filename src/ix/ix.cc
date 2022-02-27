@@ -111,10 +111,15 @@ namespace PeterDB {
     RC IndexManager::insertEntryRecur(IXFileHandle &ixFileHandle, uint32_t pageNum, const Attribute &attr, const uint8_t *keyToInsert, const RID &ridToInsert,
                                       uint8_t* middleKey, uint32_t& newChildPage, bool& isNewChildExist) {
         RC ret = 0;
-        IXPageHandle pageFH(ixFileHandle, pageNum);
-        if(pageFH.isTypeIndex()) {
+        int16_t pageType;
+        {
+            IXPageHandle pageFH(ixFileHandle, pageNum);
+            pageType = pageFH.getPageType();
+        }
+
+        if(pageType == IX::PAGE_TYPE_INDEX) {
             uint32_t oldChild;
-            IndexPageHandle curIndexPH(pageFH);
+            IndexPageHandle curIndexPH(ixFileHandle, pageNum);
             curIndexPH.getTargetChild(oldChild, keyToInsert, attr);
             ret = insertEntryRecur(ixFileHandle, oldChild, attr, keyToInsert, ridToInsert, middleKey, newChildPage, isNewChildExist);
             if (ret) return ret;
@@ -127,8 +132,8 @@ namespace PeterDB {
                 if(ret) return ret;
             }
         }
-        else if(pageFH.isTypeLeaf()) {
-            LeafPageHandle leafPH(pageFH);
+        else if(pageType == IX::PAGE_TYPE_LEAF) {
+            LeafPageHandle leafPH(ixFileHandle, pageNum);
             ret = leafPH.insertEntry(keyToInsert, ridToInsert, attr, middleKey, newChildPage, isNewChildExist);
             if(ret) return ret;
 
@@ -193,11 +198,17 @@ namespace PeterDB {
 
         uint32_t curPageNum = ixFileHandle.getRoot();
         while(curPageNum != IX::PAGE_PTR_NULL && curPageNum < ixFileHandle.getPageCounter()) {
-            IXPageHandle curPagePH(ixFileHandle, curPageNum);
-            if(curPagePH.isTypeLeaf()) {
+            int16_t pageType;
+            {
+                IXPageHandle pageFH(ixFileHandle, curPageNum);
+                pageType = pageFH.getPageType();
+            }
+
+            if (pageType == IX::PAGE_TYPE_LEAF) {
                 break;
             }
-            IndexPageHandle indexPH(curPagePH);
+
+            IndexPageHandle indexPH(ixFileHandle, curPageNum);
             ret = indexPH.getTargetChild(curPageNum, key, attr);
             if (ret) return ret;
         }
@@ -219,13 +230,18 @@ namespace PeterDB {
             return ERR_ROOT_NULL;
         }
 
-        IXPageHandle page(ixFileHandle, ixFileHandle.getRoot());
-        if(page.isTypeIndex()) {
-            IndexPageHandle indexPH(page);
+        int16_t pageType;
+        {
+            IXPageHandle pageFH(ixFileHandle, ixFileHandle.getRoot());
+            pageType = pageFH.getPageType();
+        }
+
+        if(pageType == IX::PAGE_TYPE_INDEX) {
+            IndexPageHandle indexPH(ixFileHandle, ixFileHandle.getRoot());
             indexPH.print(attr, out);
         }
-        else if(page.isTypeLeaf()) {
-            LeafPageHandle leafPH(page);
+        else if(pageType == IX::PAGE_TYPE_LEAF) {
+            LeafPageHandle leafPH(ixFileHandle, ixFileHandle.getRoot());
             leafPH.print(attr, out);
         }
         else {

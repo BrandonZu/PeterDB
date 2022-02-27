@@ -64,7 +64,7 @@ namespace PeterDB {
             }
             else {
                 // Reach the end, go to next non-empty page
-                curLeafPage++;
+                curLeafPage = leafPH.getNextPtr();
                 curSlotPos = 0;
                 while(curLeafPage != IX::PAGE_PTR_NULL && curLeafPage < ixFileHandlePtr->getPageCounter()) {
                     LeafPageHandle leafPH(*ixFileHandlePtr, curLeafPage);
@@ -111,7 +111,7 @@ namespace PeterDB {
         curSlotPos = leafPageHandle.getNextEntryPos(curSlotPos, attr);
         if(curSlotPos == leafPageHandle.getFreeBytePointer()) {
             // Reach the end of current page
-            curLeafPage++;
+            curLeafPage = leafPageHandle.getNextPtr();
             curSlotPos = 0;
             while (curLeafPage != IX::PAGE_PTR_NULL && curLeafPage < ixFileHandlePtr->getPageCounter()) {
                 LeafPageHandle leafPH(*ixFileHandlePtr, curLeafPage);

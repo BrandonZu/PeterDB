@@ -21,18 +21,6 @@ namespace PeterDB {
     IXPageHandle::IXPageHandle(IXFileHandle& fileHandle, uint8_t* newData, int16_t dataLen, uint32_t page, int16_t type, int16_t freeByte, int16_t counter):
             ixFileHandle(fileHandle), pageNum(page), pageType(type), freeBytePtr(freeByte), counter(counter) {
         memcpy(data, newData, dataLen);
-        memcpy(origin, newData, dataLen);
-    }
-
-    IXPageHandle::IXPageHandle(IXPageHandle& pageHandle): ixFileHandle(pageHandle.ixFileHandle) {
-        // Copy values
-        pageNum = pageHandle.pageNum;
-        pageType = pageHandle.pageType;
-        freeBytePtr = pageHandle.freeBytePtr;
-        counter = pageHandle.counter;
-
-        memcpy(data, pageHandle.data, PAGE_SIZE);
-        memcpy(origin, data, PAGE_SIZE);
     }
 
     IXPageHandle::~IXPageHandle() {

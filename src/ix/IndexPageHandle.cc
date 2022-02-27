@@ -1,10 +1,6 @@
 #include "src/include/ix.h"
 
 namespace PeterDB {
-    IndexPageHandle::IndexPageHandle(IXPageHandle& pageHandle): IXPageHandle(pageHandle) {
-
-    }
-
     IndexPageHandle::IndexPageHandle(IXFileHandle& fileHandle, uint32_t page): IXPageHandle(fileHandle, page) {
 
     }
@@ -99,7 +95,7 @@ namespace PeterDB {
         return 0;
     }
 
-    RC IndexPageHandle::insertIndexWithEnoughSpace(const uint8_t* key, const Attribute& attr, uint32_t child) {
+    RC IndexPageHandle::insertIndexWithEnoughSpace(const uint8_t* key, const Attribute& attr, uint32_t childPage) {
         RC ret = 0;
         int16_t insertPos = 0;
         ret = findPosToInsertKey(insertPos, key, attr);
@@ -116,7 +112,7 @@ namespace PeterDB {
                 return ret;
             }
         }
-        writeIndex(insertPos, key, attr, child);
+        writeIndex(insertPos, key, attr, childPage);
 
         freeBytePtr += entryLen;
         counter++;
@@ -246,13 +242,17 @@ namespace PeterDB {
         // 2. Children
         out << "\"children\": [" << std::endl;
         while(!children.empty()) {
-            IXPageHandle pageHandle(ixFileHandle, children.front());
-            if(pageHandle.isTypeIndex()) {
-                IndexPageHandle indexPH(pageHandle);
+            int16_t pageType;
+            {
+                IXPageHandle pageHandle(ixFileHandle, children.front());
+                pageType = pageHandle.getPageType();
+            }
+            if(pageType == IX::PAGE_TYPE_INDEX) {
+                IndexPageHandle indexPH(ixFileHandle, children.front());
                 indexPH.print(attr, out);
             }
-            else if(pageHandle.isTypeLeaf()) {
-                LeafPageHandle leafPH(pageHandle);
+            else if(pageType == IX::PAGE_TYPE_LEAF) {
+                LeafPageHandle leafPH(ixFileHandle, children.front());
                 leafPH.print(attr, out);
             }
             children.pop();

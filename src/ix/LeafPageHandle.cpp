@@ -1,9 +1,6 @@
 #include "src/include/ix.h"
 
 namespace PeterDB {
-    LeafPageHandle::LeafPageHandle(IXPageHandle& pageHandle): IXPageHandle(pageHandle) {
-        nextPtr = getNextPtrFromData();
-    }
     LeafPageHandle::LeafPageHandle(IXFileHandle& fileHandle, uint32_t page): IXPageHandle(fileHandle, page) {
         nextPtr = getNextPtrFromData();
     }
@@ -25,14 +22,14 @@ namespace PeterDB {
 
     RC LeafPageHandle::insertEntry(const uint8_t* key, const RID& rid, const Attribute& attr, uint8_t* middleKey, uint32_t& newChild, bool& isNewChildExist) {
         RC ret = 0;
-        if(hasEnoughSpace((uint8_t*)key, attr)) {
-            ret = insertEntryWithEnoughSpace((uint8_t *) key, rid, attr);
+        if(hasEnoughSpace(key, attr)) {
+            ret = insertEntryWithEnoughSpace(key, rid, attr);
             if(ret) return ret;
             isNewChildExist = false;
         }
         else {
             // Not enough space in Leaf Page, split Leaf Page
-            ret = splitPageAndInsertEntry(middleKey, newChild, (uint8_t *) key, rid, attr);
+            ret = splitPageAndInsertEntry(middleKey, newChild, key, rid, attr);
             if(ret) return ret;
             isNewChildExist = true;
         }
@@ -147,53 +144,40 @@ namespace PeterDB {
         return 0;
     }
 
-    RC LeafPageHandle::splitPageAndInsertEntry(uint8_t* middleKey, uint32_t& newLeafNum, uint8_t* key, const RID& entry, const Attribute& attr) {
+    RC LeafPageHandle::splitPageAndInsertEntry(uint8_t* middleKey, uint32_t& newLeafPage, const uint8_t* key, const RID& entry, const Attribute& attr) {
         RC ret = 0;
         // 0. Append a new page
         ret = ixFileHandle.appendEmptyPage();
         if(ret) return ret;
-        newLeafNum = ixFileHandle.getLastPageIndex();
+        newLeafPage = ixFileHandle.getLastPageIndex();
 
         int16_t moveStartIndex = counter / 2;
         // 1. Find move data start position and length
-        int16_t moveStartPos = 0, moveLen = 0;
+        int16_t moveStartPos = 0;
         for(int16_t i = 0; i < moveStartIndex; i++) {
             moveStartPos += getEntryLen(data + moveStartPos, attr);
         }
-        // If new entry should be inserted into new page, move one less entry to new page
-        RID tmpRid;
-        getRid(data + moveStartPos, attr, tmpRid);
-        if(isCompositeKeyMeetCompCondition(key, entry, data + moveStartPos, tmpRid, attr, CompOp::GE_OP)) {
-            moveStartPos += getEntryLen(data + moveStartPos, attr);
-            moveStartIndex += 1;
-        }
-
-        // 2. Insert new entry into old page or new page
-        getRid(data + moveStartPos, attr, tmpRid);
-        bool insertIntoOld = false;
-        if(isCompositeKeyMeetCompCondition(key, entry, data + moveStartPos, tmpRid, attr, CompOp::LT_OP)) {
-            insertIntoOld = true;
-        }
-
-        // 3. Move data to new page and set metadata
-        moveLen = freeBytePtr - moveStartPos;
-        if(moveLen < 0) {
+        if(moveStartPos >= freeBytePtr) {
             return ERR_PTR_BEYONG_FREEBYTE;
         }
-        LeafPageHandle newPage(ixFileHandle, newLeafNum, nextPtr, data + moveStartPos,
+
+        // 2. Move data to new page and set metadata
+        int16_t moveLen = freeBytePtr - moveStartPos;
+        LeafPageHandle newPage(ixFileHandle, newLeafPage, nextPtr, data + moveStartPos,
                                moveLen, counter - moveStartIndex);
 
-        // 4. Compact old page and maintain metadata
+        // 3. Compact old page and maintain metadata
         freeBytePtr -= moveLen;
-        setFreeBytePointer(freeBytePtr);
         counter = moveStartIndex;
 
-        // 5. Insert new page into the linked list
+        // 4. Insert new leaf page into the leaf page linked list
         newPage.setNextPtr(this->nextPtr);
-        setNextPtr(newLeafNum);
+        nextPtr = newLeafPage;
 
-        // 6. Insert new entry
-        if(insertIntoOld) {
+        // 5. Insert new entry into old page or new page
+        RID tmpRid;
+        getRid(data + moveStartPos, attr, tmpRid);
+        if(isCompositeKeyMeetCompCondition(key, entry, data + moveStartPos, tmpRid, attr, CompOp::LT_OP)) {
             ret = this->insertEntryWithEnoughSpace(key, entry, attr);
             if(ret) return ret;
         }
@@ -202,7 +186,7 @@ namespace PeterDB {
             if(ret) return ret;
         }
 
-        // 7. Pass new middle key
+        // 6. Return new middle key
         newPage.getFirstKey(middleKey, attr);
 
         return 0;

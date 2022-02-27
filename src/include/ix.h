@@ -82,7 +82,6 @@ namespace PeterDB {
 
         // Print the B+ tree in pre-order (in a JSON record format)
         RC printBTree(IXFileHandle &ixFileHandle, const Attribute &attribute, std::ostream &out) const;
-
     protected:
         IndexManager() = default;                                                   // Prevent construction
         ~IndexManager() = default;                                                  // Prevent unwanted destruction
@@ -157,7 +156,6 @@ namespace PeterDB {
         IXPageHandle(IXFileHandle& fileHandle, uint8_t* newData, int16_t dataLen, uint32_t page, int16_t type, int16_t freeByte, int16_t counter);
         // New Page
         IXPageHandle(IXFileHandle& fileHandle, uint32_t page, int16_t type, int16_t freeByte, int16_t counter);
-        IXPageHandle(IXPageHandle& pageHandle);
         ~IXPageHandle();
 
         bool isOpen();
@@ -200,8 +198,7 @@ namespace PeterDB {
 
     class IndexPageHandle: public IXPageHandle {
     public:
-        // For existed page
-        IndexPageHandle(IXPageHandle& pageHandle);
+        // Open existed page
         IndexPageHandle(IXFileHandle& fileHandle, uint32_t page);
         // Initialize new page containing one entry
         IndexPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t leftPage, uint8_t* key, uint32_t rightPage, const Attribute &attr);
@@ -214,7 +211,7 @@ namespace PeterDB {
 
         RC findPosToInsertKey(int16_t& keyPos, const uint8_t* key, const Attribute& attr);
         RC insertIndex(uint8_t* middleKey, uint32_t& newChildPage, bool& isNewChildExist, const uint8_t* keyToInsert, const Attribute& attr, uint32_t childPtrToInsert);
-        RC insertIndexWithEnoughSpace(const uint8_t* key, const Attribute& attr, uint32_t child);
+        RC insertIndexWithEnoughSpace(const uint8_t* key, const Attribute& attr, uint32_t childPage);
         RC writeIndex(int16_t pos, const uint8_t* key, const Attribute& attr, uint32_t newPageNum);
 
         RC splitPageAndInsertIndex(uint8_t * middleKey, uint32_t & newIndexPage, const uint8_t* key, const Attribute& attr, uint32_t child);
@@ -233,8 +230,7 @@ namespace PeterDB {
     public:
         uint32_t nextPtr;
     public:
-        // For existed page
-        LeafPageHandle(IXPageHandle& pageHandle);
+        // Open existed page
         LeafPageHandle(IXFileHandle& fileHandle, uint32_t page);
         // For new page
         LeafPageHandle(IXFileHandle& fileHandle, uint32_t page, uint32_t next);
@@ -252,7 +248,7 @@ namespace PeterDB {
 
         RC getFirstKey(uint8_t* keyData, const Attribute& attr);
 
-        RC splitPageAndInsertEntry(uint8_t* middleKey, uint32_t& newLeafNum, uint8_t* key, const RID& entry, const Attribute& attr);
+        RC splitPageAndInsertEntry(uint8_t* middleKey, uint32_t& newLeafPage, const uint8_t* key, const RID& entry, const Attribute& attr);
 
         RC print(const Attribute &attr, std::ostream &out);
 
