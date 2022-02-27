@@ -97,6 +97,8 @@ namespace PeterDB {
         LeafPageHandle leafPageHandle(*ixFileHandlePtr, curLeafPage);
         ret = leafPageHandle.getEntry(curSlotPos, (uint8_t *) key, rid, attr);
         if(ret) return ret;
+
+        // Check if current entry exceed upper bound
         if(highKey && highKeyInclusive &&
            leafPageHandle.isKeyMeetCompCondition((uint8_t *)key, highKey, attr, GT_OP)) {
             entryExceedUpperBound = true;

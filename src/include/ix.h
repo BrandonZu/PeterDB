@@ -167,7 +167,7 @@ namespace PeterDB {
         bool isEntryMeetCompCondition(const RID& rid1, const RID& rid2, const CompOp op);
 
         RC shiftRecordLeft(int16_t dataNeedShiftStartPos, int16_t dist);
-        RC shiftRecordRight(int16_t dataNeedShiftStartPos, int16_t dist);
+        RC shiftRecordRight(int16_t dataNeedMoveStartPos, int16_t dist);
 
     public:
         int16_t getKeyLen(const uint8_t* key, const Attribute &attr);

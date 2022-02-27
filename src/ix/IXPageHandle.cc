@@ -171,8 +171,8 @@ namespace PeterDB {
         return 0;
     }
 
-    RC IXPageHandle::shiftRecordRight(int16_t dataNeedShiftStartPos, int16_t dist) {
-        int16_t dataNeedMoveLen = freeBytePtr - dataNeedShiftStartPos;
+    RC IXPageHandle::shiftRecordRight(int16_t dataNeedMoveStartPos, int16_t dist) {
+        int16_t dataNeedMoveLen = freeBytePtr - dataNeedMoveStartPos;
         if(dataNeedMoveLen < 0) {
             return ERR_IMPOSSIBLE;
         }
@@ -180,7 +180,7 @@ namespace PeterDB {
             return 0;
         }
         // Must Use Memmove! Source and Destination May Overlap
-        memmove(data + dataNeedShiftStartPos + dist, data + dataNeedShiftStartPos, dataNeedMoveLen);
+        memmove(data + dataNeedMoveStartPos + dist, data + dataNeedMoveStartPos, dataNeedMoveLen);
 
         return 0;
     }
