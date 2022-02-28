@@ -97,6 +97,17 @@ namespace PeterDB {
         Attribute getAttribute();
     };
 
+    // RM_IndexScanIterator is an iterator to go through index entries
+    class RM_IndexScanIterator {
+    public:
+        RM_IndexScanIterator(){};    // Constructor
+        ~RM_IndexScanIterator(){};    // Destructor
+
+        // "key" follows the same format as in IndexManager::insertEntry()
+        RC getNextEntry(RID &rid, void *key){};    // Get next matching entry
+        RC close(){};                              // Terminate index scan
+    };
+
     // Relation Manager
     class RelationManager {
     private:
@@ -156,6 +167,20 @@ namespace PeterDB {
 
         bool isTableAccessible(const std::string& tableName);
         bool isTableNameValid(const std::string& tableName);
+
+        // QE IX related
+        RC createIndex(const std::string &tableName, const std::string &attributeName){};
+
+        RC destroyIndex(const std::string &tableName, const std::string &attributeName){};
+
+        // indexScan returns an iterator to allow the caller to go through qualified entries in index
+        RC indexScan(const std::string &tableName,
+                     const std::string &attributeName,
+                     const void *lowKey,
+                     const void *highKey,
+                     bool lowKeyInclusive,
+                     bool highKeyInclusive,
+                     RM_IndexScanIterator &rm_IndexScanIterator){};
 
     protected:
         RelationManager();                                                  // Prevent construction
