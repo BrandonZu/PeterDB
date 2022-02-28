@@ -198,30 +198,67 @@ namespace PeterDB {
         int16_t offset = 0;
         uint32_t pageNum;
         int16_t slotNum;
-        for(int16_t i = 0; i < counter; i++) {
+
+        int32_t curInt;
+        float curFloat;
+        std::string curStr;
+
+        int16_t i = 0;
+        while(i < counter) {
             out << "\"";
+            // Print Key
             switch (attr.type) {
                 case TypeInt:
-                    out << getKeyInt(data + offset);
+                    curInt = getKeyInt(data + offset);
+                    out << curInt << ":[";
                     break;
                 case TypeReal:
-                    out << getKeyReal(data + offset);
+                    curFloat = getKeyReal(data + offset);
+                    out << curFloat << ":[";
                     break;
                 case TypeVarChar:
-                    out << getKeyString(data + offset);
+                    curStr = getKeyString(data + offset);
+                    out << curStr << ":[";
                     break;
                 default:
                     return ERR_KEY_TYPE_NOT_SUPPORT;
             }
-            offset += getKeyLen(data + offset, attr);
+            // Print following Rid with the same key
+            while(i < counter) {
+                offset += getKeyLen(data + offset, attr);
 
-            memcpy(&pageNum, data + offset, IX::PAGE_RID_PAGE_LEN);
-            offset += IX::INDEXPAGE_CHILD_PTR_LEN;
-            memcpy(&slotNum, data + offset, IX::PAGE_RID_SLOT_LEN);
-            offset += IX::PAGE_RID_SLOT_LEN;
-            out << ":[(" << pageNum << "," << slotNum <<")]\"";
+                memcpy(&pageNum, data + offset, IX::PAGE_RID_PAGE_LEN);
+                offset += IX::PAGE_RID_PAGE_LEN;
+                memcpy(&slotNum, data + offset, IX::PAGE_RID_SLOT_LEN);
+                offset += IX::PAGE_RID_SLOT_LEN;
+                out << "(" << pageNum << "," << slotNum <<")";
+                i++;
 
-            if(i != counter - 1) {
+                if(i >= counter) {
+                    break;
+                }
+                switch (attr.type) {
+                    case TypeInt:
+                        if(getKeyInt(data + offset) != curInt)
+                            break;
+                        break;
+                    case TypeReal:
+                        if(getKeyReal(data + offset) != curFloat)
+                            break;
+                        break;
+                    case TypeVarChar:
+                        if(getKeyString(data + offset) != curStr)
+                            break;
+                        break;
+                    default:
+                        return ERR_KEY_TYPE_NOT_SUPPORT;
+                }
+
+                out << ",";
+            }
+            out << "]\"";
+
+            if(i < counter) {
                 out << ",";
             }
         }
