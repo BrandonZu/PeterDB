@@ -237,21 +237,26 @@ namespace PeterDB {
                 if(i >= counter) {
                     break;
                 }
+
+                bool isKeySame = true;
                 switch (attr.type) {
                     case TypeInt:
                         if(getKeyInt(data + offset) != curInt)
-                            break;
+                            isKeySame = false;
                         break;
                     case TypeReal:
                         if(getKeyReal(data + offset) != curFloat)
-                            break;
+                            isKeySame = false;
                         break;
                     case TypeVarChar:
                         if(getKeyString(data + offset) != curStr)
-                            break;
+                            isKeySame = false;
                         break;
                     default:
                         return ERR_KEY_TYPE_NOT_SUPPORT;
+                }
+                if(!isKeySame) {
+                    break;
                 }
 
                 out << ",";
