@@ -14,9 +14,10 @@ namespace PeterDB {
     RC RBFM_ScanIterator::open(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                const std::string &conditionAttribute, const CompOp compOp, const void *value,
                                const std::vector<std::string> &attributeNames) {
-
         this->fileHandle = fileHandle;
         this->recordDesc = recordDescriptor;
+
+        this->selectedAttrIndex.clear();    // In case not closed since last time
         for(const std::string& attrName: attributeNames) {
             for(uint32_t i = 0; i < recordDescriptor.size(); i++) {
                 if(recordDescriptor[i].name == attrName) {
@@ -32,7 +33,6 @@ namespace PeterDB {
 
         if(compOp == NO_OP)  {
             conditionAttrIndex = -1;
-            conditionAttrValue = nullptr;
         }
         else {
             conditionAttrIndex = -1;
@@ -69,6 +69,9 @@ namespace PeterDB {
     }
 
     RC RBFM_ScanIterator::close() {
+        recordDesc.clear();
+        selectedAttrIndex.clear();
+        bzero(recordByteSeq, PAGE_SIZE);
         return 0;
     }
 

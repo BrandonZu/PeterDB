@@ -145,15 +145,15 @@ namespace tsl {
         }
 
 /**
- * Each bucket entry stores an index which is the index in m_values corresponding to the bucket's conditionAttrValue
- * and a hash (which may be truncated to 32 bits depending on IndexType) corresponding to the hash of the conditionAttrValue.
+ * Each bucket entry stores an index which is the index in m_values corresponding to the bucket's value
+ * and a hash (which may be truncated to 32 bits depending on IndexType) corresponding to the hash of the value.
  *
  * The size of IndexType limits the size of the hash table to std::numeric_limits<IndexType>::max() - 1 elements (-1 due to
- * a reserved conditionAttrValue used to mark a bucket as empty).
+ * a reserved value used to mark a bucket as empty).
  */
         template<class IndexType>
         class bucket_entry {
-            static_assert(std::is_unsigned<IndexType>::value, "IndexType must be an unsigned conditionAttrValue.");
+            static_assert(std::is_unsigned<IndexType>::value, "IndexType must be an unsigned value.");
             static_assert(std::numeric_limits<IndexType>::max() <= std::numeric_limits<std::size_t>::max(),
                           "std::numeric_limits<IndexType>::max() must be <= std::numeric_limits<std::size_t>::max().");
 
@@ -249,8 +249,8 @@ namespace tsl {
  *
  * KeySelect should be a FunctionObject which takes a ValueType in parameter and return a reference to the key.
  *
- * ValueSelect should be a FunctionObject which takes a ValueType in parameter and return a reference to the conditionAttrValue.
- * ValueSelect should be void if there is no conditionAttrValue (in set for example).
+ * ValueSelect should be a FunctionObject which takes a ValueType in parameter and return a reference to the value.
+ * ValueSelect should be void if there is no value (in set for example).
  *
  * ValueTypeContainer is the container which will be used to store ValueType values.
  * Usually a std::deque<ValueType, Allocator> or std::vector<ValueType, Allocator>.
@@ -261,8 +261,8 @@ namespace tsl {
  * To do so, it stores the values in the ValueTypeContainer (m_values) using emplace_back at each
  * insertion of a new element. Another structure (m_buckets of type std::vector<bucket_entry>) will
  * serve as buckets array for the hash table part. Each bucket stores an index which corresponds to
- * the index in m_values where the bucket's conditionAttrValue is and the (truncated) hash of this conditionAttrValue. An index
- * is used instead of a pointer to the conditionAttrValue to reduce the size of each bucket entry.
+ * the index in m_values where the bucket's value is and the (truncated) hash of this value. An index
+ * is used instead of a pointer to the value to reduce the size of each bucket entry.
  *
  * To resolve collisions in the buckets array, the structures use robin hood linear probing with
  * backward shift deletion.
@@ -669,7 +669,7 @@ namespace tsl {
             std::pair<iterator, bool> insert_or_assign(K &&key, M &&value) {
                 auto it = try_emplace(std::forward<K>(key), std::forward<M>(value));
                 if (!it.second) {
-                    it.first.conditionAttrValue() = std::forward<M>(value);
+                    it.first.value() = std::forward<M>(value);
                 }
 
                 return it;
@@ -826,7 +826,7 @@ namespace tsl {
             const typename U::value_type &at(const K &key, std::size_t hash) const {
                 auto it = find(key, hash);
                 if (it != end()) {
-                    return it.conditionAttrValue();
+                    return it.value();
                 } else {
                     TSL_OH_THROW_OR_TERMINATE(std::out_of_range, "Couldn't find the key.");
                 }
@@ -834,7 +834,7 @@ namespace tsl {
 
             template<class K, class U = ValueSelect, typename std::enable_if<has_mapped_type<U>::value>::type * = nullptr>
             typename U::value_type &operator[](K &&key) {
-                return try_emplace(std::forward<K>(key)).first.conditionAttrValue();
+                return try_emplace(std::forward<K>(key)).first.value();
             }
 
             template<class K>
@@ -1045,7 +1045,7 @@ namespace tsl {
 
                 /*
                  * One element was deleted, index_erase now points to the next element as the elements after
-                 * the deleted conditionAttrValue were shifted to the left in m_values (will be end() if we deleted the last element).
+                 * the deleted value were shifted to the left in m_values (will be end() if we deleted the last element).
                  */
                 return begin() + index_erase;
             }
@@ -1136,9 +1136,9 @@ namespace tsl {
             /**
              * Return bucket which has the key 'key' or m_buckets_data.end() if none.
              *
-             * From the bucket_for_hash, search for the conditionAttrValue until we either find an empty bucket
-             * or a bucket which has a conditionAttrValue with a distance from its ideal bucket longer
-             * than the probe length for the conditionAttrValue we are looking for.
+             * From the bucket_for_hash, search for the value until we either find an empty bucket
+             * or a bucket which has a value with a distance from its ideal bucket longer
+             * than the probe length for the value we are looking for.
              */
             template<class K>
             typename buckets_container_type::const_iterator find_key(const K &key, std::size_t hash) const {
@@ -1236,7 +1236,7 @@ namespace tsl {
                 m_values.erase(m_values.begin() + it_bucket->index());
 
                 /*
-                 * m_values.erase shifted all the values on the right of the erased conditionAttrValue,
+                 * m_values.erase shifted all the values on the right of the erased value,
                  * shift the indexes by -1 in the buckets array for these values.
                  */
                 if (it_bucket->index() != m_values.size()) {
@@ -1249,8 +1249,8 @@ namespace tsl {
             }
 
             /**
-             * Go through each conditionAttrValue from [from_ivalue, m_values.size()) in m_values and for each
-             * bucket corresponding to the conditionAttrValue, shift the index by delta.
+             * Go through each value from [from_ivalue, m_values.size()) in m_values and for each
+             * bucket corresponding to the value, shift the index by delta.
              *
              * delta must be equal to 1 or -1.
              */
@@ -1259,7 +1259,7 @@ namespace tsl {
 
                 for (std::size_t ivalue = from_ivalue; ivalue < m_values.size(); ivalue++) {
                     // All the values in m_values have been shifted by delta. Find the bucket corresponding
-                    // to the conditionAttrValue m_values[ivalue]
+                    // to the value m_values[ivalue]
                     const index_type old_index = static_cast<index_type>(ivalue - delta);
 
                     std::size_t ibucket = bucket_for_hash(hash_key(KeySelect()(m_values[ivalue])));
@@ -1405,7 +1405,7 @@ namespace tsl {
                 if (ibucket >= ideal_bucket) {
                     return ibucket - ideal_bucket;
                 }
-                    // If the bucket is smaller than the ideal bucket for the conditionAttrValue, there was a wrapping at the end of the
+                    // If the bucket is smaller than the ideal bucket for the value, there was a wrapping at the end of the
                     // bucket array due to the modulo.
                 else {
                     return (bucket_count() + ibucket) - ideal_bucket;

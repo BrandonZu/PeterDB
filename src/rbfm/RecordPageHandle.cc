@@ -229,6 +229,9 @@ namespace PeterDB {
     // Free byte pointer will be updated
     RC RecordPageHandle::shiftRecord(int16_t dataNeedShiftStartPos, int16_t dist, bool shiftLeft){
         int16_t dataNeedMoveLen = freeBytePointer - dataNeedShiftStartPos;
+        if(dataNeedMoveLen < 0) {
+            return ERR_IMPOSSIBLE;
+        }
 
         if(dataNeedMoveLen != 0) {
             // Must Use Memmove! Source and Destination May Overlap
@@ -240,8 +243,8 @@ namespace PeterDB {
             // Update the slots of record that follows dataNeedShift
             int16_t curRecordOffset;
             for (int16_t i = 1; i <= slotCounter; i++) {
-                memcpy(&curRecordOffset, data + getSlotOffset(i), PAGE_SLOT_RECORD_PTR_LEN);
-                if(curRecordOffset == ERR_SLOT_EMPTY || curRecordOffset < dataNeedShiftStartPos) {
+                curRecordOffset = getRecordOffset(i);
+                if(curRecordOffset == PAGE_EMPTY_SLOT_OFFSET || curRecordOffset < dataNeedShiftStartPos) {
                     continue;
                 }
                 if(shiftLeft)
