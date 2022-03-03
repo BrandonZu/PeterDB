@@ -185,19 +185,20 @@ namespace PeterDB {
             LOG(ERROR) << "Fail to get meta data @ RelationManager::insertTuple" << std::endl;
             return ERR_GET_METADATA;
         }
-        FileHandle fh;
-        ret = rbfm.openFile(tableName, fh);
+
+        if(!prevFH.isOpen() || prevFH.fileName != tableName) {
+            prevFH.close();
+            ret = rbfm.openFile(tableName, prevFH);
+            if(ret) {
+                return ret;
+            }
+        }
+        ret = rbfm.insertRecord(prevFH, attrs, data, rid);
         if(ret) {
             return ret;
         }
-        ret = rbfm.insertRecord(fh, attrs, data, rid);
-        if(ret) {
-            return ret;
-        }
-        ret = rbfm.closeFile(fh);
-        if(ret) {
-            return ret;
-        }
+        prevFH.flushMetadata();
+
         return 0;
     }
 
@@ -217,19 +218,20 @@ namespace PeterDB {
             LOG(ERROR) << "Fail to get meta data @ RelationManager::deleteTuple" << std::endl;
             return ERR_GET_METADATA;
         }
-        FileHandle fh;
-        ret = rbfm.openFile(tableName, fh);
+
+        if(!prevFH.isOpen() || prevFH.fileName != tableName) {
+            prevFH.close();
+            ret = rbfm.openFile(tableName, prevFH);
+            if(ret) {
+                return ret;
+            }
+        }
+        ret = rbfm.deleteRecord(prevFH, attrs, rid);
         if(ret) {
             return ret;
         }
-        ret = rbfm.deleteRecord(fh, attrs, rid);
-        if(ret) {
-            return ret;
-        }
-        ret = rbfm.closeFile(fh);
-        if(ret) {
-            return ret;
-        }
+        prevFH.flushMetadata();
+
         return 0;
     }
 
@@ -249,19 +251,20 @@ namespace PeterDB {
             LOG(ERROR) << "Fail to get meta data @ RelationManager::updateTuple" << std::endl;
             return ERR_GET_METADATA;
         }
-        FileHandle fh;
-        ret = rbfm.openFile(tableName, fh);
+
+        if(!prevFH.isOpen() || prevFH.fileName != tableName) {
+            prevFH.close();
+            ret = rbfm.openFile(tableName, prevFH);
+            if(ret) {
+                return ret;
+            }
+        }
+        ret = rbfm.updateRecord(prevFH, attrs, data, rid);
         if(ret) {
             return ret;
         }
-        ret = rbfm.updateRecord(fh, attrs, data, rid);
-        if(ret) {
-            return ret;
-        }
-        ret = rbfm.closeFile(fh);
-        if(ret) {
-            return ret;
-        }
+        prevFH.flushMetadata();
+
         return 0;
     }
 
@@ -278,19 +281,20 @@ namespace PeterDB {
             LOG(ERROR) << "Fail to get meta data @ RelationManager::readTuple" << std::endl;
             return ERR_GET_METADATA;
         }
-        FileHandle fh;
-        ret = rbfm.openFile(tableName, fh);
+
+        if(!prevFH.isOpen() || prevFH.fileName != tableName) {
+            prevFH.close();
+            ret = rbfm.openFile(tableName, prevFH);
+            if(ret) {
+                return ret;
+            }
+        }
+        ret = rbfm.readRecord(prevFH, attrs, rid, data);
         if(ret) {
             return ret;
         }
-        ret = rbfm.readRecord(fh, attrs, rid, data);
-        if(ret) {
-            return ret;
-        }
-        ret = rbfm.closeFile(fh);
-        if(ret) {
-            return ret;
-        }
+        prevFH.flushMetadata();
+
         return 0;
     }
 
@@ -317,19 +321,20 @@ namespace PeterDB {
             LOG(ERROR) << "Fail to get meta data @ RelationManager::readTuple" << std::endl;
             return ERR_GET_METADATA;
         }
-        FileHandle fh;
-        ret = rbfm.openFile(tableName, fh);
+
+        if(!prevFH.isOpen() || prevFH.fileName != tableName) {
+            prevFH.close();
+            ret = rbfm.openFile(tableName, prevFH);
+            if(ret) {
+                return ret;
+            }
+        }
+        ret = rbfm.readAttribute(prevFH, attrs, rid, attributeName, data);
         if(ret) {
             return ret;
         }
-        ret = rbfm.readAttribute(fh, attrs, rid, attributeName, data);
-        if(ret) {
-            return ret;
-        }
-        ret = rbfm.closeFile(fh);
-        if(ret) {
-            return ret;
-        }
+        prevFH.flushMetadata();
+
         return 0;
     }
 
@@ -386,8 +391,7 @@ namespace PeterDB {
         if(!isTableNameValid(tableName)) {
             return ERR_TABLE_NAME_INVALID;
         }
-        RC ret = 0;
-        return 0;
+        return -1;
     }
 
     RC RelationManager::insertMetaDataIntoCatalog(const std::string& tableName, std::vector<Attribute> schema) {
