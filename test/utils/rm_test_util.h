@@ -426,49 +426,49 @@ namespace PeterDBTesting {
             generateTuple(nullsIndicator, inBuffer, seed, salt, tupleSize, tweet);
 
             if ((nullsIndicator[0] >> (7u - attrID)) & 1u) {
-                ASSERT_EQ(*((unsigned char *) outBuffer), 128u)
+                EXPECT_EQ(*((unsigned char *) outBuffer), 128u)
                                     << "returned " << attributeName << " field should be null";
             } else {
                 if (attributeName == "tweet_id") {
 
-                    ASSERT_EQ(memcmp(((char *) outBuffer + 1), &tweet.tweet_id, sizeof(unsigned)), 0)
+                    EXPECT_EQ(memcmp(((char *) outBuffer + 1), &tweet.tweet_id, sizeof(unsigned)), 0)
                                         << "returned tweet_id field is not correct.";
 
                 } else if (attributeName == "text") {
-                    ASSERT_EQ(*(unsigned *) ((char *) outBuffer + 1), tweet.text.length())
+                    EXPECT_EQ(*(unsigned *) ((char *) outBuffer + 1), tweet.text.length())
                                         << "returned text field length is not correct.";
-                    ASSERT_EQ(memcmp(((char *) outBuffer + 1 + sizeof(unsigned)), tweet.text.c_str(),
+                    EXPECT_EQ(memcmp(((char *) outBuffer + 1 + sizeof(unsigned)), tweet.text.c_str(),
                                      tweet.text.length()), 0)
                                         << "returned text field is not correct.";
 
                 } else if (attributeName == "user_id") {
-                    ASSERT_EQ(memcmp(((char *) outBuffer + 1), &tweet.user_id, sizeof(unsigned)), 0)
+                    EXPECT_EQ(memcmp(((char *) outBuffer + 1), &tweet.user_id, sizeof(unsigned)), 0)
                                         << "returned user_id field is not correct.";
 
                 } else if (attributeName == "sentiment") {
-                    ASSERT_EQ(memcmp(((char *) outBuffer + 1), &tweet.sentiment, sizeof(float)), 0)
+                    EXPECT_EQ(memcmp(((char *) outBuffer + 1), &tweet.sentiment, sizeof(float)), 0)
                                         << "returned sentiment field is not correct.";
 
                 } else if (attributeName == "hash_tags") {
-                    ASSERT_EQ(*(unsigned *) ((char *) outBuffer + 1), tweet.hash_tags.length())
+                    EXPECT_EQ(*(unsigned *) ((char *) outBuffer + 1), tweet.hash_tags.length())
                                         << "returned hash_tags field length is not correct.";
-                    ASSERT_EQ(memcmp(((char *) outBuffer + 1 + sizeof(unsigned)), tweet.hash_tags.c_str(),
+                    EXPECT_EQ(memcmp(((char *) outBuffer + 1 + sizeof(unsigned)), tweet.hash_tags.c_str(),
                                      tweet.hash_tags.length()), 0)
                                         << "returned hash_tags field is not correct.";
 
                 } else if (attributeName == "embedded_url") {
-                    ASSERT_EQ(*(unsigned *) ((char *) outBuffer + 1), tweet.embedded_url.length())
+                    EXPECT_EQ(*(unsigned *) ((char *) outBuffer + 1), tweet.embedded_url.length())
                                         << "returned embedded_url field length is not correct.";
-                    ASSERT_EQ(memcmp(((char *) outBuffer + 1 + sizeof(unsigned)), tweet.embedded_url.c_str(),
+                    EXPECT_EQ(memcmp(((char *) outBuffer + 1 + sizeof(unsigned)), tweet.embedded_url.c_str(),
                                      tweet.embedded_url.length()),
                               0) << "returned embedded_url field is not correct.";
 
                 } else if (attributeName == "lat") {
-                    ASSERT_EQ(memcmp(((char *) outBuffer + 1), &tweet.lat, sizeof(float)), 0)
+                    EXPECT_EQ(memcmp(((char *) outBuffer + 1), &tweet.lat, sizeof(float)), 0)
                                         << "returned lat field is not correct.";
 
                 } else if (attributeName == "lng") {
-                    ASSERT_EQ(memcmp(((char *) outBuffer + 1), &tweet.lng, sizeof(float)), 0)
+                    EXPECT_EQ(memcmp(((char *) outBuffer + 1), &tweet.lng, sizeof(float)), 0)
                                         << "returned lng field is not correct.";
 
                 }

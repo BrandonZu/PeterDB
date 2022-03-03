@@ -2657,7 +2657,7 @@ json.exception.out_of_range.401 | array index 3 is out of range | The provided a
 json.exception.out_of_range.402 | array index '-' (3) is out of range | The special array index `-` in a JSON Pointer never describes a valid element of the array, but the index past the end. That is, it can only be used to add elements at this position, but not to read it.
 json.exception.out_of_range.403 | key 'foo' not found | The provided key was not found in the JSON object.
 json.exception.out_of_range.404 | unresolved reference token 'foo' | A reference token in a JSON Pointer could not be resolved.
-json.exception.out_of_range.405 | JSON pointer has no parentPtr | The JSON Patch operations 'remove' and 'add' can not be applied to the rootPagePtr element of the JSON value.
+json.exception.out_of_range.405 | JSON pointer has no parent | The JSON Patch operations 'remove' and 'add' can not be applied to the root element of the JSON value.
 json.exception.out_of_range.406 | number overflow parsing '10E1000' | A parsed number could not be stored as without changing it to NaN or INF.
 json.exception.out_of_range.407 | number overflow serializing '9223372036854775808' | UBJSON and BSON only support integer numbers up to 9223372036854775807. (until version 3.8.0) |
 json.exception.out_of_range.408 | excessive array size: 8658170730974374167 | The size (following `#`) of an UBJSON array or object exceeds the maximal capacity. |
@@ -5526,7 +5526,7 @@ return errored;
 private:
 /*!
     @invariant If the ref stack is empty, then the passed value will be the new
-               rootPagePtr.
+               root.
     @invariant If the ref stack contains a value, then it is an array or an
                object to which we can add elements
     */
@@ -5771,7 +5771,7 @@ private:
                callback function with an empty array or object, respectively.
 
     @invariant If the ref stack is empty, then the passed value will be the new
-               rootPagePtr.
+               root.
     @invariant If the ref stack contains a value, then it is an array or an
                object to which we can add elements
 
@@ -5808,7 +5808,7 @@ root = std::move(value);
 return {true, &root};
 }
 
-// skip this value if we already decided to skip the parentPtr
+// skip this value if we already decided to skip the parent
 // (https://github.com/nlohmann/json/issues/971#issuecomment-413678360)
 if (!ref_stack.back())
 {
@@ -11812,10 +11812,10 @@ return json_pointer(ptr) /= array_idx;
 }
 
 /*!
-    @brief returns the parentPtr of this JSON pointer
+    @brief returns the parent of this JSON pointer
 
-    @return parentPtr of this JSON pointer; in case this JSON pointer is the rootPagePtr,
-            the rootPagePtr itself is returned
+    @return parent of this JSON pointer; in case this JSON pointer is the root,
+            the root itself is returned
 
     @complexity Linear in the length of the JSON pointer.
 
@@ -11845,7 +11845,7 @@ return res;
 
     @complexity Constant.
 
-    @throw out_of_range.405 if JSON pointer has no parentPtr
+    @throw out_of_range.405 if JSON pointer has no parent
 
     @since version 3.6.0
     */
@@ -11853,7 +11853,7 @@ void pop_back()
 {
 if (JSON_HEDLEY_UNLIKELY(empty()))
 {
-JSON_THROW(detail::out_of_range::create(405, "JSON pointer has no parentPtr"));
+JSON_THROW(detail::out_of_range::create(405, "JSON pointer has no parent"));
 }
 
 reference_tokens.pop_back();
@@ -11869,7 +11869,7 @@ reference_tokens.pop_back();
 
     @complexity Constant.
 
-    @throw out_of_range.405 if JSON pointer has no parentPtr
+    @throw out_of_range.405 if JSON pointer has no parent
 
     @since version 3.6.0
     */
@@ -11877,7 +11877,7 @@ const std::string& back() const
 {
 if (JSON_HEDLEY_UNLIKELY(empty()))
 {
-JSON_THROW(detail::out_of_range::create(405, "JSON pointer has no parentPtr"));
+JSON_THROW(detail::out_of_range::create(405, "JSON pointer has no parent"));
 }
 
 return reference_tokens.back();
@@ -11907,9 +11907,9 @@ reference_tokens.push_back(std::move(token));
 }
 
 /*!
-    @brief return whether pointer points to the rootPagePtr document
+    @brief return whether pointer points to the root document
 
-    @return true iff the JSON pointer points to the rootPagePtr document
+    @return true iff the JSON pointer points to the root document
 
     @complexity Constant.
 
@@ -11986,7 +11986,7 @@ json_pointer top() const
 {
 if (JSON_HEDLEY_UNLIKELY(empty()))
 {
-JSON_THROW(detail::out_of_range::create(405, "JSON pointer has no parentPtr"));
+JSON_THROW(detail::out_of_range::create(405, "JSON pointer has no parent"));
 }
 
 json_pointer result = *this;
@@ -17836,11 +17836,11 @@ using parse_event_t = detail::parse_event_t;
 
     parameter @a event | description | parameter @a depth | parameter @a parsed
     ------------------ | ----------- | ------------------ | -------------------
-    parse_event_t::object_start | the parser read `{` and started to process a JSON object | depth of the parentPtr of the JSON object | a JSON value with type discarded
+    parse_event_t::object_start | the parser read `{` and started to process a JSON object | depth of the parent of the JSON object | a JSON value with type discarded
     parse_event_t::key | the parser read a key of a value in an object | depth of the currently parsed JSON object | a JSON string containing the key
-    parse_event_t::object_end | the parser read `}` and finished processing a JSON object | depth of the parentPtr of the JSON object | the parsed JSON object
-    parse_event_t::array_start | the parser read `[` and started to process a JSON array | depth of the parentPtr of the JSON array | a JSON value with type discarded
-    parse_event_t::array_end | the parser read `]` and finished processing a JSON array | depth of the parentPtr of the JSON array | the parsed JSON array
+    parse_event_t::object_end | the parser read `}` and finished processing a JSON object | depth of the parent of the JSON object | the parsed JSON object
+    parse_event_t::array_start | the parser read `[` and started to process a JSON array | depth of the parent of the JSON array | a JSON value with type discarded
+    parse_event_t::array_end | the parser read `]` and finished processing a JSON array | depth of the parent of the JSON array | the parsed JSON array
     parse_event_t::value | the parser finished reading a JSON value | depth of the value | the parsed JSON value
 
     @image html callback_events.png "Example when certain parse events are triggered"
@@ -24723,7 +24723,7 @@ return json_pointer::unflatten(*this);
     resolved successfully in the current JSON value; example: `"key baz not
     found"`
 
-    @throw out_of_range.405 if JSON pointer has no parentPtr ("add", "remove",
+    @throw out_of_range.405 if JSON pointer has no parent ("add", "remove",
     "move")
 
     @throw other_error.501 if "test" operation was unsuccessful
@@ -24783,7 +24783,7 @@ return patch_operations::invalid;
 // wrapper for "add" operation; add value at ptr
 const auto operation_add = [&result](json_pointer & ptr, basic_json val)
 {
-// adding to the rootPagePtr of the target document means replacing it
+// adding to the root of the target document means replacing it
 if (ptr.empty())
 {
 result = val;
@@ -24797,7 +24797,7 @@ if (top_pointer != ptr)
 result.at(top_pointer);
 }
 
-// get reference to parentPtr of JSON pointer ptr
+// get reference to parent of JSON pointer ptr
 const auto last_path = ptr.back();
 ptr.pop_back();
 basic_json& parent = result[ptr];
@@ -24834,7 +24834,7 @@ parent.insert(parent.begin() + static_cast<difference_type>(idx), val);
 break;
 }
 
-// if there exists a parentPtr it cannot be primitive
+// if there exists a parent it cannot be primitive
 default:            // LCOV_EXCL_LINE
 JSON_ASSERT(false);  // LCOV_EXCL_LINE
 }
@@ -24843,7 +24843,7 @@ JSON_ASSERT(false);  // LCOV_EXCL_LINE
 // wrapper for "remove" operation; remove value at ptr
 const auto operation_remove = [&result](json_pointer & ptr)
 {
-// get reference to parentPtr of JSON pointer ptr
+// get reference to parent of JSON pointer ptr
 const auto last_path = ptr.back();
 ptr.pop_back();
 basic_json& parent = result.at(ptr);
