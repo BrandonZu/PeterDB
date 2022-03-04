@@ -44,23 +44,6 @@ namespace PeterDB {
             Attribute{CATALOG_COLUMNS_COLUMNPOS, TypeInt, sizeof(int32_t)},
     };
 
-
-    // RM_ScanIterator is an iterator to go through tuples
-    class RM_ScanIterator {
-        RBFM_ScanIterator rbfmIter;
-    public:
-        RM_ScanIterator();
-        ~RM_ScanIterator();
-
-        RC open(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
-                const std::string &conditionAttribute, const CompOp compOp, const void *value,
-                const std::vector<std::string> &attributeNames);
-        // "data" follows the same format as RelationManager::insertTuple()
-        RC getNextTuple(RID &rid, void *data);
-
-        RC close();
-    };
-
     class CatalogTablesRecord {
     public:
         int32_t tableID;
@@ -97,15 +80,31 @@ namespace PeterDB {
         Attribute getAttribute();
     };
 
+    // RM_ScanIterator is an iterator to go through tuples
+    class RM_ScanIterator {
+        RBFM_ScanIterator rbfmIter;
+    public:
+        RM_ScanIterator();
+        ~RM_ScanIterator();
+
+        RC open(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
+                const std::string &conditionAttribute, const CompOp compOp, const void *value,
+                const std::vector<std::string> &attributeNames);
+        // "data" follows the same format as RelationManager::insertTuple()
+        RC getNextTuple(RID &rid, void *data);
+
+        RC close();
+    };
+
     // RM_IndexScanIterator is an iterator to go through index entries
     class RM_IndexScanIterator {
     public:
-        RM_IndexScanIterator(){};    // Constructor
-        ~RM_IndexScanIterator(){};    // Destructor
+        RM_IndexScanIterator();    // Constructor
+        ~RM_IndexScanIterator();    // Destructor
 
         // "key" follows the same format as in IndexManager::insertEntry()
-        RC getNextEntry(RID &rid, void *key){};    // Get next matching entry
-        RC close(){};                              // Terminate index scan
+        RC getNextEntry(RID &rid, void *key);    // Get next matching entry
+        RC close();                              // Terminate index scan
     };
 
     // Relation Manager

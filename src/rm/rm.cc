@@ -94,6 +94,13 @@ namespace PeterDB {
     }
 
     RC RelationManager::createIndex(const std::string &tableName, const std::string &attributeName) {
+        if(!isTableAccessible(tableName)) {
+            return ERR_ACCESS_DENIED_SYS_TABLE;
+        }
+        if(!isTableNameValid(tableName)) {
+            return ERR_TABLE_NAME_INVALID;
+        }
+
         RC ret = 0;
 
         return 0;
