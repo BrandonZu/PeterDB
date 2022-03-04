@@ -50,10 +50,10 @@ namespace PeterDB {
 
             switch (conditionAttr.type) {
                 case TypeInt:
-                    memcpy(conditionAttrValue, (uint8_t *)value, sizeof(TypeInt));
+                    memcpy(conditionAttrValue, (uint8_t *)value, sizeof(int32_t));
                     break;
                 case TypeReal:
-                    memcpy(conditionAttrValue, (uint8_t *)value, sizeof(TypeReal));
+                    memcpy(conditionAttrValue, (uint8_t *)value, sizeof(float));
                     break;
                 case TypeVarChar:
                     memcpy(&conditionStrLen, (uint8_t *)value, sizeof(conditionStrLen));
@@ -135,8 +135,8 @@ namespace PeterDB {
         bool meetCondition = false;
         if(conditionAttr.type == TypeInt) {
             int oper1, oper2;
-            memcpy(&oper1, attrData, sizeof(TypeInt));
-            memcpy(&oper2, conditionAttrValue, sizeof(TypeInt));
+            memcpy(&oper1, attrData, sizeof(int32_t));
+            memcpy(&oper2, conditionAttrValue, sizeof(int32_t));
             switch (compOp) {
                 case EQ_OP:
                     meetCondition = oper1 == oper2;
@@ -163,8 +163,8 @@ namespace PeterDB {
         }
         else if(conditionAttr.type == TypeReal) {
             float oper1, oper2;
-            memcpy(&oper1, attrData, sizeof(TypeReal));
-            memcpy(&oper2, conditionAttrValue, sizeof(TypeReal));
+            memcpy(&oper1, attrData, sizeof(float));
+            memcpy(&oper2, conditionAttrValue, sizeof(float));
             switch (compOp) {
                 case EQ_OP:
                     meetCondition = oper1 == oper2;

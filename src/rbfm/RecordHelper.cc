@@ -91,12 +91,12 @@ namespace PeterDB {
 
             switch (recordDescriptor[attrIndex].type) {
                 case TypeInt:
-                    memcpy(apiData + apiDataPos, byteSeq + attrBeginPos, sizeof(TypeInt));
-                    apiDataPos += sizeof(TypeReal);
+                    memcpy(apiData + apiDataPos, byteSeq + attrBeginPos, sizeof(int32_t));
+                    apiDataPos += sizeof(int32_t);
                     break;
                 case TypeReal:
-                    memcpy(apiData + apiDataPos, byteSeq + attrBeginPos, sizeof(TypeReal));
-                    apiDataPos += sizeof(TypeReal);
+                    memcpy(apiData + apiDataPos, byteSeq + attrBeginPos, sizeof(float));
+                    apiDataPos += sizeof(float);
                     break;
                 case TypeVarChar:
                     // Write String Len

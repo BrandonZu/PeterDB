@@ -32,16 +32,16 @@ namespace PeterDB {
     const std::string catalogTablesName = "Tables";
     const std::string catalogColumnsName = "Columns";
     const std::vector<Attribute> catalogTablesSchema = std::vector<Attribute> {
-            Attribute{CATALOG_TABLES_TABLEID, TypeInt, sizeof(TypeInt)},
+            Attribute{CATALOG_TABLES_TABLEID, TypeInt, sizeof(int32_t)},
             Attribute{CATALOG_TABLES_TABLENAME, TypeVarChar, CATALOG_TABLES_TABLENAME_LEN},
             Attribute{CATALOG_TABLES_FILENAME, TypeVarChar, CATALOG_TABLES_FILENAME_LEN}
     };
     const std::vector<Attribute> catalogColumnsSchema = std::vector<Attribute> {
-            Attribute{CATALOG_COLUMNS_TABLEID, TypeInt, sizeof(TypeInt)},
+            Attribute{CATALOG_COLUMNS_TABLEID, TypeInt, sizeof(int32_t)},
             Attribute{CATALOG_COLUMNS_COLUMNNAME, TypeVarChar, CATALOG_COLUMNS_COLUMNNAME_LEN},
-            Attribute{CATALOG_COLUMNS_COLUMNTYPE, TypeInt, sizeof(TypeInt)},
-            Attribute{CATALOG_COLUMNS_COLUMNLENGTH, TypeInt, sizeof(TypeInt)},
-            Attribute{CATALOG_COLUMNS_COLUMNPOS, TypeInt, sizeof(TypeInt)},
+            Attribute{CATALOG_COLUMNS_COLUMNTYPE, TypeInt, sizeof(int32_t)},
+            Attribute{CATALOG_COLUMNS_COLUMNLENGTH, TypeInt, sizeof(int32_t)},
+            Attribute{CATALOG_COLUMNS_COLUMNPOS, TypeInt, sizeof(int32_t)},
     };
 
 
@@ -155,7 +155,21 @@ namespace PeterDB {
 
         RC dropAttribute(const std::string &tableName, const std::string &attributeName);
 
-    private:
+        // QE IX related
+        RC createIndex(const std::string &tableName, const std::string &attributeName);
+
+        RC destroyIndex(const std::string &tableName, const std::string &attributeName);
+
+        // indexScan returns an iterator to allow the caller to go through qualified entries in index
+        RC indexScan(const std::string &tableName,
+                     const std::string &attributeName,
+                     const void *lowKey,
+                     const void *highKey,
+                     bool lowKeyInclusive,
+                     bool highKeyInclusive,
+                     RM_IndexScanIterator &rm_IndexScanIterator);
+
+    public:
         RC insertMetaDataIntoCatalog(const std::string& tableName, std::vector<Attribute> schema);
         RC deleteAllMetaDataFromCatalog(int32_t tableID);
 
@@ -167,20 +181,6 @@ namespace PeterDB {
 
         bool isTableAccessible(const std::string& tableName);
         bool isTableNameValid(const std::string& tableName);
-
-        // QE IX related
-        RC createIndex(const std::string &tableName, const std::string &attributeName){};
-
-        RC destroyIndex(const std::string &tableName, const std::string &attributeName){};
-
-        // indexScan returns an iterator to allow the caller to go through qualified entries in index
-        RC indexScan(const std::string &tableName,
-                     const std::string &attributeName,
-                     const void *lowKey,
-                     const void *highKey,
-                     bool lowKeyInclusive,
-                     bool highKeyInclusive,
-                     RM_IndexScanIterator &rm_IndexScanIterator){};
 
     protected:
         RelationManager();                                                  // Prevent construction

@@ -185,14 +185,14 @@ namespace PeterDB {
                 switch (recordDescriptor[i].type) {
                     case TypeInt:
                         int intVal;
-                        memcpy(&intVal, (uint8_t *)data + dataPos, sizeof(TypeInt));
-                        dataPos += sizeof(TypeInt);
+                        memcpy(&intVal, (uint8_t *)data + dataPos, sizeof(int32_t));
+                        dataPos += sizeof(int32_t);
                         out << intVal;
                         break;
                     case TypeReal:
                         float floatVal;
-                        memcpy(&floatVal, (uint8_t *)data + dataPos, sizeof(TypeReal));
-                        dataPos += sizeof(TypeReal);
+                        memcpy(&floatVal, (uint8_t *)data + dataPos, sizeof(float));
+                        dataPos += sizeof(float);
                         out << floatVal;
                         break;
                     case TypeVarChar:

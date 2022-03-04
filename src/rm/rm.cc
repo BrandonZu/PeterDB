@@ -93,6 +93,12 @@ namespace PeterDB {
         return 0;
     }
 
+    RC RelationManager::createIndex(const std::string &tableName, const std::string &attributeName) {
+        RC ret = 0;
+
+        return 0;
+    }
+
     RC RelationManager::deleteTable(const std::string &tableName) {
         if(!isTableAccessible(tableName)) {
             return ERR_ACCESS_DENIED_SYS_TABLE;
@@ -129,6 +135,12 @@ namespace PeterDB {
         if(ret) {
             return ret;
         }
+        return 0;
+    }
+
+    RC RelationManager::destroyIndex(const std::string &tableName, const std::string &attributeName) {
+        RC ret = 0;
+
         return 0;
     }
 
@@ -366,6 +378,18 @@ namespace PeterDB {
         if(ret) {
             return ret;
         }
+
+        return 0;
+    }
+
+    RC RelationManager::indexScan(const std::string &tableName,
+                 const std::string &attributeName,
+                 const void *lowKey,
+                 const void *highKey,
+                 bool lowKeyInclusive,
+                 bool highKeyInclusive,
+                 RM_IndexScanIterator &rm_IndexScanIterator) {
+        RC ret = 0;
 
         return 0;
     }
