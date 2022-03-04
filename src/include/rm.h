@@ -113,7 +113,7 @@ namespace PeterDB {
     private:
         FileHandle catalogTablesFH;
         FileHandle catalogColumnsFH;
-
+        FileHandle prevFH;
     public:
         static RelationManager &instance();
 
