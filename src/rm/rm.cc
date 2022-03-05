@@ -523,6 +523,7 @@ namespace PeterDB {
 
         std::vector<std::string> tableAttrNames = {CATALOG_TABLES_TABLEID};
         std::vector<std::string> colAttrNames = {CATALOG_COLUMNS_TABLEID};
+        std::vector<std::string> indexAttrNames = {CATALOG_INDEXES_TABLEID};
 
         RID curRID;
         uint8_t apiData[PAGE_SIZE];
@@ -565,6 +566,20 @@ namespace PeterDB {
         if(colRecordDeletedCount == 0) {
             LOG(ERROR) << "Should delete more than one record in COLUMNS @ RelationManager::deleteAllMetaDataFromCatalog" << std::endl;
             return ERR_DELETE_METADATA;
+        }
+
+        // Scan Catalog Columns and delete target column record in INDEXES
+        RBFM_ScanIterator indexIter;
+        ret = rbfm.scan(catalogIndexesFH, catalogIndexesSchema, CATALOG_INDEXES_TABLEID,
+                        EQ_OP, &tableID, indexAttrNames, indexIter);
+        if(ret) {
+            return ret;
+        }
+        while(indexIter.getNextRecord(curRID, apiData) == 0) {
+            ret = rbfm.deleteRecord(catalogIndexesFH, catalogIndexesSchema, curRID);
+            if(ret) {
+                return ret;
+            }
         }
         return 0;
     }
