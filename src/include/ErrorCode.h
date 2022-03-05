@@ -56,6 +56,7 @@ namespace PeterDB {
     const int32_t ERR_DELETE_METADATA = 305;
     const int32_t ERR_GET_METADATA = 306;
     const int32_t ERR_ACCESS_DENIED_SYS_TABLE = 307;
+    const int32_t ERR_ATTR_NOT_EXIST = 308;
 
     /*
      * Index Manager

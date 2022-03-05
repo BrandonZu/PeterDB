@@ -3,49 +3,49 @@
 using namespace PeterDB::RM;
 
 namespace PeterDB {
-    CatalogTablesRecord::CatalogTablesRecord() {
-        tableID = CATALOG_TABLES_ATTR_NULL;
+    CatalogIndexesRecord::CatalogIndexesRecord() {
+        tableID = CATALOG_INDEXES_ATTR_NULL;
     }
 
-    CatalogTablesRecord::~CatalogTablesRecord() = default;
-
-    CatalogTablesRecord::CatalogTablesRecord(int32_t id, const std::string& name, const std::string& file) {
+    CatalogIndexesRecord::CatalogIndexesRecord(int32_t id, const std::string& attr, const std::string& file) {
         tableID = id;
-        tableName = name;
+        attrName = attr;
         fileName = file;
     }
 
-    CatalogTablesRecord::CatalogTablesRecord(uint8_t* apiData, const std::vector<std::string>& attrNames) {
+    CatalogIndexesRecord::CatalogIndexesRecord(uint8_t* apiData, const std::vector<std::string>& attrNames) {
         constructFromAPIFormat(apiData, attrNames);
     }
 
-    RC CatalogTablesRecord::constructFromAPIFormat(uint8_t* apiData, const std::vector<std::string>& attrNames) {
+    CatalogIndexesRecord::~CatalogIndexesRecord() = default;
+
+    RC CatalogIndexesRecord::constructFromAPIFormat(uint8_t* apiData, const std::vector<std::string>& attrNames) {
         std::unordered_set<std::string> attrSet(attrNames.begin(), attrNames.end());
-        uint32_t nullByteNum = ceil(CATALOG_TABLES_ATTR_NUM / 8.0);
+        uint32_t nullByteNum = ceil(CATALOG_INDEXES_ATTR_NUM / 8.0);
         int16_t apiDataPos = nullByteNum;
         // Table ID
-        if(attrSet.find(CATALOG_TABLES_TABLEID) != attrSet.end()) {
+        if(attrSet.find(CATALOG_INDEXES_TABLEID) != attrSet.end()) {
             memcpy(&tableID, apiData + apiDataPos, sizeof(tableID));
             apiDataPos += sizeof(tableID);
         }
         else {
             tableID = CATALOG_TABLES_ATTR_NULL;
         }
-        // Table Name
-        if(attrSet.find(CATALOG_TABLES_TABLENAME) != attrSet.end()) {
-            int32_t tableNameLen;
-            memcpy(&tableNameLen, apiData + apiDataPos, sizeof(tableNameLen));
-            apiDataPos += sizeof(tableNameLen);
-            uint8_t tmpStr[tableNameLen];
-            memcpy(tmpStr, apiData + apiDataPos, tableNameLen);
-            apiDataPos += tableNameLen;
-            tableName.assign((char *)tmpStr, tableNameLen);
+        // Attribute Name
+        if(attrSet.find(CATALOG_INDEXES_ATTRNAME) != attrSet.end()) {
+            int32_t attrNameLen;
+            memcpy(&attrNameLen, apiData + apiDataPos, sizeof(attrNameLen));
+            apiDataPos += sizeof(attrNameLen);
+            uint8_t tmpStr[attrNameLen];
+            memcpy(tmpStr, apiData + apiDataPos, attrNameLen);
+            apiDataPos += attrNameLen;
+            attrName.assign((char *)tmpStr, attrNameLen);
         }
         else {
-            tableName.clear();
+            attrName.clear();
         }
         // File Name
-        if(attrSet.find(CATALOG_TABLES_FILENAME) != attrSet.end()) {
+        if(attrSet.find(CATALOG_INDEXES_FILENAME) != attrSet.end()) {
             int32_t fileNameLen;
             memcpy(&fileNameLen, apiData + apiDataPos, sizeof(fileNameLen));
             apiDataPos += sizeof(fileNameLen);
@@ -60,8 +60,8 @@ namespace PeterDB {
         return 0;
     }
 
-    RC CatalogTablesRecord::getRecordAPIFormat(uint8_t* apiData) {
-        uint32_t nullByteNum = ceil(CATALOG_TABLES_ATTR_NUM / 8.0);
+    RC CatalogIndexesRecord::getRecordAPIFormat(uint8_t* apiData) {
+        uint32_t nullByteNum = ceil(CATALOG_INDEXES_ATTR_NUM / 8.0);
         uint8_t nullByte[nullByteNum];
         bzero(nullByte, nullByteNum);
         memcpy(apiData, nullByte, nullByteNum);
@@ -70,12 +70,12 @@ namespace PeterDB {
         // Table ID
         memcpy(apiData + apiDataPos, &tableID, sizeof(tableID));
         apiDataPos += sizeof(tableID);
-        // Table Name
-        int32_t tableNameLen = tableName.length();
-        memcpy(apiData + apiDataPos, &tableNameLen, sizeof(tableNameLen));
-        apiDataPos += sizeof(tableNameLen);
-        memcpy(apiData + apiDataPos, tableName.c_str(), tableNameLen);   // Ignore '\0' at the end
-        apiDataPos += tableNameLen;
+        // Attribute Name
+        int32_t attrNameLen = attrName.length();
+        memcpy(apiData + apiDataPos, &attrNameLen, sizeof(attrNameLen));
+        apiDataPos += sizeof(attrNameLen);
+        memcpy(apiData + apiDataPos, attrName.c_str(), attrNameLen);   // Ignore '\0' at the end
+        apiDataPos += attrNameLen;
         // File name
         int32_t fileNameLen = fileName.size();
         memcpy(apiData + apiDataPos, &fileNameLen, sizeof(fileNameLen));
@@ -85,6 +85,4 @@ namespace PeterDB {
 
         return 0;
     }
-
 }
-

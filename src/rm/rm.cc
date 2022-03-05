@@ -1,5 +1,7 @@
 #include "src/include/rm.h"
 
+using namespace PeterDB::RM;
+
 namespace PeterDB {
     RelationManager &RelationManager::instance() {
         static RelationManager _relation_manager = RelationManager();
@@ -27,6 +29,11 @@ namespace PeterDB {
             LOG(ERROR) << "Fail to create COLUMNS catalog! @ RelationManager::createCatalog" << std::endl;
             return ret;
         }
+        ret = rbfm.createFile(catalogIndexesName);
+        if(ret) {
+            LOG(ERROR) << "Fail to create INDEXES catalog! @ RelationManager::createCatalog" << std::endl;
+            return ret;
+        }
 
         ret = insertMetaDataIntoCatalog(catalogTablesName, catalogTablesSchema);
         if(ret) {
@@ -38,6 +45,11 @@ namespace PeterDB {
             LOG(ERROR) << "Fail to insert COLUMNS metadata into catalog @ RelationManager::createCatalog" << std::endl;
             return ret;
         }
+        ret = insertMetaDataIntoCatalog(catalogIndexesName, catalogIndexesSchema);
+        if(ret) {
+            LOG(ERROR) << "Fail to insert INDEXES metadata into catalog @ RelationManager::createCatalog" << std::endl;
+            return ret;
+        }
         return 0;
     }
 
@@ -46,20 +58,31 @@ namespace PeterDB {
         RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
         catalogTablesFH.close();
         catalogColumnsFH.close();
+        catalogIndexesFH.close();
         ret = rbfm.destroyFile(catalogTablesName);
         if(ret) {
             if(ret == ERR_FILE_NOT_EXIST)
-                LOG(ERROR) << "File not exist! @ RelationManager::deleteCatalog";
+                LOG(ERROR) << "TABLES catalog file not exist! @ RelationManager::deleteCatalog";
             else
                 LOG(ERROR) << "Fail to delete TABLES catalog @ RelationManager::deleteCatalog";
             return ret;
         }
         ret = rbfm.destroyFile(catalogColumnsName);
         if(ret) {
-            LOG(ERROR) << "Fail to delete COLUMNS catalog @ RelationManager::deleteCatalog" << std::endl;
+            if(ret == ERR_FILE_NOT_EXIST)
+                LOG(ERROR) << "COLUMNS catalog file not exist! @ RelationManager::deleteCatalog";
+            else
+                LOG(ERROR) << "Fail to delete COLUMNS catalog @ RelationManager::deleteCatalog";
             return ret;
         }
-
+        ret = rbfm.destroyFile(catalogIndexesName);
+        if(ret) {
+            if(ret == ERR_FILE_NOT_EXIST)
+                LOG(ERROR) << "INDEXES catalog file not exist! @ RelationManager::deleteCatalog";
+            else
+                LOG(ERROR) << "Fail to delete INDEXES catalog @ RelationManager::deleteCatalog";
+            return ret;
+        }
         return 0;
     }
 
@@ -93,7 +116,7 @@ namespace PeterDB {
         return 0;
     }
 
-    RC RelationManager::createIndex(const std::string &tableName, const std::string &attributeName) {
+    RC RelationManager::createIndex(const std::string &tableName, const std::string &attrName) {
         if(!isTableAccessible(tableName)) {
             return ERR_ACCESS_DENIED_SYS_TABLE;
         }
@@ -102,6 +125,28 @@ namespace PeterDB {
         }
 
         RC ret = 0;
+        ret = openCatalog();
+        if(ret) {
+            return ERR_CATALOG_NOT_OPEN;
+        }
+
+        // Find target attribute
+        std::vector<Attribute> table_attrs;
+        ret = getAttributes(tableName, table_attrs);
+        if(ret) {
+            return ERR_GET_METADATA;
+        }
+        int attr_pos = 0;
+        for(attr_pos = 0; attr_pos < table_attrs.size(); attr_pos++) {
+            if(table_attrs[attr_pos].name == attrName) {
+                break;
+            }
+        }
+        if(attr_pos >= table_attrs.size()) {
+            return ERR_ATTR_NOT_EXIST;
+        }
+
+        // Insert index into index table
 
         return 0;
     }
@@ -212,10 +257,14 @@ namespace PeterDB {
                 return ret;
             }
         }
+        // 1. Insert Record into Table
         ret = rbfm.insertRecord(prevFH, attrs, data, rid);
         if(ret) {
             return ret;
         }
+        // TODO 2. Insert Record into Index
+
+
         prevFH.flushMetadata();
 
         return 0;
@@ -245,10 +294,13 @@ namespace PeterDB {
                 return ret;
             }
         }
+        // 1. Delete tuple in the table
         ret = rbfm.deleteRecord(prevFH, attrs, rid);
         if(ret) {
             return ret;
         }
+        // TODO 2. Delete tuple in the index
+
         prevFH.flushMetadata();
 
         return 0;
@@ -519,7 +571,7 @@ namespace PeterDB {
 
     RC RelationManager::openCatalog() {
         RC ret = 0;
-        if(catalogTablesFH.isOpen() && catalogColumnsFH.isOpen()) {
+        if(catalogTablesFH.isOpen() && catalogColumnsFH.isOpen() && catalogIndexesFH.isOpen()) {
             return 0;
         }
         RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
@@ -531,6 +583,12 @@ namespace PeterDB {
         }
         if(!catalogColumnsFH.isOpen()) {
             ret = rbfm.openFile(catalogColumnsName, catalogColumnsFH);
+            if(ret) {
+                return ret;
+            }
+        }
+        if(!catalogIndexesFH.isOpen()) {
+            ret = rbfm.openFile(catalogIndexesName, catalogIndexesFH);
             if(ret) {
                 return ret;
             }
@@ -618,6 +676,13 @@ namespace PeterDB {
 
     bool RelationManager::isTableNameValid(const std::string& tableName) {
         return !tableName.empty();
+    }
+
+    std::string RelationManager::getTableFileName(const std::string& tableName) {
+        return tableName;
+    }
+    std::string RelationManager::getIndexFileName(const std::string& tableName, const std::string& attrName) {
+        return tableName + '_' + attrName + ".idx";
     }
 
 } // namespace PeterDB

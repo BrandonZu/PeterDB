@@ -1,5 +1,7 @@
 #include "src/include/rm.h"
 
+using namespace PeterDB::RM;
+
 namespace PeterDB {
     CatalogColumnsRecord::CatalogColumnsRecord() {
         tableID = columnType = columnLen = columnPos = CATALOG_COLUMNS_ATTR_NULL;

@@ -1,5 +1,7 @@
 #include "src/include/rm.h"
 
+using namespace PeterDB::RM;
+
 namespace PeterDB {
     RM_ScanIterator::RM_ScanIterator() = default;
 
