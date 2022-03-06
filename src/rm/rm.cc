@@ -564,6 +564,9 @@ namespace PeterDB {
                              const void *value,
                              const std::vector<std::string> &attributeNames,
                              RM_ScanIterator &rm_ScanIterator) {
+        if(!isTableAccessible(tableName)) {
+            return ERR_ACCESS_DENIED_SYS_TABLE;
+        }
         if(!isTableNameValid(tableName)) {
             return ERR_TABLE_NAME_INVALID;
         }
@@ -591,13 +594,51 @@ namespace PeterDB {
     }
 
     RC RelationManager::indexScan(const std::string &tableName,
-                 const std::string &attributeName,
+                 const std::string &attrName,
                  const void *lowKey,
                  const void *highKey,
                  bool lowKeyInclusive,
                  bool highKeyInclusive,
                  RM_IndexScanIterator &rm_IndexScanIterator) {
+        if(!isTableAccessible(tableName)) {
+            return ERR_ACCESS_DENIED_SYS_TABLE;
+        }
+        if(!isTableNameValid(tableName)) {
+            return ERR_TABLE_NAME_INVALID;
+        }
         RC ret = 0;
+        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
+        IndexManager& ix = IndexManager::instance();
+
+        std::vector<Attribute> attrs;
+        ret = getAttributes(tableName, attrs);
+        if(ret) {
+            return ERR_GET_METADATA;
+        }
+        int32_t attr_pos = 0;
+        for(attr_pos = 0; attr_pos < attrs.size(); attr_pos++) {
+            if(attrs[attr_pos].name == attrName) {
+                break;
+            }
+        }
+        if(attr_pos >= attrs.size()) {
+            return ERR_ATTR_NOT_EXIST;
+        }
+
+        std::unordered_map<std::string, std::string> indexedAttrAndFileName;
+        ret = getIndexes(tableName, indexedAttrAndFileName);
+        if(ret) return ret;
+        if(indexedAttrAndFileName.find(attrName) == indexedAttrAndFileName.end()) {
+            return ERR_INDEX_NOT_EXIST;
+        }
+        std::string ixFileName = indexedAttrAndFileName[attrName];
+
+        IXFileHandle ixFileHandle;
+        ret = ix.openFile(ixFileName, ixFileHandle);
+        if(ret) return ret;
+
+        ret = rm_IndexScanIterator.open(&ixFileHandle, attrs[attr_pos], (uint8_t *)lowKey, (uint8_t *)highKey, lowKeyInclusive, highKeyInclusive);
+        if(ret) return ret;
 
         return 0;
     }

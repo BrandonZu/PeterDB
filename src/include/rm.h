@@ -129,10 +129,14 @@ namespace PeterDB {
 
     // RM_IndexScanIterator is an iterator to go through index entries
     class RM_IndexScanIterator {
+        IX_ScanIterator ixIter;
     public:
         RM_IndexScanIterator();    // Constructor
         ~RM_IndexScanIterator();    // Destructor
 
+        RC open(IXFileHandle* ixFileHandle, const Attribute& attr,
+                const uint8_t* lowKey, const uint8_t* highKey,
+                bool lowKeyInclusive, bool highKeyInclusive);
         // "key" follows the same format as in IndexManager::insertEntry()
         RC getNextEntry(RID &rid, void *key);    // Get next matching entry
         RC close();                              // Terminate index scan
@@ -193,7 +197,7 @@ namespace PeterDB {
 
         // indexScan returns an iterator to allow the caller to go through qualified entries in index
         RC indexScan(const std::string &tableName,
-                     const std::string &attributeName,
+                     const std::string &attrName,
                      const void *lowKey,
                      const void *highKey,
                      bool lowKeyInclusive,
