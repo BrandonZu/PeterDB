@@ -78,7 +78,6 @@ namespace PeterDB {
     RC RBFM_ScanIterator::getNextRecord(RID &recordRid, void *data) {
         RC ret = 0;
         if(curPageIndex >= fileHandle.getNumberOfPages()) {
-            LOG(ERROR) << "Page not exist! @ RBFM_ScanIterator::getNextRecord" << std::endl;
             return RBFM_EOF;
         }
         // Try to find next record

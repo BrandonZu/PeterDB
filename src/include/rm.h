@@ -3,8 +3,10 @@
 
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 #include "src/include/rbfm.h"
+#include "src/include/ix.h"
 
 namespace PeterDB {
 #define RM_EOF (-1)  // end of a scan operator
@@ -187,7 +189,7 @@ namespace PeterDB {
         // QE IX related
         RC createIndex(const std::string &tableName, const std::string &attrName);
 
-        RC destroyIndex(const std::string &tableName, const std::string &attributeName);
+        RC destroyIndex(const std::string &tableName, const std::string &attrName);
 
         // indexScan returns an iterator to allow the caller to go through qualified entries in index
         RC indexScan(const std::string &tableName,
@@ -199,14 +201,17 @@ namespace PeterDB {
                      RM_IndexScanIterator &rm_IndexScanIterator);
 
     public:
-        RC insertMetaDataIntoCatalog(const std::string& tableName, std::vector<Attribute> schema);
-        RC deleteAllMetaDataFromCatalog(int32_t tableID);
+        RC insertTableColIntoCatalog(const std::string& tableName, std::vector<Attribute> schema);
+        RC insertIndexIntoCatalog(const int32_t tableID, const std::string& attrName, const std::string& fileName);
+        RC deleteTableColFromCatalog(int32_t tableID);
+        RC deleteIndexFromCatalog(int32_t tableID);
+        RC deleteIndexFromCatalog(int32_t tableID, std::string attrName);
 
-        RC getMetaDataFromCatalogTables(const std::string& tableName, CatalogTablesRecord& tablesRecord);
-        // Assume table not exist, assign an ID to it
-        RC getNewTableID(std::string tableName, int32_t& tableID);
-
+        RC getNewTableID(std::string tableName, int32_t& tableID);  // If table exists, return tableID; otherwise, assign a new ID to it
         RC openCatalog();
+
+        RC getTableMetaData(const std::string& tableName, CatalogTablesRecord& tableRecord);
+        RC getIndexes(const std::string& tableName, std::unordered_map<std::string, std::string>& indexedAttrAndFileName);
 
         bool isTableAccessible(const std::string& tableName);
         bool isTableNameValid(const std::string& tableName);

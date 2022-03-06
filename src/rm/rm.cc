@@ -35,17 +35,17 @@ namespace PeterDB {
             return ret;
         }
 
-        ret = insertMetaDataIntoCatalog(catalogTablesName, catalogTablesSchema);
+        ret = insertTableColIntoCatalog(catalogTablesName, catalogTablesSchema);
         if(ret) {
             LOG(ERROR) << "Fail to insert TABLES metadata into catalog @ RelationManager::createCatalog" << std::endl;
             return ret;
         }
-        ret = insertMetaDataIntoCatalog(catalogColumnsName, catalogColumnsSchema);
+        ret = insertTableColIntoCatalog(catalogColumnsName, catalogColumnsSchema);
         if(ret) {
             LOG(ERROR) << "Fail to insert COLUMNS metadata into catalog @ RelationManager::createCatalog" << std::endl;
             return ret;
         }
-        ret = insertMetaDataIntoCatalog(catalogIndexesName, catalogIndexesSchema);
+        ret = insertTableColIntoCatalog(catalogIndexesName, catalogIndexesSchema);
         if(ret) {
             LOG(ERROR) << "Fail to insert INDEXES metadata into catalog @ RelationManager::createCatalog" << std::endl;
             return ret;
@@ -108,7 +108,7 @@ namespace PeterDB {
             return ret;
         }
 
-        ret = insertMetaDataIntoCatalog(tableName, attrs);
+        ret = insertTableColIntoCatalog(tableName, attrs);
         if(ret) {
             LOG(ERROR) << "Fail to insert metadata into catalog @ RelationManager::createTable" << std::endl;
             return ret;
@@ -123,31 +123,67 @@ namespace PeterDB {
         if(!isTableNameValid(tableName)) {
             return ERR_TABLE_NAME_INVALID;
         }
-
         RC ret = 0;
+        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
+        IndexManager& ix = IndexManager::instance();
+
+        // 1. Create Index File
+        std::string ixFileName = getIndexFileName(tableName, attrName);
+        ret = ix.createFile(ixFileName);
+        if(ret) {
+            LOG(ERROR) << "Fail to create table's file! @ RelationManager::createIndex" << std::endl;
+            return ret;
+        }
+
+        // 2. Insert index metadata into INDEXES catalog
         ret = openCatalog();
         if(ret) {
             return ERR_CATALOG_NOT_OPEN;
         }
+        // Get Table ID
+        CatalogTablesRecord tableRecord;
+        ret = getTableMetaData(tableName, tableRecord);
+        if(ret) return ret;
+        ret = insertIndexIntoCatalog(tableRecord.tableID, attrName, ixFileName);
+        if(ret) return ret;
 
-        // Find target attribute
-        std::vector<Attribute> table_attrs;
-        ret = getAttributes(tableName, table_attrs);
+        // 3. Scan table and insert every record into corresponding index
+        // Get all attributes and search for the target attribute
+        std::vector<Attribute> attrs;
+        ret = getAttributes(tableName, attrs);
         if(ret) {
             return ERR_GET_METADATA;
         }
-        int attr_pos = 0;
-        for(attr_pos = 0; attr_pos < table_attrs.size(); attr_pos++) {
-            if(table_attrs[attr_pos].name == attrName) {
+        int32_t attr_pos = 0;
+        for(attr_pos = 0; attr_pos < attrs.size(); attr_pos++) {
+            if(attrs[attr_pos].name == attrName) {
                 break;
             }
         }
-        if(attr_pos >= table_attrs.size()) {
+        if(attr_pos >= attrs.size()) {
             return ERR_ATTR_NOT_EXIST;
         }
 
-        // Insert index into index table
+        RBFM_ScanIterator tableScanIter;
+        FileHandle fh;
+        ret = rbfm.openFile(tableRecord.fileName, fh);
+        if(ret) return ret;
+        std::vector<std::string> indexedAttr = {attrs[attr_pos].name};
+        ret = rbfm.scan(fh, attrs, "", NO_OP, nullptr, {}, tableScanIter);
+        if(ret) return ret;
 
+        RID rid;
+        uint8_t recordData[PAGE_SIZE];
+        uint8_t attrData[PAGE_SIZE];
+        IXFileHandle ixFileHandle;
+        ret = ix.openFile(ixFileName, ixFileHandle);
+        if(ret) return ret;
+        while(tableScanIter.getNextRecord(rid, recordData) == 0) {
+            ret = rbfm.readAttribute(fh, attrs, rid, attrs[attr_pos].name, attrData);
+            if(ret) return ret;
+            ret = ix.insertEntry(ixFileHandle, attrs[attr_pos], attrData, rid);
+            if(ret) return ret;
+        }
         return 0;
     }
 
@@ -158,11 +194,6 @@ namespace PeterDB {
         if(!isTableNameValid(tableName)) {
             return ERR_TABLE_NAME_INVALID;
         }
-
-        if(!isTableAccessible(tableName)) {
-            LOG(ERROR) << "Table name is invalid! @ RelationManager::createTable" << std::endl;
-            return ERR_TABLE_NAME_INVALID;
-        }
         RC ret = 0;
         ret = openCatalog();
         if(ret) {
@@ -170,37 +201,86 @@ namespace PeterDB {
             return ERR_CATALOG_NOT_OPEN;
         }
         RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
-        CatalogTablesRecord tablesRecord;
-        ret = getMetaDataFromCatalogTables(tableName, tablesRecord);
+        IndexManager& ix = IndexManager::instance();
+        CatalogTablesRecord tableRecord;
+        ret = getTableMetaData(tableName, tableRecord);
         if(ret) {
             LOG(ERROR) << "Fail to get table meta data @ RelationManager::deleteTable" << std::endl;
             return ret;
         }
 
-        ret = rbfm.destroyFile(tablesRecord.tableName);
-        if(ret) {
-            LOG(ERROR) << "Fail to destroy table file! @ RelationManager::deleteTable" << std::endl;
-            return ret;
+        // Get Indexes and delete all index files
+        std::unordered_map<std::string, std::string> indexedAttrAndFileName;
+        ret = getIndexes(tableName, indexedAttrAndFileName);
+        if(ret) return ret;
+        for(auto& p: indexedAttrAndFileName) {
+            ret = deleteIndexFromCatalog(tableRecord.tableID, p.first);
+            if(ret) return ret;
+            ret = ix.destroyFile(p.second);
+            if(ret) return ret;
         }
 
-        ret = deleteAllMetaDataFromCatalog(tablesRecord.tableID);
+        // Delete index metadata
+        ret = deleteIndexFromCatalog(tableRecord.tableID);
+        if(ret) return ret;
+
+        // Delete table metadata
+        ret = deleteTableColFromCatalog(tableRecord.tableID);
+        if(ret) return ret;
+
+        // Delete table file
+        ret = rbfm.destroyFile(tableRecord.tableName);
         if(ret) {
+            LOG(ERROR) << "Fail to destroy table file! @ RelationManager::deleteTable" << std::endl;
             return ret;
         }
         return 0;
     }
 
-    RC RelationManager::destroyIndex(const std::string &tableName, const std::string &attributeName) {
+    RC RelationManager::destroyIndex(const std::string &tableName, const std::string &attrName) {
+        if(!isTableAccessible(tableName)) {
+            return ERR_ACCESS_DENIED_SYS_TABLE;
+        }
+        if(!isTableNameValid(tableName)) {
+            return ERR_TABLE_NAME_INVALID;
+        }
         RC ret = 0;
+        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
+        IndexManager& ix = IndexManager::instance();
+        ret = openCatalog();
+        if(ret) {
+            return ERR_CATALOG_NOT_OPEN;
+        }
+
+        std::string ixFileName;
+
+        // 1. Get table and index metadata
+        // Get Table ID
+        CatalogTablesRecord tableRecord;
+        ret = getTableMetaData(tableName, tableRecord);
+        if(ret) return ret;
+
+        // Find all indexes associated with this table and corresponding file names
+        std::unordered_map<std::string, std::string> indexedAttrAndFileName;
+        ret = getIndexes(tableName, indexedAttrAndFileName);
+        if(ret) return ret;
+        if(indexedAttrAndFileName.find(attrName) == indexedAttrAndFileName.end()) {
+            return ERR_INDEX_NOT_EXIST;
+        }
+        ixFileName = indexedAttrAndFileName[attrName];
+
+        // 3. Delete index from catalog
+        ret = deleteIndexFromCatalog(tableRecord.tableID, attrName);
+        if(ret) return ret;
+
+        // 4. Delete index file
+        ret = ix.destroyFile(ixFileName);
+        if(ret) return ret;
 
         return 0;
     }
 
     RC RelationManager::getAttributes(const std::string &tableName, std::vector<Attribute> &attrs) {
-        if(!isTableNameValid(tableName)) {
-            return ERR_TABLE_NAME_INVALID;
-        }
-
         RC ret = 0;
         ret = openCatalog();
         if(ret) {
@@ -208,7 +288,7 @@ namespace PeterDB {
         }
         RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
         CatalogTablesRecord tablesRecord;
-        ret = getMetaDataFromCatalogTables(tableName, tablesRecord);
+        ret = getTableMetaData(tableName, tablesRecord);
         if(ret) {
             LOG(ERROR) << "Fail to get table meta data @ RelationManager::getAttributes" << std::endl;
             return ret;
@@ -244,12 +324,6 @@ namespace PeterDB {
         RC ret = 0;
         std::vector<Attribute> attrs;
         RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
-        ret = getAttributes(tableName, attrs);
-        if(ret) {
-            LOG(ERROR) << "Fail to get meta data @ RelationManager::insertTuple" << std::endl;
-            return ERR_GET_METADATA;
-        }
-
         if(!prevFH.isOpen() || prevFH.fileName != tableName) {
             prevFH.close();
             ret = rbfm.openFile(tableName, prevFH);
@@ -257,13 +331,52 @@ namespace PeterDB {
                 return ret;
             }
         }
+
         // 1. Insert Record into Table
+        ret = getAttributes(tableName, attrs);
+        if(ret || attrs.empty()) {
+            LOG(ERROR) << "Fail to get meta data @ RelationManager::insertTuple" << std::endl;
+            return ERR_GET_METADATA;
+        }
         ret = rbfm.insertRecord(prevFH, attrs, data, rid);
         if(ret) {
             return ret;
         }
-        // TODO 2. Insert Record into Index
 
+        // 2. Insert Record into Index
+        IndexManager& ix = IndexManager::instance();
+        // Find all indexes associated with this table and corresponding file names
+        std::unordered_map<std::string, std::string> indexedAttrAndFileName;
+        ret = getIndexes(tableName, indexedAttrAndFileName);
+        if(ret) {
+            return ret;
+        }
+
+        int32_t dataPos = ceil(attrs.size() / 8.0);
+        for(int i = 0; i < attrs.size(); i++) {
+            if(indexedAttrAndFileName.find(attrs[i].name) != indexedAttrAndFileName.end()) {
+                // insert entry into each index
+                IXFileHandle fh;
+                ret = ix.openFile(indexedAttrAndFileName[attrs[i].name], fh);
+                if(ret) return ret;
+                ret = ix.insertEntry(fh, attrs[i], (uint8_t *)data + dataPos, rid);
+                if(ret) return ret;
+                switch (attrs[i].type) {
+                    case TypeInt:
+                        dataPos += sizeof(int32_t);
+                        break;
+                    case TypeReal:
+                        dataPos += sizeof(float);
+                        break;
+                    case TypeVarChar:
+                        int32_t tmpStrLen;
+                        memcpy(&tmpStrLen, (uint8_t *)data + dataPos, sizeof(int32_t));
+                        dataPos += sizeof(int32_t);
+                        dataPos += tmpStrLen;
+                        break;
+                }
+            }
+        }
 
         prevFH.flushMetadata();
 
@@ -294,12 +407,48 @@ namespace PeterDB {
                 return ret;
             }
         }
-        // 1. Delete tuple in the table
+
+        // 1. Get tuple data and delete entries in each index
+        uint8_t data[PAGE_SIZE] = {};
+        ret = rbfm.readRecord(prevFH, attrs, rid, data);
+        if(ret) return ret;
+        IndexManager& ix = IndexManager::instance();
+        // Find all indexes associated with this table and corresponding file names
+        std::unordered_map<std::string, std::string> indexedAttrAndFileName;
+        ret = getIndexes(tableName, indexedAttrAndFileName);
+        if(ret) return ret;
+
+        int32_t dataPos = ceil(attrs.size() / 8.0);
+        for(int i = 0; i < attrs.size(); i++) {
+            if(indexedAttrAndFileName.find(attrs[i].name) != indexedAttrAndFileName.end()) {
+                // delete entry from each index
+                IXFileHandle fh;
+                ret = ix.openFile(indexedAttrAndFileName[attrs[i].name], fh);
+                if(ret) return ret;
+                ret = ix.deleteEntry(fh, attrs[i], (uint8_t *)data + dataPos, rid);
+                if(ret) return ret;
+                switch (attrs[i].type) {
+                    case TypeInt:
+                        dataPos += sizeof(int32_t);
+                        break;
+                    case TypeReal:
+                        dataPos += sizeof(float);
+                        break;
+                    case TypeVarChar:
+                        int32_t tmpStrLen;
+                        memcpy(&tmpStrLen, (uint8_t *)data + dataPos, sizeof(int32_t));
+                        dataPos += sizeof(int32_t);
+                        dataPos += tmpStrLen;
+                        break;
+                }
+            }
+        }
+
+        // 2. Delete tuple in the table
         ret = rbfm.deleteRecord(prevFH, attrs, rid);
         if(ret) {
             return ret;
         }
-        // TODO 2. Delete tuple in the index
 
         prevFH.flushMetadata();
 
@@ -477,19 +626,19 @@ namespace PeterDB {
         return -1;
     }
 
-    RC RelationManager::insertMetaDataIntoCatalog(const std::string& tableName, std::vector<Attribute> schema) {
+    RC RelationManager::insertTableColIntoCatalog(const std::string& tableName, std::vector<Attribute> schema) {
         RC ret = 0;
         RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
 
         int32_t tableID;
         ret = getNewTableID(tableName, tableID);
         if(ret) {
-            LOG(ERROR) << "Fail to get a new table ID @ RelationManager::insertMetaDataIntoCatalog" << std::endl;
+            LOG(ERROR) << "Fail to get a new table ID @ RelationManager::insertTableColIntoCatalog" << std::endl;
             return ret;
         }
         ret = openCatalog();
         if(ret) {
-            LOG(ERROR) << "Catalog not open @ RelationManager::insertMetaDataIntoCatalog" << std::endl;
+            LOG(ERROR) << "Catalog not open @ RelationManager::insertTableColIntoCatalog" << std::endl;
             return ERR_CATALOG_NOT_OPEN;
         }
         RID rid;
@@ -501,7 +650,7 @@ namespace PeterDB {
         tablesRecord.getRecordAPIFormat(data);
         ret = rbfm.insertRecord(catalogTablesFH, catalogTablesSchema, data, rid);
         if(ret) {
-            LOG(ERROR) << "Fail to insert metadata into TABLES @ RelationManager::insertMetaDataIntoCatalog" << std::endl;
+            LOG(ERROR) << "Fail to insert metadata into TABLES @ RelationManager::insertTableColIntoCatalog" << std::endl;
             return ret;
         }
         // Insert all column records into COLUMNS catalog
@@ -510,20 +659,41 @@ namespace PeterDB {
             columnsRecord.getRecordAPIFormat(data);
             ret = rbfm.insertRecord(catalogColumnsFH, catalogColumnsSchema, data, rid);
             if(ret) {
-                LOG(ERROR) << "Fail to insert metadata into COLUMNS @ RelationManager::insertMetaDataIntoCatalog" << std::endl;
+                LOG(ERROR) << "Fail to insert metadata into COLUMNS @ RelationManager::insertTableColIntoCatalog" << std::endl;
                 return ret;
             }
         }
         return 0;
     }
 
-    RC RelationManager::deleteAllMetaDataFromCatalog(int32_t tableID) {
+    RC RelationManager::insertIndexIntoCatalog(const int32_t tableID, const std::string& attrName, const std::string& fileName) {
+        RC ret = 0;
+        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
+        ret = openCatalog();
+        if(ret) {
+            LOG(ERROR) << "Catalog not open @ RelationManager::insertIndexIntoCatalog" << std::endl;
+            return ERR_CATALOG_NOT_OPEN;
+        }
+        RID rid;
+        uint8_t data[PAGE_SIZE];
+        bzero(data, PAGE_SIZE);
+        // Insert one index record into TABLES catalog
+        CatalogIndexesRecord indexRecord(tableID, attrName, fileName);
+        indexRecord.getRecordAPIFormat(data);
+        ret = rbfm.insertRecord(catalogIndexesFH, catalogIndexesSchema, data, rid);
+        if(ret) {
+            LOG(ERROR) << "Fail to insert metadata into INDEXES @ RelationManager::insertIndexIntoCatalog" << std::endl;
+            return ret;
+        }
+        return 0;
+    }
+
+    RC RelationManager::deleteTableColFromCatalog(int32_t tableID) {
         RC ret = 0;
         RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
 
         std::vector<std::string> tableAttrNames = {CATALOG_TABLES_TABLEID};
         std::vector<std::string> colAttrNames = {CATALOG_COLUMNS_TABLEID};
-        std::vector<std::string> indexAttrNames = {CATALOG_INDEXES_TABLEID};
 
         RID curRID;
         uint8_t apiData[PAGE_SIZE];
@@ -544,7 +714,7 @@ namespace PeterDB {
             ++tableRecordDeletedCount;
         }
         if(tableRecordDeletedCount != 1) {
-            LOG(ERROR) << "Should delete one record in TABLES @ RelationManager::deleteAllMetaDataFromCatalog" << std::endl;
+            LOG(ERROR) << "Should delete one record in TABLES @ RelationManager::deleteTableColFromCatalog" << std::endl;
             return ERR_DELETE_METADATA;
         }
 
@@ -564,14 +734,22 @@ namespace PeterDB {
             ++colRecordDeletedCount;
         }
         if(colRecordDeletedCount == 0) {
-            LOG(ERROR) << "Should delete more than one record in COLUMNS @ RelationManager::deleteAllMetaDataFromCatalog" << std::endl;
+            LOG(ERROR) << "Should delete more than one record in COLUMNS @ RelationManager::deleteTableColFromCatalog" << std::endl;
             return ERR_DELETE_METADATA;
         }
 
+        return 0;
+    }
+
+    RC RelationManager::deleteIndexFromCatalog(int32_t tableID) {
+        RC ret = 0;
+        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
+        RID curRID;
+        uint8_t apiData[PAGE_SIZE];
         // Scan Catalog Columns and delete target column record in INDEXES
         RBFM_ScanIterator indexIter;
         ret = rbfm.scan(catalogIndexesFH, catalogIndexesSchema, CATALOG_INDEXES_TABLEID,
-                        EQ_OP, &tableID, indexAttrNames, indexIter);
+                        EQ_OP, &tableID, {}, indexIter);
         if(ret) {
             return ret;
         }
@@ -580,6 +758,38 @@ namespace PeterDB {
             if(ret) {
                 return ret;
             }
+        }
+        return 0;
+    }
+
+    RC RelationManager::deleteIndexFromCatalog(int32_t tableID, std::string attrName) {
+        RC ret = 0;
+        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
+        RID curRID;
+        uint8_t apiData[PAGE_SIZE];
+        std::vector<std::string> indexAttrNames = {CATALOG_INDEXES_ATTRNAME};
+        // Scan Catalog Columns and delete target column record in INDEXES
+        RBFM_ScanIterator indexIter;
+        ret = rbfm.scan(catalogIndexesFH, catalogIndexesSchema, CATALOG_INDEXES_TABLEID,
+                        EQ_OP, &tableID, indexAttrNames, indexIter);
+        if(ret) {
+            return ret;
+        }
+
+        int32_t indexCnt = 0;
+        while(indexIter.getNextRecord(curRID, apiData) == 0) {
+            CatalogIndexesRecord indexRecord(apiData, indexAttrNames);
+            if(indexRecord.attrName == attrName) {
+                ret = rbfm.deleteRecord(catalogIndexesFH, catalogIndexesSchema, curRID);
+                if (ret) {
+                    return ret;
+                }
+                indexCnt++;
+                break;
+            }
+        }
+        if(indexCnt == 0) {
+            return ERR_INDEX_NOT_EXIST;
         }
         return 0;
     }
@@ -611,44 +821,6 @@ namespace PeterDB {
         return 0;
     }
 
-    RC RelationManager::getMetaDataFromCatalogTables(const std::string& tableName, CatalogTablesRecord& tablesRecord) {
-        RC ret = 0;
-        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
-
-        RBFM_ScanIterator tableScanIter;
-        std::string tableNameCondition = CATALOG_TABLES_TABLENAME;
-        int32_t tableNameLen = tableName.size();
-        uint8_t tableNameStr[sizeof(tableNameLen) + tableName.size()];
-        memcpy(tableNameStr, &tableNameLen, sizeof(tableNameLen));
-        memcpy(tableNameStr + sizeof(tableNameLen), tableName.c_str(), tableName.size());
-        std::vector<std::string> attrNames = {
-                CATALOG_TABLES_TABLEID, CATALOG_TABLES_TABLENAME, CATALOG_TABLES_FILENAME
-        };
-
-        ret = rbfm.scan(catalogTablesFH, catalogTablesSchema, tableNameCondition,
-                        EQ_OP, tableNameStr, attrNames, tableScanIter);
-        if(ret) {
-            LOG(ERROR) << "Fail to initiate scan iterator @ RelationManager::getMetaDataFromCatalogTables" << std::endl;
-            return ret;
-        }
-
-        RID recordRID;
-        uint8_t apiData[PAGE_SIZE];
-        bool isRecordExist = false;
-        while(tableScanIter.getNextRecord(recordRID, apiData) == 0) {
-            CatalogTablesRecord curRecord(apiData, attrNames);
-            if(curRecord.tableName == tableName) {
-                tablesRecord = curRecord;
-                isRecordExist = true;
-                break;
-            }
-        }
-        if(!isRecordExist) {
-            return ERR_TABLE_NOT_EXIST;
-        }
-        return 0;
-    }
-
     RC RelationManager::getNewTableID(std::string tableName, int32_t& tableID) {
         RC ret = 0;
         RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
@@ -662,7 +834,7 @@ namespace PeterDB {
         ret = rbfm.scan(catalogTablesFH, catalogTablesSchema, CATALOG_TABLES_TABLEID,
                         NO_OP, &emptyData, attrNames, tableScanIter);
         if(ret) {
-            LOG(ERROR) << "Fail to initiate scan iterator @ RelationManager::getTableID" << std::endl;
+            LOG(ERROR) << "Fail to initiate scan iterator @ RelationManager::getTableInfo" << std::endl;
             return ret;
         }
 
@@ -685,8 +857,77 @@ namespace PeterDB {
         return 0;
     }
 
+    RC RelationManager::getTableMetaData(const std::string& tableName, CatalogTablesRecord& tableRecord) {
+        RC ret = 0;
+        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
+
+        RBFM_ScanIterator tableScanIter;
+        std::string tableNameCondition = CATALOG_TABLES_TABLENAME;
+        int32_t tableNameLen = tableName.size();
+        uint8_t tableNameStr[sizeof(tableNameLen) + tableName.size()];
+        memcpy(tableNameStr, &tableNameLen, sizeof(tableNameLen));
+        memcpy(tableNameStr + sizeof(tableNameLen), tableName.c_str(), tableName.size());
+        std::vector<std::string> attrNames = {
+                CATALOG_TABLES_TABLEID, CATALOG_TABLES_TABLENAME, CATALOG_TABLES_FILENAME
+        };
+
+        ret = rbfm.scan(catalogTablesFH, catalogTablesSchema, tableNameCondition,
+                        EQ_OP, tableNameStr, attrNames, tableScanIter);
+        if(ret) {
+            LOG(ERROR) << "Fail to initiate scan iterator @ RelationManager::getTableMetaData" << std::endl;
+            return ret;
+        }
+
+        RID recordRID;
+        uint8_t apiData[PAGE_SIZE];
+        bool isRecordExist = false;
+        while(tableScanIter.getNextRecord(recordRID, apiData) == 0) {
+            CatalogTablesRecord curRecord(apiData, attrNames);
+            if(curRecord.tableName == tableName) {
+                tableRecord = curRecord;
+                isRecordExist = true;
+                break;
+            }
+        }
+        if(!isRecordExist) {
+            return ERR_TABLE_NOT_EXIST;
+        }
+        return 0;
+    }
+
+    RC RelationManager::getIndexes(const std::string& tableName, std::unordered_map<std::string, std::string>& indexedAttrAndFileName) {
+        RC ret = 0;
+        ret = openCatalog();
+        if(ret) {
+            return ERR_CATALOG_NOT_OPEN;
+        }
+        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
+        CatalogTablesRecord tablesRecord;
+        ret = getTableMetaData(tableName, tablesRecord);
+        if(ret) {
+            LOG(ERROR) << "Fail to get table meta data @ RelationManager::getIndexes" << std::endl;
+            return ret;
+        }
+
+        RBFM_ScanIterator indexIter;
+        std::vector<std::string> indexAttrName = {CATALOG_INDEXES_ATTRNAME, CATALOG_INDEXES_FILENAME};
+        ret = rbfm.scan(catalogIndexesFH, catalogIndexesSchema, CATALOG_INDEXES_TABLEID,
+                        EQ_OP, &tablesRecord.tableID, indexAttrName, indexIter);
+        if(ret) {
+            return ret;
+        }
+        RID curRID;
+        uint8_t apiData[PAGE_SIZE];
+        while(indexIter.getNextRecord(curRID, apiData) == 0) {
+            CatalogIndexesRecord curIndex(apiData, indexAttrName);
+            indexedAttrAndFileName[curIndex.attrName] = curIndex.fileName;
+        }
+
+        return 0;
+    }
+
     bool RelationManager::isTableAccessible(const std::string& tableName) {
-        return tableName != catalogTablesName && tableName != catalogColumnsName;
+        return tableName != catalogTablesName && tableName != catalogColumnsName && tableName != catalogIndexesName;
     }
 
     bool RelationManager::isTableNameValid(const std::string& tableName) {
