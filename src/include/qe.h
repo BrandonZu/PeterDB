@@ -156,6 +156,9 @@ namespace PeterDB {
 
     class Filter : public Iterator {
         // Filter operator
+        Iterator * iter;
+        Condition condtion;
+        std::vector<Attribute> attrs;
     public:
         Filter(Iterator *input,               // Iterator of input R
                const Condition &condition     // Selection condition
@@ -167,6 +170,12 @@ namespace PeterDB {
 
         // For attribute in std::vector<Attribute>, name it as rel.attr
         RC getAttributes(std::vector<Attribute> &attrs) const override;
+
+    private:
+        template<typename T>
+        bool performOper(const T& oper1, const T& oper2);
+
+        bool isRecordMeetCondition(uint8_t * data);
     };
 
     class Project : public Iterator {

@@ -229,10 +229,15 @@ namespace PeterDB {
         if(ret) return ret;
 
         // Delete table file
-        ret = rbfm.destroyFile(tableRecord.tableName);
+        ret = rbfm.destroyFile(tableName);
         if(ret) {
             LOG(ERROR) << "Fail to destroy table file! @ RelationManager::deleteTable" << std::endl;
             return ret;
+        }
+
+        // Close FileHandle if it is bound to the deleted table
+        if(prevFH.fileName == tableName) {
+            prevFH.close();
         }
         return 0;
     }
