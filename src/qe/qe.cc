@@ -67,6 +67,7 @@ namespace PeterDB {
                     case TypeVarChar:
                         int32_t attrLen;
                         memcpy(&attrLen, data + apiDataPos, sizeof(int32_t));
+                        apiDataPos += sizeof(int32_t);
                         std::string attrStr((char *)data + apiDataPos, attrLen);
                         return performOper(attrStr, std::string((char *)condtion.rhsValue.data + sizeof(int32_t), *(int32_t *)condtion.rhsValue.data));
                         break;
