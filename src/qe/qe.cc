@@ -93,19 +93,90 @@ namespace PeterDB {
     }
 
     Project::Project(Iterator *input, const std::vector<std::string> &attrNames) {
-
+        iter = input;
+        std::vector<Attribute> allAttrs;
+        input->getAttributes(allAttrs);
+        for(const std::string& attrName: attrNames) {
+            for(Attribute& attr: allAttrs) {
+                if(attrName == attr.name) {
+                    selectedAttrs.push_back(attr);
+                }
+            }
+        }
     }
 
-    Project::~Project() {
+    Project::~Project() = default;
 
-    }
+    RC Project::getNextTuple(void * output) {
+        RC ret = 0;
+        ret = iter->getNextTuple(inputBuffer);
+        if(ret) return QE_EOF;
+        std::vector<Attribute> allAttrs;
+        iter->getAttributes(allAttrs);
+        // Build dict for input
+        std::vector<int16_t> inputDict(allAttrs.size());
+        int16_t pos = ceil(allAttrs.size() / 8.0);
+        for(int16_t i = 0; i < allAttrs.size(); i++) {
+            inputDict[i] = pos;
+            if(RecordHelper::isAttrNull(inputBuffer, i)) {
+                continue;
+            }
+            switch (allAttrs[i].type) {
+                case TypeInt:
+                    pos += sizeof(int32_t);
+                    break;
+                case TypeReal:
+                    pos += sizeof(float);
+                    break;
+                case TypeVarChar:
+                    pos += *(int32_t *)(inputBuffer + pos);
+                    pos += sizeof(int32_t);
+                    break;
+            }
+        }
+        // Project
+        int16_t outputPos = ceil(selectedAttrs.size() / 8.0);
+        for(int16_t outputIndex = 0; outputIndex < selectedAttrs.size(); outputIndex++) {
+            int16_t inputIndex;
+            for(inputIndex = 0; inputIndex < allAttrs.size(); inputIndex++)
+                if(allAttrs[inputIndex].name == selectedAttrs[outputIndex].name)
+                    break;
 
-    RC Project::getNextTuple(void *data) {
-        return -1;
+            if(inputIndex >= allAttrs.size())  {
+                return ERR_ATTR_NOT_EXIST;
+            }
+
+            if(RecordHelper::isAttrNull(inputBuffer, inputIndex)) {
+                RecordHelper::setAttrNull((uint8_t *)output, outputIndex);
+                continue;
+            }
+
+            switch (allAttrs[inputIndex].type) {
+                case TypeInt:
+                    memcpy((uint8_t *)output + outputPos, inputBuffer + inputDict[inputIndex], sizeof(int32_t));
+                    outputPos += sizeof(int32_t);
+                    break;
+                case TypeReal:
+                    memcpy((uint8_t *)output + outputPos, inputBuffer + inputDict[inputIndex], sizeof(float));
+                    outputPos += sizeof(float);
+                    break;
+                case TypeVarChar:
+                    int32_t strLen;
+                    memcpy(&strLen, inputBuffer + inputDict[inputIndex], sizeof(int32_t));
+                    memcpy((uint8_t *)output + outputPos, inputBuffer + inputDict[inputIndex], sizeof(int32_t));
+                    outputPos += sizeof(int32_t);
+                    memcpy((uint8_t *)output + outputPos, inputBuffer + inputDict[inputIndex] + sizeof(int32_t), strLen);
+                    outputPos += strLen;
+                    break;
+            }
+        }
+
+        return 0;
     }
 
     RC Project::getAttributes(std::vector<Attribute> &attrs) const {
-        return -1;
+        attrs =  selectedAttrs;
+        return 0;
     }
 
     BNLJoin::BNLJoin(Iterator *leftIn, TableScan *rightIn, const Condition &condition, const unsigned int numPages) {

@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <algorithm>
 
 #include "rm.h"
 #include "ix.h"
@@ -180,6 +181,9 @@ namespace PeterDB {
 
     class Project : public Iterator {
         // Projection operator
+        Iterator* iter;
+        std::vector<Attribute> selectedAttrs;
+        uint8_t inputBuffer[PAGE_SIZE];
     public:
         Project(Iterator *input,                                // Iterator of input R
                 const std::vector<std::string> &attrNames);     // std::vector containing attribute names
