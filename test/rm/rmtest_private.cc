@@ -106,16 +106,16 @@ namespace PeterDBTesting {
 
             auto targetLat = std::find(lats.begin(), lats.end(), latReturned);
 
-            ASSERT_NE(targetLat, lats.end()) << "returned lat value is not from inserted.";
+            EXPECT_NE(targetLat, lats.end()) << "returned lat value is not from inserted.";
             lats.erase(targetLat);
             auto targetLng = std::find(lngs.begin(), lngs.end(), lngReturned);
 
-            ASSERT_NE(targetLng, lngs.end()) << "returned lnt value is not from inserted.";
+            EXPECT_NE(targetLng, lngs.end()) << "returned lnt value is not from inserted.";
             lngs.erase(targetLng);
 
         }
-        ASSERT_TRUE(lats.empty()) << "returned lat does not match inserted";
-        ASSERT_TRUE(lngs.empty()) << "returned lng does not match inserted";
+        EXPECT_TRUE(lats.empty()) << "returned lat does not match inserted";
+        EXPECT_TRUE(lngs.empty()) << "returned lng does not match inserted";
 
         ASSERT_EQ(rmsi.close(), success) << "close iterator should succeed.";
 
@@ -131,12 +131,12 @@ namespace PeterDBTesting {
 
             unsigned userIdReturned = *(unsigned *) ((char *) outBuffer + 1);
             auto targetUserId = std::find(user_ids.begin(), user_ids.end(), userIdReturned);
-            ASSERT_NE(targetUserId, user_ids.end()) << "returned user_id value is not from inserted.";
+            EXPECT_NE(targetUserId, user_ids.end()) << "returned user_id value is not from inserted.";
             user_ids.erase(targetUserId);
 
         }
 
-        ASSERT_TRUE(user_ids.empty()) << "returned user_id does not match inserted";
+        EXPECT_TRUE(user_ids.empty()) << "returned user_id does not match inserted";
 
     }
 
@@ -210,19 +210,19 @@ namespace PeterDBTesting {
 
             auto targetLat = std::find(lats.begin(), lats.end(), latReturned);
 
-            ASSERT_NE(targetLat, lats.end()) << "returned lat value is not from inserted.";
+            EXPECT_NE(targetLat, lats.end()) << "returned lat value is not from inserted.";
             lats.erase(targetLat);
 
             if (lngReturned != -1) {
                 auto targetLng = std::find(lngs.begin(), lngs.end(), lngReturned);
 
-                ASSERT_NE(targetLng, lngs.end()) << "returned lnt value is not from inserted.";
+                EXPECT_NE(targetLng, lngs.end()) << "returned lnt value is not from inserted.";
                 lngs.erase(targetLng);
             }
 
         }
-        ASSERT_TRUE(lats.empty()) << "returned lat does not match inserted";
-        ASSERT_TRUE(lngs.empty()) << "returned lng does not match inserted";
+        EXPECT_TRUE(lats.empty()) << "returned lat does not match inserted";
+        EXPECT_TRUE(lngs.empty()) << "returned lng does not match inserted";
 
         ASSERT_EQ(rmsi.close(), success) << "close iterator should succeed.";
 
@@ -235,12 +235,12 @@ namespace PeterDBTesting {
 
             unsigned tweetIdReturned = *(unsigned *) ((char *) outBuffer + 1);
             auto targetTweetId = std::find(tweet_ids.begin(), tweet_ids.end(), tweetIdReturned);
-            ASSERT_NE(targetTweetId, tweet_ids.end()) << "returned tweet_id value is not from inserted.";
+            EXPECT_NE(targetTweetId, tweet_ids.end()) << "returned tweet_id value is not from inserted.";
             tweet_ids.erase(targetTweetId);
 
         }
 
-        ASSERT_TRUE(tweet_ids.empty()) << "returned tweet_id does not match inserted";
+        EXPECT_TRUE(tweet_ids.empty()) << "returned tweet_id does not match inserted";
 
     }
 
@@ -315,16 +315,16 @@ namespace PeterDBTesting {
 
             auto targetLat = std::find(lats.begin(), lats.end(), latReturned);
 
-            ASSERT_NE(targetLat, lats.end()) << "returned lat value is not from inserted.";
+            EXPECT_NE(targetLat, lats.end()) << "returned lat value is not from inserted.";
             lats.erase(targetLat);
             auto targetLng = std::find(lngs.begin(), lngs.end(), lngReturned);
 
-            ASSERT_NE(targetLng, lngs.end()) << "returned lnt value is not from inserted.";
+            EXPECT_NE(targetLng, lngs.end()) << "returned lnt value is not from inserted.";
             lngs.erase(targetLng);
 
         }
-        ASSERT_TRUE(lats.empty()) << "returned lat does not match inserted";
-        ASSERT_TRUE(lngs.empty()) << "returned lng does not match inserted";
+        EXPECT_TRUE(lats.empty()) << "returned lat does not match inserted";
+        EXPECT_TRUE(lngs.empty()) << "returned lng does not match inserted";
 
         ASSERT_EQ(rmsi.close(), success) << "close iterator should succeed.";
 
@@ -511,15 +511,6 @@ namespace PeterDBTesting {
 
         // There should be at least one more table
         ASSERT_GE(count, 1) << "There should be at least one more table.";
-
-    }
-
-    TEST_F(RM_Private_Test, create_table_with_same_name) {
-        std::vector<PeterDB::Attribute> table_attrs = parseDDL(
-                "CREATE TABLE " + tableName +
-                " (tweet_id INT, text VARCHAR(400), user_id INT, sentiment REAL, hash_tags VARCHAR(100), embedded_url VARCHAR(200), lat REAL, lng REAL)");
-        ASSERT_NE(rm.createTable(tableName, table_attrs), success)
-                                    << "Create table " << tableName << " should fail, table should already exist.";
 
     }
 
