@@ -148,7 +148,8 @@ namespace PeterDB {
         FileHandle catalogTablesFH;
         FileHandle catalogColumnsFH;
         FileHandle catalogIndexesFH;
-        FileHandle prevFH;
+        FileHandle tableFileHandle;
+        IXFileHandle ixFileHandle;
     public:
         static RelationManager &instance();
 

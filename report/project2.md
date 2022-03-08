@@ -142,7 +142,7 @@ The main functions are shown as below.
         uint8_t data[PAGE_SIZE] = {};
 
     public:
-        RecordPageHandle(FileHandle& fileHandle, PageNum pageNum);
+        RecordPageHandle(FileHandle& tableFileHandle, PageNum pageNum);
         ~RecordPageHandle();
 
         // Read Record

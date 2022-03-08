@@ -19,7 +19,6 @@ namespace PeterDB {
             const uint8_t* lowKey, const uint8_t* highKey,
             bool lowKeyInclusive, bool highKeyInclusive) {
         RC ret = 0;
-        IndexManager& ix = IndexManager::instance();
         ret = ixIter.open(ixFileHandle, attr, lowKey, highKey, lowKeyInclusive, highKeyInclusive);
         if(ret) return ret;
         return 0;

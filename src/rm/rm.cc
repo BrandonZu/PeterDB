@@ -236,8 +236,8 @@ namespace PeterDB {
         }
 
         // Close FileHandle if it is bound to the deleted table
-        if(prevFH.fileName == tableName) {
-            prevFH.close();
+        if(tableFileHandle.fileName == tableName) {
+            tableFileHandle.close();
         }
         return 0;
     }
@@ -329,9 +329,9 @@ namespace PeterDB {
         RC ret = 0;
         std::vector<Attribute> attrs;
         RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
-        if(!prevFH.isOpen() || prevFH.fileName != tableName) {
-            prevFH.close();
-            ret = rbfm.openFile(tableName, prevFH);
+        if(!tableFileHandle.isOpen() || tableFileHandle.fileName != tableName) {
+            tableFileHandle.close();
+            ret = rbfm.openFile(tableName, tableFileHandle);
             if(ret) {
                 return ret;
             }
@@ -343,7 +343,7 @@ namespace PeterDB {
             LOG(ERROR) << "Fail to get meta data @ RelationManager::insertTuple" << std::endl;
             return ERR_GET_METADATA;
         }
-        ret = rbfm.insertRecord(prevFH, attrs, data, rid);
+        ret = rbfm.insertRecord(tableFileHandle, attrs, data, rid);
         if(ret) {
             return ret;
         }
@@ -383,7 +383,7 @@ namespace PeterDB {
             }
         }
 
-        prevFH.flushMetadata();
+        tableFileHandle.flushMetadata();
 
         return 0;
     }
@@ -405,9 +405,9 @@ namespace PeterDB {
             return ERR_GET_METADATA;
         }
 
-        if(!prevFH.isOpen() || prevFH.fileName != tableName) {
-            prevFH.close();
-            ret = rbfm.openFile(tableName, prevFH);
+        if(!tableFileHandle.isOpen() || tableFileHandle.fileName != tableName) {
+            tableFileHandle.close();
+            ret = rbfm.openFile(tableName, tableFileHandle);
             if(ret) {
                 return ret;
             }
@@ -415,7 +415,7 @@ namespace PeterDB {
 
         // 1. Get tuple data and delete entries in each index
         uint8_t data[PAGE_SIZE] = {};
-        ret = rbfm.readRecord(prevFH, attrs, rid, data);
+        ret = rbfm.readRecord(tableFileHandle, attrs, rid, data);
         if(ret) return ret;
         IndexManager& ix = IndexManager::instance();
         // Find all indexes associated with this table and corresponding file names
@@ -450,12 +450,12 @@ namespace PeterDB {
         }
 
         // 2. Delete tuple in the table
-        ret = rbfm.deleteRecord(prevFH, attrs, rid);
+        ret = rbfm.deleteRecord(tableFileHandle, attrs, rid);
         if(ret) {
             return ret;
         }
 
-        prevFH.flushMetadata();
+        tableFileHandle.flushMetadata();
 
         return 0;
     }
@@ -477,18 +477,18 @@ namespace PeterDB {
             return ERR_GET_METADATA;
         }
 
-        if(!prevFH.isOpen() || prevFH.fileName != tableName) {
-            prevFH.close();
-            ret = rbfm.openFile(tableName, prevFH);
+        if(!tableFileHandle.isOpen() || tableFileHandle.fileName != tableName) {
+            tableFileHandle.close();
+            ret = rbfm.openFile(tableName, tableFileHandle);
             if(ret) {
                 return ret;
             }
         }
-        ret = rbfm.updateRecord(prevFH, attrs, data, rid);
+        ret = rbfm.updateRecord(tableFileHandle, attrs, data, rid);
         if(ret) {
             return ret;
         }
-        prevFH.flushMetadata();
+        tableFileHandle.flushMetadata();
 
         return 0;
     }
@@ -507,18 +507,18 @@ namespace PeterDB {
             return ERR_GET_METADATA;
         }
 
-        if(!prevFH.isOpen() || prevFH.fileName != tableName) {
-            prevFH.close();
-            ret = rbfm.openFile(tableName, prevFH);
+        if(!tableFileHandle.isOpen() || tableFileHandle.fileName != tableName) {
+            tableFileHandle.close();
+            ret = rbfm.openFile(tableName, tableFileHandle);
             if(ret) {
                 return ret;
             }
         }
-        ret = rbfm.readRecord(prevFH, attrs, rid, data);
+        ret = rbfm.readRecord(tableFileHandle, attrs, rid, data);
         if(ret) {
             return ret;
         }
-        prevFH.flushMetadata();
+        tableFileHandle.flushMetadata();
 
         return 0;
     }
@@ -547,18 +547,18 @@ namespace PeterDB {
             return ERR_GET_METADATA;
         }
 
-        if(!prevFH.isOpen() || prevFH.fileName != tableName) {
-            prevFH.close();
-            ret = rbfm.openFile(tableName, prevFH);
+        if(!tableFileHandle.isOpen() || tableFileHandle.fileName != tableName) {
+            tableFileHandle.close();
+            ret = rbfm.openFile(tableName, tableFileHandle);
             if(ret) {
                 return ret;
             }
         }
-        ret = rbfm.readAttribute(prevFH, attrs, rid, attributeName, data);
+        ret = rbfm.readAttribute(tableFileHandle, attrs, rid, attributeName, data);
         if(ret) {
             return ret;
         }
-        prevFH.flushMetadata();
+        tableFileHandle.flushMetadata();
 
         return 0;
     }
@@ -638,7 +638,7 @@ namespace PeterDB {
         }
         std::string ixFileName = indexedAttrAndFileName[attrName];
 
-        IXFileHandle ixFileHandle;
+        ixFileHandle.close();
         ret = ix.openFile(ixFileName, ixFileHandle);
         if(ret) return ret;
 

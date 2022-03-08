@@ -84,7 +84,7 @@ record from the page.
         short slotCounter;
         char data[PAGE_SIZE] = {};
         
-        RecordPageHandle(FileHandle& fileHandle, PageNum pageNum);
+        RecordPageHandle(FileHandle& tableFileHandle, PageNum pageNum);
         RecordPageHandleHandle();
         
         short getFreeSpace();

@@ -33,8 +33,9 @@ namespace PeterDB {
         }
 
         ret = readMetaData();
-        if(ret) {
-            return ret;
+        if(ret) return ret;
+        if(isRootPageExist()) {
+            readRoot();
         }
         return 0;
     }
