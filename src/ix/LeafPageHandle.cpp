@@ -151,14 +151,36 @@ namespace PeterDB {
         if(ret) return ret;
         newLeafPage = ixFileHandle.getLastPageIndex();
 
-        int16_t moveStartIndex = counter / 2;
-        // 1. Find move data start position and length
+        // 1. Find move data start position and index
+        // IMPORTANT make sure new entry can be inserted into current page or new page
         int16_t moveStartPos = 0;
-        for(int16_t i = 0; i < moveStartIndex; i++) {
+        int16_t moveStartIndex = 0;
+        while(moveStartPos < freeBytePtr / 2) {
             moveStartPos += getEntryLen(data + moveStartPos, attr);
+            moveStartIndex++;
         }
-        if(moveStartPos >= freeBytePtr) {
-            return ERR_PTR_BEYONG_FREEBYTE;
+        // Check if this plan is feasible
+        bool isSplitFeasible = true;
+        RID tmpRid;
+        getRid(data + moveStartPos, attr, tmpRid);
+        if(isCompositeKeyMeetCompCondition(key, rid, data + moveStartPos, tmpRid, attr, CompOp::LT_OP)) {
+            if(moveStartPos + getEntryLen(key, attr) > getMaxFreeSpace()) {
+                isSplitFeasible = false;
+                moveStartIndex--;
+            }
+        }
+        else {
+            if(freeBytePtr - moveStartPos + getEntryLen(key, attr) > getMaxFreeSpace()) {
+                isSplitFeasible = false;
+                moveStartIndex++;
+            }
+        }
+
+        if(!isSplitFeasible) {
+            moveStartPos = 0;
+            for(int16_t i = 0; i < moveStartIndex; i++) {
+                moveStartPos += getEntryLen(data + moveStartPos, attr);
+            }
         }
 
         // 2. Move data to new page and set metadata
@@ -175,7 +197,6 @@ namespace PeterDB {
         nextPtr = newLeafPage;
 
         // 5. Insert new entry into old page or new page
-        RID tmpRid;
         getRid(data + moveStartPos, attr, tmpRid);
         if(isCompositeKeyMeetCompCondition(key, rid, data + moveStartPos, tmpRid, attr, CompOp::LT_OP)) {
             ret = this->insertEntryWithEnoughSpace(key, rid, attr);
@@ -299,6 +320,9 @@ namespace PeterDB {
         return getHeaderLen() + IX::LEAFPAGE_NEXT_PTR_LEN;
     }
 
+    int16_t LeafPageHandle::getMaxFreeSpace() {
+        return PAGE_SIZE - getLeafHeaderLen();
+    }
     int16_t LeafPageHandle::getFreeSpace() {
         return PAGE_SIZE - getLeafHeaderLen() - freeBytePtr;
     }

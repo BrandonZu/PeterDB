@@ -269,6 +269,7 @@ namespace PeterDB {
         // MetaData
         int16_t getLeafHeaderLen();
 
+        int16_t getMaxFreeSpace();
         int16_t getFreeSpace();
         bool isEmpty();
 

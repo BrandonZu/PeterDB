@@ -142,12 +142,14 @@ namespace PeterDB {
         ret = findPosToInsertKey(newKeyInsertPos, keyToInsert, ridToInsert, attr);
         if(ret) return ret;
 
-        int16_t curIndex = counter / 2, prevIndex = curIndex - 1;
+        int16_t curIndex = 0;
         int16_t curPos = IX::INDEXPAGE_CHILD_PTR_LEN, prevPos;
-        for(int16_t i = 0; i < curIndex; i++) {
+        while(curPos < freeBytePtr / 2) {
             prevPos = curPos;
             curPos += getEntryLen(data + curPos, attr);
+            curIndex++;
         }
+        int16_t prevIndex = curIndex - 1;
 
         // ... | Prev Key | Cur Key | ...
         int16_t moveStartPos, moveLen;
