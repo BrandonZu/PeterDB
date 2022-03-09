@@ -91,6 +91,7 @@ namespace PeterDB {
             for (Attribute &attribute : attributes) {
                 attribute.name = tableName + "." + attribute.name;
             }
+            return 0;
         };
 
         ~TableScan() override {
@@ -148,6 +149,7 @@ namespace PeterDB {
             for (Attribute &attribute : attributes) {
                 attribute.name = tableName + "." + attribute.name;
             }
+            return 0;
         };
 
         ~IndexScan() override {
@@ -197,6 +199,26 @@ namespace PeterDB {
 
     class BNLJoin : public Iterator {
         // Block nested-loop join operator
+        Iterator* outer;
+        TableScan* inner;
+        Condition cond;
+        uint32_t hashTableMaxSize, remainSize;
+
+        std::vector<Attribute> outerAttr, innerAttr;
+        Attribute joinAttr;
+
+        uint8_t innerReadBuffer[PAGE_SIZE] = {};
+        uint8_t outerLoadBuffer[PAGE_SIZE] = {};
+
+        bool hasProbe = false;
+        int32_t lastIntKey;
+        float lastFloatKey;
+        std::string lastStrKey;
+        int16_t hashValLisPos = INT16_MAX;
+
+        std::unordered_map<int32_t, std::vector<std::vector<uint8_t>>> intHash;
+        std::unordered_map<float, std::vector<std::vector<uint8_t>>> floatHash;
+        std::unordered_map<std::string, std::vector<std::vector<uint8_t>>> strHash;
     public:
         BNLJoin(Iterator *leftIn,            // Iterator of input R
                 TableScan *rightIn,           // TableScan Iterator of input S
@@ -206,6 +228,9 @@ namespace PeterDB {
         );
 
         ~BNLJoin() override;
+
+        RC loadBlocks();
+        RC concatRecords(void * output, std::vector<uint8_t>& outerRecord, uint8_t* innerRecord);
 
         RC getNextTuple(void *data) override;
 
@@ -273,6 +298,17 @@ namespace PeterDB {
         // E.g. Relation=rel, attribute=attr, aggregateOp=MAX
         // output attrName = "MAX(rel.attr)"
         RC getAttributes(std::vector<Attribute> &attrs) const override;
+    };
+
+    class ApiDataHelper {
+    public:
+        static int16_t getAttrLen(uint8_t* data, int16_t pos, const Attribute& attr);
+        static int16_t getDataLen(uint8_t* data, const std::vector<Attribute>& attrs);
+        static RC buildDict(uint8_t* data, const std::vector<Attribute>& attrs, std::vector<int16_t>& dict);
+
+        static RC getIntAttribute(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, int32_t& attrVal);
+        static RC getFloatAttribute(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, float& attrVal);
+        static RC getStrAttribute(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, std::string& attrVal);
     };
 } // namespace PeterDB
 

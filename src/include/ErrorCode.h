@@ -76,6 +76,13 @@ namespace PeterDB {
     const int32_t ERR_INDEXPAGE_LAST_CHILD_NOT_EXIST = 410;
     const int32_t ERR_LEAF_NOT_FOUND = 411;
     const int32_t ERR_LEAFNODE_ENTRY_NOT_EXIST = 412;
+
+    /*
+     * Query Engine
+     * Start from 500
+     */
+    const int32_t ERR_JOIN_ATTR_ERROR = 500;
+    const int32_t ERR_JOIN_ATTR_NULL = 501;
 }
 
 #endif //PETERDB_ERRORCODE_H

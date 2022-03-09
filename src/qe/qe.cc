@@ -90,6 +90,7 @@ namespace PeterDB {
                 }
             }
         }
+        return false;
     }
 
     Project::Project(Iterator *input, const std::vector<std::string> &attrNames) {
@@ -115,25 +116,8 @@ namespace PeterDB {
         iter->getAttributes(allAttrs);
         // Build dict for input
         std::vector<int16_t> inputDict(allAttrs.size());
-        int16_t pos = ceil(allAttrs.size() / 8.0);
-        for(int16_t i = 0; i < allAttrs.size(); i++) {
-            inputDict[i] = pos;
-            if(RecordHelper::isAttrNull(inputBuffer, i)) {
-                continue;
-            }
-            switch (allAttrs[i].type) {
-                case TypeInt:
-                    pos += sizeof(int32_t);
-                    break;
-                case TypeReal:
-                    pos += sizeof(float);
-                    break;
-                case TypeVarChar:
-                    pos += *(int32_t *)(inputBuffer + pos);
-                    pos += sizeof(int32_t);
-                    break;
-            }
-        }
+        ApiDataHelper::buildDict(inputBuffer, allAttrs, inputDict);
+
         // Project
         int16_t outputPos = ceil(selectedAttrs.size() / 8.0);
         for(int16_t outputIndex = 0; outputIndex < selectedAttrs.size(); outputIndex++) {
@@ -175,24 +159,181 @@ namespace PeterDB {
     }
 
     RC Project::getAttributes(std::vector<Attribute> &attrs) const {
-        attrs =  selectedAttrs;
+        attrs = selectedAttrs;
         return 0;
     }
 
     BNLJoin::BNLJoin(Iterator *leftIn, TableScan *rightIn, const Condition &condition, const unsigned int numPages) {
+        outer = leftIn;
+        inner = rightIn;
+        cond = condition;
+        hashTableMaxSize = numPages * PAGE_SIZE;
+        remainSize = hashTableMaxSize;
 
+        leftIn->getAttributes(outerAttr);
+        rightIn->getAttributes(innerAttr);
+
+        for(auto& attr: outerAttr) {
+            if(attr.name == cond.lhsAttr) {
+                joinAttr = attr;
+                break;
+            }
+        }
+
+        loadBlocks();
     }
 
-    BNLJoin::~BNLJoin() {
+    BNLJoin::~BNLJoin() = default;
 
+    RC BNLJoin::loadBlocks() {
+        RC ret = 0;
+        remainSize = hashTableMaxSize;
+        intHash.clear();
+        floatHash.clear();
+        strHash.clear();
+
+        int32_t intKey;
+        float floatKey;
+        std::string strKey;
+
+        while(remainSize > 0) {
+            ret = outer->getNextTuple(outerLoadBuffer);
+            if(ret) break;
+            int16_t dataLen = ApiDataHelper::getDataLen(outerLoadBuffer, outerAttr);
+            switch (joinAttr.type) {
+                case TypeInt:
+                    ApiDataHelper::getIntAttribute(outerLoadBuffer, outerAttr, cond.lhsAttr, intKey);
+                    intHash[intKey].push_back(std::vector<uint8_t>(outerLoadBuffer, outerLoadBuffer + dataLen));
+                    break;
+                case TypeReal:
+                    ApiDataHelper::getFloatAttribute(outerLoadBuffer, outerAttr, cond.lhsAttr, floatKey);
+                    floatHash[floatKey].push_back(std::vector<uint8_t>(outerLoadBuffer, outerLoadBuffer + dataLen));
+                    break;
+                case TypeVarChar:
+                    ApiDataHelper::getStrAttribute(outerLoadBuffer, outerAttr, cond.lhsAttr, strKey);
+                    strHash[strKey].push_back(std::vector<uint8_t>(outerLoadBuffer, outerLoadBuffer + dataLen));
+                    break;
+            }
+            remainSize -= dataLen;
+        }
+        if(remainSize == hashTableMaxSize) {
+            return QE_EOF;
+        }
+        return 0;
     }
 
-    RC BNLJoin::getNextTuple(void *data) {
-        return -1;
+    RC BNLJoin::concatRecords(void * output, std::vector<uint8_t>& outerRecord, uint8_t* innerRecord) {
+        int16_t nullByteLen = ceil((outerAttr.size() + innerAttr.size()) / 8.0);
+        int16_t pos = nullByteLen;
+        for(int16_t i = 0; i < outerAttr.size(); i++) {
+            if(RecordHelper::isAttrNull(outerRecord.data(), i)) {
+                RecordHelper::setAttrNull((uint8_t *)output, i);
+            }
+        }
+        for(int16_t i = 0 ; i < innerAttr.size(); i++) {
+            if(RecordHelper::isAttrNull(innerRecord, i)) {
+                RecordHelper::setAttrNull((uint8_t *)output, i + outerAttr.size());
+            }
+        }
+        int16_t outerNullByteLen = ceil(outerAttr.size() / 8.0);
+        int16_t outerCopyLen = outerRecord.size() - outerNullByteLen;
+        int16_t innerNullByteLen = ceil(innerAttr.size() / 8.0);
+        int16_t innerCopyLen = ApiDataHelper::getDataLen(innerRecord, innerAttr) - innerNullByteLen;
+        memcpy((uint8_t *)output + pos, outerRecord.data() + outerNullByteLen, outerCopyLen);
+        pos += outerCopyLen;
+        memcpy((uint8_t *)output + pos, innerRecord + innerNullByteLen, innerCopyLen);
+        pos += innerCopyLen;
+        return 0;
+    }
+
+    RC BNLJoin::getNextTuple(void * output) {
+        RC ret = 0;
+        // Remaining records with the same key
+        if(hasProbe) {
+            switch (joinAttr.type) {
+                case TypeInt:
+                    if(hashValLisPos < intHash[lastIntKey].size()) {
+                        concatRecords(output, intHash[lastIntKey][hashValLisPos], innerReadBuffer);
+                        hashValLisPos++;
+                        return 0;
+                    }
+                    break;
+                case TypeReal:
+                    if(hashValLisPos < floatHash[lastFloatKey].size()) {
+                        concatRecords(output, floatHash[lastFloatKey][hashValLisPos], innerReadBuffer);
+                        hashValLisPos++;
+                        return 0;
+                    }
+                    break;
+                case TypeVarChar:
+                    if(hashValLisPos < strHash[lastStrKey].size()) {
+                        concatRecords(output, strHash[lastStrKey][hashValLisPos], innerReadBuffer);
+                        hashValLisPos++;
+                        return 0;
+                    }
+                    break;
+            }
+        }
+
+        int32_t intKey;
+        float floatKey;
+        std::string strKey;
+        bool isMatchFound = false;
+        while(!isMatchFound) {
+            ret = inner->getNextTuple(innerReadBuffer);
+            if(ret) {
+                // Reach inner table's end, reload blocks
+                ret = loadBlocks();
+                hasProbe = false;
+                if(ret) {
+                    return QE_EOF;  // Reload blocks fail, reach outer table's end, return QE_EOF
+                }
+                inner->setIterator();   // Reset inner table's iterator
+                inner->getNextTuple(innerReadBuffer);
+            }
+            // Probe hash table in memory
+            switch (joinAttr.type) {
+                case TypeInt:
+                    ApiDataHelper::getIntAttribute(innerReadBuffer, innerAttr, cond.rhsAttr, intKey);
+                    if(intHash.find(intKey) != intHash.end()) {
+                        concatRecords(output, intHash[intKey][0], innerReadBuffer);
+                        lastIntKey = intKey;
+                        hashValLisPos = 1;
+                        hasProbe = true;
+                        isMatchFound = true;
+                    }
+                    break;
+                case TypeReal:
+                    ApiDataHelper::getFloatAttribute(innerReadBuffer, innerAttr, cond.rhsAttr, floatKey);
+                    if(floatHash.find(floatKey) != floatHash.end()) {
+                        concatRecords(output, floatHash[floatKey][0], innerReadBuffer);
+                        lastFloatKey = floatKey;
+                        hashValLisPos = 1;
+                        hasProbe = true;
+                        isMatchFound = true;
+                    }
+                    break;
+                case TypeVarChar:
+                    ApiDataHelper::getStrAttribute(innerReadBuffer, innerAttr, cond.rhsAttr, strKey);
+                    if(strHash.find(strKey) != strHash.end()) {
+                        concatRecords(output, strHash[strKey][0], innerReadBuffer);
+                        lastStrKey = strKey;
+                        hashValLisPos = 1;
+                        hasProbe = true;
+                        isMatchFound = true;
+                    }
+                    break;
+            }
+        }
+
+        return 0;
     }
 
     RC BNLJoin::getAttributes(std::vector<Attribute> &attrs) const {
-        return -1;
+        attrs.clear();
+        attrs.insert(attrs.end(), outerAttr.begin(), outerAttr.end());
+        attrs.insert(attrs.end(), innerAttr.begin(), innerAttr.end());
+        return 0;
     }
 
     INLJoin::INLJoin(Iterator *leftIn, IndexScan *rightIn, const Condition &condition) {
