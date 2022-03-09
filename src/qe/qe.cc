@@ -119,7 +119,9 @@ namespace PeterDB {
         ApiDataHelper::buildDict(inputBuffer, allAttrs, inputDict);
 
         // Project
-        int16_t outputPos = ceil(selectedAttrs.size() / 8.0);
+        int16_t nullByteLen = ceil(selectedAttrs.size() / 8.0);
+        int16_t outputPos = nullByteLen;
+        bzero((uint8_t *)output, nullByteLen);
         for(int16_t outputIndex = 0; outputIndex < selectedAttrs.size(); outputIndex++) {
             int16_t inputIndex;
             for(inputIndex = 0; inputIndex < allAttrs.size(); inputIndex++)
@@ -225,6 +227,7 @@ namespace PeterDB {
     RC BNLJoin::concatRecords(void * output, std::vector<uint8_t>& outerRecord, uint8_t* innerRecord) {
         int16_t nullByteLen = ceil((outerAttr.size() + innerAttr.size()) / 8.0);
         int16_t pos = nullByteLen;
+        bzero((uint8_t *)output, nullByteLen);
         for(int16_t i = 0; i < outerAttr.size(); i++) {
             if(RecordHelper::isAttrNull(outerRecord.data(), i)) {
                 RecordHelper::setAttrNull((uint8_t *)output, i);
