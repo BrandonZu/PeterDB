@@ -25,21 +25,6 @@ namespace PeterDB {
         return 0;
     }
 
-    template<typename T>
-    bool Filter::performOper(const T& oper1, const T& oper2) {
-        switch(condtion.op) {
-            case EQ_OP: return oper1 == oper2;
-            case LT_OP: return oper1 < oper2;
-            case LE_OP: return oper1 <= oper2;
-            case GT_OP: return oper1 > oper2;
-            case GE_OP: return oper1 >= oper2;
-            case NE_OP: return oper1 != oper2;
-            default:
-                LOG(ERROR) << "Comparison Operator Not Supported!" << std::endl;
-                return false;
-        }
-    }
-
     bool Filter::isRecordMeetCondition(uint8_t * data) {
         int16_t attrNum = attrs.size();
         if(attrNum == 0) {
@@ -57,19 +42,19 @@ namespace PeterDB {
                     case TypeInt:
                         int32_t attrInt;
                         memcpy(&attrInt, data + apiDataPos, sizeof(int32_t));
-                        return performOper(attrInt, *(int32_t *)condtion.rhsValue.data);
+                        return QEHelper::performOper(attrInt, *(int32_t *)condtion.rhsValue.data, condtion);
                         break;
                     case TypeReal:
                         float attrFloat;
                         memcpy(&attrFloat, data + apiDataPos, sizeof(float));
-                        return performOper(attrFloat, *(float *)condtion.rhsValue.data);
+                        return QEHelper::performOper(attrFloat, *(float *)condtion.rhsValue.data, condtion);
                         break;
                     case TypeVarChar:
                         int32_t attrLen;
                         memcpy(&attrLen, data + apiDataPos, sizeof(int32_t));
                         apiDataPos += sizeof(int32_t);
                         std::string attrStr((char *)data + apiDataPos, attrLen);
-                        return performOper(attrStr, std::string((char *)condtion.rhsValue.data + sizeof(int32_t), *(int32_t *)condtion.rhsValue.data));
+                        return QEHelper::performOper(attrStr, std::string((char *)condtion.rhsValue.data + sizeof(int32_t), *(int32_t *)condtion.rhsValue.data), condtion);
                         break;
                 }
             }
@@ -204,15 +189,15 @@ namespace PeterDB {
             int16_t dataLen = ApiDataHelper::getDataLen(outerLoadBuffer, outerAttr);
             switch (joinAttr.type) {
                 case TypeInt:
-                    ApiDataHelper::getIntAttribute(outerLoadBuffer, outerAttr, cond.lhsAttr, intKey);
+                    ApiDataHelper::getIntAttr(outerLoadBuffer, outerAttr, cond.lhsAttr, intKey);
                     intHash[intKey].push_back(std::vector<uint8_t>(outerLoadBuffer, outerLoadBuffer + dataLen));
                     break;
                 case TypeReal:
-                    ApiDataHelper::getFloatAttribute(outerLoadBuffer, outerAttr, cond.lhsAttr, floatKey);
+                    ApiDataHelper::getFloatAttr(outerLoadBuffer, outerAttr, cond.lhsAttr, floatKey);
                     floatHash[floatKey].push_back(std::vector<uint8_t>(outerLoadBuffer, outerLoadBuffer + dataLen));
                     break;
                 case TypeVarChar:
-                    ApiDataHelper::getStrAttribute(outerLoadBuffer, outerAttr, cond.lhsAttr, strKey);
+                    ApiDataHelper::getStrAttr(outerLoadBuffer, outerAttr, cond.lhsAttr, strKey);
                     strHash[strKey].push_back(std::vector<uint8_t>(outerLoadBuffer, outerLoadBuffer + dataLen));
                     break;
             }
@@ -224,31 +209,6 @@ namespace PeterDB {
         return 0;
     }
 
-    RC BNLJoin::concatRecords(void * output, std::vector<uint8_t>& outerRecord, uint8_t* innerRecord) {
-        int16_t nullByteLen = ceil((outerAttr.size() + innerAttr.size()) / 8.0);
-        int16_t pos = nullByteLen;
-        bzero((uint8_t *)output, nullByteLen);
-        for(int16_t i = 0; i < outerAttr.size(); i++) {
-            if(RecordHelper::isAttrNull(outerRecord.data(), i)) {
-                RecordHelper::setAttrNull((uint8_t *)output, i);
-            }
-        }
-        for(int16_t i = 0 ; i < innerAttr.size(); i++) {
-            if(RecordHelper::isAttrNull(innerRecord, i)) {
-                RecordHelper::setAttrNull((uint8_t *)output, i + outerAttr.size());
-            }
-        }
-        int16_t outerNullByteLen = ceil(outerAttr.size() / 8.0);
-        int16_t outerCopyLen = outerRecord.size() - outerNullByteLen;
-        int16_t innerNullByteLen = ceil(innerAttr.size() / 8.0);
-        int16_t innerCopyLen = ApiDataHelper::getDataLen(innerRecord, innerAttr) - innerNullByteLen;
-        memcpy((uint8_t *)output + pos, outerRecord.data() + outerNullByteLen, outerCopyLen);
-        pos += outerCopyLen;
-        memcpy((uint8_t *)output + pos, innerRecord + innerNullByteLen, innerCopyLen);
-        pos += innerCopyLen;
-        return 0;
-    }
-
     RC BNLJoin::getNextTuple(void * output) {
         RC ret = 0;
         // Remaining records with the same key
@@ -256,21 +216,24 @@ namespace PeterDB {
             switch (joinAttr.type) {
                 case TypeInt:
                     if(hashValLisPos < intHash[lastIntKey].size()) {
-                        concatRecords(output, intHash[lastIntKey][hashValLisPos], innerReadBuffer);
+                        //concatRecords(output, intHash[lastIntKey][hashValLisPos], innerReadBuffer);
+                        QEHelper::concatRecords((uint8_t *)output, intHash[lastIntKey][hashValLisPos].data(), outerAttr, innerReadBuffer, innerAttr);
                         hashValLisPos++;
                         return 0;
                     }
                     break;
                 case TypeReal:
                     if(hashValLisPos < floatHash[lastFloatKey].size()) {
-                        concatRecords(output, floatHash[lastFloatKey][hashValLisPos], innerReadBuffer);
+                        // concatRecords(output, floatHash[lastFloatKey][hashValLisPos], innerReadBuffer);
+                        QEHelper::concatRecords((uint8_t *)output, floatHash[lastFloatKey][hashValLisPos].data(), outerAttr, innerReadBuffer, innerAttr);
                         hashValLisPos++;
                         return 0;
                     }
                     break;
                 case TypeVarChar:
                     if(hashValLisPos < strHash[lastStrKey].size()) {
-                        concatRecords(output, strHash[lastStrKey][hashValLisPos], innerReadBuffer);
+                        // concatRecords(output, strHash[lastStrKey][hashValLisPos], innerReadBuffer);
+                        QEHelper::concatRecords((uint8_t *)output, strHash[lastStrKey][hashValLisPos].data(), outerAttr, innerReadBuffer, innerAttr);
                         hashValLisPos++;
                         return 0;
                     }
@@ -297,9 +260,10 @@ namespace PeterDB {
             // Probe hash table in memory
             switch (joinAttr.type) {
                 case TypeInt:
-                    ApiDataHelper::getIntAttribute(innerReadBuffer, innerAttr, cond.rhsAttr, intKey);
+                    ApiDataHelper::getIntAttr(innerReadBuffer, innerAttr, cond.rhsAttr, intKey);
                     if(intHash.find(intKey) != intHash.end()) {
-                        concatRecords(output, intHash[intKey][0], innerReadBuffer);
+                        // concatRecords(output, intHash[intKey][0], innerReadBuffer);
+                        QEHelper::concatRecords((uint8_t *)output, intHash[intKey][0].data(), outerAttr, innerReadBuffer, innerAttr);
                         lastIntKey = intKey;
                         hashValLisPos = 1;
                         hasProbe = true;
@@ -307,9 +271,10 @@ namespace PeterDB {
                     }
                     break;
                 case TypeReal:
-                    ApiDataHelper::getFloatAttribute(innerReadBuffer, innerAttr, cond.rhsAttr, floatKey);
+                    ApiDataHelper::getFloatAttr(innerReadBuffer, innerAttr, cond.rhsAttr, floatKey);
                     if(floatHash.find(floatKey) != floatHash.end()) {
-                        concatRecords(output, floatHash[floatKey][0], innerReadBuffer);
+                        // concatRecords(output, floatHash[floatKey][0], innerReadBuffer);
+                        QEHelper::concatRecords((uint8_t *)output, floatHash[floatKey][0].data(), outerAttr, innerReadBuffer, innerAttr);
                         lastFloatKey = floatKey;
                         hashValLisPos = 1;
                         hasProbe = true;
@@ -317,9 +282,10 @@ namespace PeterDB {
                     }
                     break;
                 case TypeVarChar:
-                    ApiDataHelper::getStrAttribute(innerReadBuffer, innerAttr, cond.rhsAttr, strKey);
+                    ApiDataHelper::getStrAttr(innerReadBuffer, innerAttr, cond.rhsAttr, strKey);
                     if(strHash.find(strKey) != strHash.end()) {
-                        concatRecords(output, strHash[strKey][0], innerReadBuffer);
+                        // concatRecords(output, strHash[strKey][0], innerReadBuffer);
+                        QEHelper::concatRecords((uint8_t *)output, strHash[strKey][0].data(), outerAttr, innerReadBuffer, innerAttr);
                         lastStrKey = strKey;
                         hashValLisPos = 1;
                         hasProbe = true;
@@ -340,19 +306,58 @@ namespace PeterDB {
     }
 
     INLJoin::INLJoin(Iterator *leftIn, IndexScan *rightIn, const Condition &condition) {
+        outer = leftIn;
+        inner = rightIn;
+        cond = condition;
 
+        leftIn->getAttributes(outerAttr);
+        rightIn->getAttributes(innerAttr);
+
+        for(auto& attr: outerAttr) {
+            if(attr.name == cond.lhsAttr) {
+                joinAttrType = attr.type;
+                break;
+            }
+        }
+
+        uint8_t keyBuffer[PAGE_SIZE] = {};
+        outerIterStatus = outer->getNextTuple(outerReadBuffer);
+        if(outerIterStatus != QE_EOF) {
+            ApiDataHelper::getRawAttr(outerReadBuffer, outerAttr, cond.lhsAttr, keyBuffer);
+            inner->setIterator(keyBuffer, keyBuffer, true, true);
+        }
     }
 
-    INLJoin::~INLJoin() {
-
-    }
+    INLJoin::~INLJoin() = default;
 
     RC INLJoin::getNextTuple(void *data) {
-        return -1;
+        uint8_t outerKeyBuffer[PAGE_SIZE] = {};
+        uint8_t innerKeyBuffer[PAGE_SIZE] = {};
+        while(outerIterStatus != QE_EOF) {
+            ApiDataHelper::getRawAttr(outerReadBuffer, outerAttr, cond.lhsAttr, outerKeyBuffer);
+            while(inner->getNextTuple(innerReadBuffer) == 0) {
+                ApiDataHelper::getRawAttr(innerReadBuffer, innerAttr, cond.rhsAttr, innerKeyBuffer);
+                if(QEHelper::isSameKey(outerKeyBuffer, innerKeyBuffer, joinAttrType)) {
+                    QEHelper::concatRecords((uint8_t *)data, outerReadBuffer, outerAttr, innerReadBuffer, innerAttr);
+                    return 0;
+                }
+            }
+
+            outerIterStatus = outer->getNextTuple(outerReadBuffer);
+            if(outerIterStatus != QE_EOF) {
+                ApiDataHelper::getRawAttr(outerReadBuffer, outerAttr, cond.lhsAttr, outerKeyBuffer);
+                inner->setIterator(outerKeyBuffer, outerKeyBuffer, true, true);
+            }
+        }
+
+        return QE_EOF;
     }
 
     RC INLJoin::getAttributes(std::vector<Attribute> &attrs) const {
-        return -1;
+        attrs.clear();
+        attrs.insert(attrs.end(), outerAttr.begin(), outerAttr.end());
+        attrs.insert(attrs.end(), innerAttr.begin(), innerAttr.end());
+        return 0;
     }
 
     GHJoin::GHJoin(Iterator *leftIn, Iterator *rightIn, const Condition &condition, const unsigned int numPartitions) {

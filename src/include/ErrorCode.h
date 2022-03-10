@@ -83,6 +83,7 @@ namespace PeterDB {
      */
     const int32_t ERR_JOIN_ATTR_ERROR = 500;
     const int32_t ERR_JOIN_ATTR_NULL = 501;
+    const int32_t ERR_GET_ATTR = 502;
 }
 
 #endif //PETERDB_ERRORCODE_H

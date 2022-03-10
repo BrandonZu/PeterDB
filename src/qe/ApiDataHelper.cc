@@ -33,7 +33,7 @@ namespace PeterDB {
         return 0;
     }
 
-    RC ApiDataHelper::getIntAttribute(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, int32_t& attrVal) {
+    RC ApiDataHelper::getRawAttr(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, uint8_t* attrVal) {
         int16_t pos = ceil(attrs.size() / 8.0);
         for(int16_t i = 0; i < attrs.size(); i++) {
             if(RecordHelper::isAttrNull(data, i)) {
@@ -43,46 +43,38 @@ namespace PeterDB {
                 continue;
             }
             if(attrs[i].name == attrName) {
-                attrVal = *(int32_t *)(data + pos);
+                switch (attrs[i].type) {
+                    case TypeInt:
+                        memcpy(attrVal, data + pos, sizeof(int32_t));
+                        break;
+                    case TypeReal:
+                        memcpy(attrVal, data + pos, sizeof(float));
+                        break;
+                    case TypeVarChar:
+                        int32_t strLen;
+                        memcpy(&strLen, data + pos, sizeof(int32_t));
+                        memcpy(attrVal, data + pos, sizeof(int32_t) + strLen);
+                        break;
+                }
+                break;
             }
             pos += getAttrLen(data, pos, attrs[i]);
         }
         return 0;
     }
-    RC ApiDataHelper::getFloatAttribute(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, float& attrVal) {
-        int16_t pos = ceil(attrs.size() / 8.0);
-        for(int16_t i = 0; i < attrs.size(); i++) {
-            if(RecordHelper::isAttrNull(data, i)) {
-                if(attrs[i].name == attrName) {
-                    return ERR_JOIN_ATTR_NULL;
-                }
-                continue;
-            }
-            if(attrs[i].name == attrName) {
-                attrVal = *(float *)(data + pos);
-                return 0;
-            }
-            pos += getAttrLen(data, pos, attrs[i]);
-        }
-        return 0;
+    RC ApiDataHelper::getIntAttr(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, int32_t& attrVal) {
+        return getRawAttr(data, attrs, attrName, (uint8_t *) &attrVal);
     }
-    RC ApiDataHelper::getStrAttribute(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, std::string& attrVal) {
-        int16_t pos = ceil(attrs.size() / 8.0);
-        for(int16_t i = 0; i < attrs.size(); i++) {
-            if(RecordHelper::isAttrNull(data, i)) {
-                if(attrs[i].name == attrName) {
-                    return ERR_JOIN_ATTR_NULL;
-                }
-                continue;
-            }
-            if(attrs[i].name == attrName) {
-                int32_t strLen;
-                strLen = *(int32_t *)(data + pos);
-                attrVal = std::string((char *)(data + pos + sizeof(int32_t)), strLen);
-                return 0;
-            }
-            pos += getAttrLen(data, pos, attrs[i]);
-        }
+    RC ApiDataHelper::getFloatAttr(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, float& attrVal) {
+        return getRawAttr(data, attrs, attrName, (uint8_t *) &attrVal);
+    }
+    RC ApiDataHelper::getStrAttr(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, std::string& attrVal) {
+        uint8_t tmp[PAGE_SIZE];
+        RC ret = getRawAttr(data, attrs, attrName, tmp);
+        if(ret) return ret;
+        int32_t strLen;
+        strLen = *(int32_t *)tmp;
+        attrVal = std::string((char *)(tmp + sizeof(int32_t)), strLen);
         return 0;
     }
 }

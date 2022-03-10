@@ -175,9 +175,6 @@ namespace PeterDB {
         RC getAttributes(std::vector<Attribute> &attrs) const override;
 
     private:
-        template<typename T>
-        bool performOper(const T& oper1, const T& oper2);
-
         bool isRecordMeetCondition(uint8_t * data);
     };
 
@@ -230,7 +227,6 @@ namespace PeterDB {
         ~BNLJoin() override;
 
         RC loadBlocks();
-        RC concatRecords(void * output, std::vector<uint8_t>& outerRecord, uint8_t* innerRecord);
 
         RC getNextTuple(void *data) override;
 
@@ -240,6 +236,17 @@ namespace PeterDB {
 
     class INLJoin : public Iterator {
         // Index nested-loop join operator
+        Iterator* outer;
+        IndexScan* inner;
+        Condition cond;
+
+        std::vector<Attribute> outerAttr, innerAttr;
+        AttrType joinAttrType;
+
+        uint8_t outerReadBuffer[PAGE_SIZE] = {};
+        uint8_t innerReadBuffer[PAGE_SIZE] = {};
+
+        int32_t outerIterStatus;
     public:
         INLJoin(Iterator *leftIn,           // Iterator of input R
                 IndexScan *rightIn,          // IndexScan Iterator of input S
@@ -300,15 +307,38 @@ namespace PeterDB {
         RC getAttributes(std::vector<Attribute> &attrs) const override;
     };
 
+    class QEHelper {
+    public:
+        static RC concatRecords(uint8_t* output, uint8_t* outerRecord, const std::vector<Attribute>& outerAttr,
+                                uint8_t* innerRecord, const std::vector<Attribute>& innerAttr);
+        static bool isSameKey(uint8_t* key1, uint8_t* key2, AttrType& type);
+
+        template<typename T>
+        static bool performOper(const T& oper1, const T& oper2, Condition& cond) {
+            switch(cond.op) {
+                case EQ_OP: return oper1 == oper2;
+                case LT_OP: return oper1 < oper2;
+                case LE_OP: return oper1 <= oper2;
+                case GT_OP: return oper1 > oper2;
+                case GE_OP: return oper1 >= oper2;
+                case NE_OP: return oper1 != oper2;
+                default:
+                    LOG(ERROR) << "Comparison Operator Not Supported!" << std::endl;
+                    return false;
+            }
+        }
+    };
+
     class ApiDataHelper {
     public:
         static int16_t getAttrLen(uint8_t* data, int16_t pos, const Attribute& attr);
         static int16_t getDataLen(uint8_t* data, const std::vector<Attribute>& attrs);
         static RC buildDict(uint8_t* data, const std::vector<Attribute>& attrs, std::vector<int16_t>& dict);
 
-        static RC getIntAttribute(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, int32_t& attrVal);
-        static RC getFloatAttribute(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, float& attrVal);
-        static RC getStrAttribute(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, std::string& attrVal);
+        static RC getRawAttr(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, uint8_t* attrVal);
+        static RC getIntAttr(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, int32_t& attrVal);
+        static RC getFloatAttr(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, float& attrVal);
+        static RC getStrAttr(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, std::string& attrVal);
     };
 } // namespace PeterDB
 
