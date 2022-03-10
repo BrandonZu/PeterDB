@@ -245,6 +245,8 @@ namespace PeterDB {
 
         uint8_t outerReadBuffer[PAGE_SIZE] = {};
         uint8_t innerReadBuffer[PAGE_SIZE] = {};
+        uint8_t outerKeyBuffer[PAGE_SIZE] = {};
+        uint8_t innerKeyBuffer[PAGE_SIZE] = {};
 
         int32_t outerIterStatus;
     public:

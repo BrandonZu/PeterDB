@@ -73,7 +73,7 @@ namespace PeterDB {
 
     RC IX_ScanIterator::getNextEntry(RID &rid, void *key) {
         RC ret = 0;
-        if(curLeafPage >= ixFileHandlePtr->getPageCounter()) {
+        if(curLeafPage >= ixFileHandlePtr->getPageCounter() || curLeafPage == IX::PAGE_PTR_NULL) {
             return IX_EOF;
         }
         if(highKey && entryExceedUpperBound) {

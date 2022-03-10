@@ -320,19 +320,16 @@ namespace PeterDB {
             }
         }
 
-        uint8_t keyBuffer[PAGE_SIZE] = {};
         outerIterStatus = outer->getNextTuple(outerReadBuffer);
         if(outerIterStatus != QE_EOF) {
-            ApiDataHelper::getRawAttr(outerReadBuffer, outerAttr, cond.lhsAttr, keyBuffer);
-            inner->setIterator(keyBuffer, keyBuffer, true, true);
+            ApiDataHelper::getRawAttr(outerReadBuffer, outerAttr, cond.lhsAttr, outerKeyBuffer);
+            inner->setIterator(outerKeyBuffer, outerKeyBuffer, true, true);
         }
     }
 
     INLJoin::~INLJoin() = default;
 
     RC INLJoin::getNextTuple(void *data) {
-        uint8_t outerKeyBuffer[PAGE_SIZE] = {};
-        uint8_t innerKeyBuffer[PAGE_SIZE] = {};
         while(outerIterStatus != QE_EOF) {
             ApiDataHelper::getRawAttr(outerReadBuffer, outerAttr, cond.lhsAttr, outerKeyBuffer);
             while(inner->getNextTuple(innerReadBuffer) == 0) {
