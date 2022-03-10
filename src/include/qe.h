@@ -328,18 +328,6 @@ namespace PeterDB {
             }
         }
     };
-
-    class ApiDataHelper {
-    public:
-        static int16_t getAttrLen(uint8_t* data, int16_t pos, const Attribute& attr);
-        static int16_t getDataLen(uint8_t* data, const std::vector<Attribute>& attrs);
-        static RC buildDict(uint8_t* data, const std::vector<Attribute>& attrs, std::vector<int16_t>& dict);
-
-        static RC getRawAttr(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, uint8_t* attrVal);
-        static RC getIntAttr(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, int32_t& attrVal);
-        static RC getFloatAttr(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, float& attrVal);
-        static RC getStrAttr(uint8_t* data, const std::vector<Attribute>& attrs, const std::string& attrName, std::string& attrVal);
-    };
 } // namespace PeterDB
 
 #endif // _qe_h_

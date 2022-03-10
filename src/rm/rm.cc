@@ -173,15 +173,19 @@ namespace PeterDB {
         if(ret) return ret;
 
         RID rid;
-        uint8_t recordData[PAGE_SIZE];
-        uint8_t attrData[PAGE_SIZE];
+        uint8_t recordData[PAGE_SIZE] = {};
+        uint8_t attrData[PAGE_SIZE] = {};
+        uint8_t keyData[PAGE_SIZE] = {};
         IXFileHandle ixFileHandle;
         ret = ix.openFile(ixFileName, ixFileHandle);
         if(ret) return ret;
         while(tableScanIter.getNextRecord(rid, recordData) == 0) {
             ret = rbfm.readAttribute(fh, attrs, rid, attrs[attr_pos].name, attrData);
             if(ret) return ret;
-            ret = ix.insertEntry(ixFileHandle, attrs[attr_pos], attrData, rid);
+            // Convert api format to raw key
+            ret = ApiDataHelper::getRawAttr(attrData, {attrs[attr_pos]}, attrs[attr_pos].name, keyData);
+            if(ret) return ret;
+            ret = ix.insertEntry(ixFileHandle, attrs[attr_pos], keyData, rid);
             if(ret) return ret;
         }
         return 0;
@@ -380,6 +384,7 @@ namespace PeterDB {
                         dataPos += tmpStrLen;
                         break;
                 }
+                break;
             }
         }
 
