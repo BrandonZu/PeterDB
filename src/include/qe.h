@@ -294,9 +294,8 @@ namespace PeterDB {
         int32_t result_pos = 0;
         std::vector<float> result;
 
-        std::unordered_map<int32_t, std::vector<std::vector<uint8_t>>> intHash;
-        std::unordered_map<float, std::vector<std::vector<uint8_t>>> floatHash;
-        std::unordered_map<std::string, std::vector<std::vector<uint8_t>>> strHash;
+        std::unordered_map<int32_t, std::pair<int32_t, float>> intHash;
+        std::unordered_map<float, std::pair<int32_t, float>> floatHash;
     public:
         // Mandatory
         // Basic aggregation

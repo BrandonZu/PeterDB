@@ -454,6 +454,7 @@ namespace PeterDB {
         this->op = op;
         this->groupAttr = groupAttr;
 
+
     }
 
     Aggregate::~Aggregate() = default;
