@@ -148,8 +148,11 @@ namespace PeterDB {
         FileHandle catalogTablesFH;
         FileHandle catalogColumnsFH;
         FileHandle catalogIndexesFH;
+
         FileHandle tableFileHandle;
         IXFileHandle ixFileHandle;
+
+        std::vector<IXFileHandle> ixScanFHList;
     public:
         static RelationManager &instance();
 

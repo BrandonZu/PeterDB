@@ -8,7 +8,9 @@ namespace PeterDB {
         return _relation_manager;
     }
 
-    RelationManager::RelationManager() =default;
+    RelationManager::RelationManager() {
+        ixScanFHList.clear();
+    }
 
     RelationManager::~RelationManager() = default;
 
@@ -370,21 +372,20 @@ namespace PeterDB {
                 if(ret) return ret;
                 ret = ix.insertEntry(fh, attrs[i], (uint8_t *)data + dataPos, rid);
                 if(ret) return ret;
-                switch (attrs[i].type) {
-                    case TypeInt:
-                        dataPos += sizeof(int32_t);
-                        break;
-                    case TypeReal:
-                        dataPos += sizeof(float);
-                        break;
-                    case TypeVarChar:
-                        int32_t tmpStrLen;
-                        memcpy(&tmpStrLen, (uint8_t *)data + dataPos, sizeof(int32_t));
-                        dataPos += sizeof(int32_t);
-                        dataPos += tmpStrLen;
-                        break;
-                }
-                break;
+            }
+            switch (attrs[i].type) {
+                case TypeInt:
+                    dataPos += sizeof(int32_t);
+                    break;
+                case TypeReal:
+                    dataPos += sizeof(float);
+                    break;
+                case TypeVarChar:
+                    int32_t tmpStrLen;
+                    memcpy(&tmpStrLen, (uint8_t *)data + dataPos, sizeof(int32_t));
+                    dataPos += sizeof(int32_t);
+                    dataPos += tmpStrLen;
+                    break;
             }
         }
 
@@ -643,11 +644,12 @@ namespace PeterDB {
         }
         std::string ixFileName = indexedAttrAndFileName[attrName];
 
-        ixFileHandle.close();
-        ret = ix.openFile(ixFileName, ixFileHandle);
+        IXFileHandle ixScanFH;
+        ret = ix.openFile(ixFileName, ixScanFH);
         if(ret) return ret;
 
-        ret = rm_IndexScanIterator.open(&ixFileHandle, attrs[attr_pos], (uint8_t *)lowKey, (uint8_t *)highKey, lowKeyInclusive, highKeyInclusive);
+        ixScanFHList.push_back(ixScanFH);
+        ret = rm_IndexScanIterator.open(&ixScanFHList.back(), attrs[attr_pos], (uint8_t *)lowKey, (uint8_t *)highKey, lowKeyInclusive, highKeyInclusive);
         if(ret) return ret;
 
         return 0;
