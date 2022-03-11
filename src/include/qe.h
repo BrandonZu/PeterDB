@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <climits>
 
 #include "rm.h"
 #include "ix.h"
