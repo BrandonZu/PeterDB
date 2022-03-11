@@ -283,6 +283,19 @@ namespace PeterDB {
 
     class Aggregate : public Iterator {
         // Aggregation operator
+        Iterator* input;
+        Attribute aggAttr;
+        AggregateOp op;
+        Attribute groupAttr;
+
+        uint8_t readBuffer[PAGE_SIZE] = {};
+
+        int32_t result_pos = 0;
+        std::vector<float> result;
+
+        std::unordered_map<int32_t, std::vector<std::vector<uint8_t>>> intHash;
+        std::unordered_map<float, std::vector<std::vector<uint8_t>>> floatHash;
+        std::unordered_map<std::string, std::vector<std::vector<uint8_t>>> strHash;
     public:
         // Mandatory
         // Basic aggregation

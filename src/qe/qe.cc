@@ -374,22 +374,117 @@ namespace PeterDB {
     }
 
     Aggregate::Aggregate(Iterator *input, const Attribute &aggAttr, AggregateOp op) {
+        this->input = input;
+        this->aggAttr = aggAttr;
+        this->op = op;
 
+        std::vector<Attribute> attrs;
+        input->getAttributes(attrs);
+
+        int32_t intKey;
+        float floatKey;
+        float val;
+        switch (op) {
+            case MAX: val = LONG_MIN; break;
+            case MIN: val = LONG_MAX; break;
+            case SUM:
+            case AVG:
+            case COUNT:
+                val = 0;
+                break;
+        }
+
+        int32_t count = 0;
+        while(input->getNextTuple(readBuffer) == 0) {
+            count++;
+            switch (op) {
+                case MAX:
+                    if(aggAttr.type == TypeInt) {
+                        ApiDataHelper::getIntAttr(readBuffer, attrs, aggAttr.name, intKey);
+                        val = std::max(val, (float)intKey);
+                    }
+                    else if(aggAttr.type == TypeReal) {
+                        ApiDataHelper::getFloatAttr(readBuffer, attrs, aggAttr.name, floatKey);
+                        val = std::max(val, floatKey);
+                    }
+                    break;
+                case MIN:
+                    if(aggAttr.type == TypeInt) {
+                        ApiDataHelper::getIntAttr(readBuffer, attrs, aggAttr.name, intKey);
+                        val = std::min(val, (float)intKey);
+                    }
+                    else if(aggAttr.type == TypeReal) {
+                        ApiDataHelper::getFloatAttr(readBuffer, attrs, aggAttr.name, floatKey);
+                        val = std::min(val, floatKey);
+                    }
+                    break;
+                case SUM:
+                case AVG:
+                    if(aggAttr.type == TypeInt) {
+                        ApiDataHelper::getIntAttr(readBuffer, attrs, aggAttr.name, intKey);
+                        val += intKey;
+                    }
+                    else if(aggAttr.type == TypeReal) {
+                        ApiDataHelper::getFloatAttr(readBuffer, attrs, aggAttr.name, floatKey);
+                        val += floatKey;
+                    }
+                    break;
+                case COUNT:
+                    break;
+            }
+        }
+        switch (op) {
+            case MAX:
+            case MIN:
+            case SUM:
+                result.push_back(val);
+                break;
+            case COUNT:
+                result.push_back(count);
+                break;
+            case AVG:
+                result.push_back(val / count);
+                break;
+        }
     }
 
     Aggregate::Aggregate(Iterator *input, const Attribute &aggAttr, const Attribute &groupAttr, AggregateOp op) {
+        this->input = input;
+        this->aggAttr = aggAttr;
+        this->op = op;
+        this->groupAttr = groupAttr;
 
     }
 
-    Aggregate::~Aggregate() {
-
-    }
+    Aggregate::~Aggregate() = default;
 
     RC Aggregate::getNextTuple(void *data) {
-        return -1;
+        if(result_pos >= result.size()) {
+            return QE_EOF;
+        }
+        *(uint8_t *)data = 0;
+        *(float *)((uint8_t *)data + 1) = result[result_pos];
+        result_pos++;
+        return 0;
     }
 
     RC Aggregate::getAttributes(std::vector<Attribute> &attrs) const {
-        return -1;
+        std::string opName;
+        switch(this->op){
+            case MIN: opName = "MIN"; break;
+            case MAX: opName = "MAX"; break;
+            case COUNT: opName = "COUNT"; break;
+            case SUM: opName = "SUM"; break;
+            case AVG: opName = "AVG"; break;
+        }
+
+        Attribute attr;
+        attr.name = opName + "(" + aggAttr.name + ")";
+        attr.type = TypeReal;
+        attr.length = sizeof(float);
+
+        attrs.clear();
+        attrs.push_back(attr);
+        return 0;
     }
 } // namespace PeterDB
