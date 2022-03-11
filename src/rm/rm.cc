@@ -8,12 +8,18 @@ namespace PeterDB {
         return _relation_manager;
     }
 
-    RelationManager::RelationManager() {
+    RelationManager::RelationManager() = default;
+
+    RelationManager::~RelationManager() {
+        for(auto& fh: ixScanFHList) {
+            fh.close();
+        }
+        for(auto& p: ixFHMap) {
+            p.second.close();
+        }
         ixScanFHList.clear();
         ixFHMap.clear();
     }
-
-    RelationManager::~RelationManager() = default;
 
     RelationManager::RelationManager(const RelationManager &) = default;
 

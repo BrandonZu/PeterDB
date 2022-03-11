@@ -68,6 +68,7 @@ namespace PeterDB {
     }
 
     RC IX_ScanIterator::close() {
+        ixFileHandlePtr->close();
         return 0;
     }
 
