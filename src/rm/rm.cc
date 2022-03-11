@@ -10,6 +10,7 @@ namespace PeterDB {
 
     RelationManager::RelationManager() {
         ixScanFHList.clear();
+        ixFHMap.clear();
     }
 
     RelationManager::~RelationManager() = default;
@@ -365,12 +366,18 @@ namespace PeterDB {
 
         int32_t dataPos = ceil(attrs.size() / 8.0);
         for(int i = 0; i < attrs.size(); i++) {
+            if(RecordHelper::isAttrNull((uint8_t *)data, i)) {
+                continue;
+            }
             if(indexedAttrAndFileName.find(attrs[i].name) != indexedAttrAndFileName.end()) {
                 // insert entry into each index
-                IXFileHandle fh;
-                ret = ix.openFile(indexedAttrAndFileName[attrs[i].name], fh);
-                if(ret) return ret;
-                ret = ix.insertEntry(fh, attrs[i], (uint8_t *)data + dataPos, rid);
+                if(ixFHMap.find(indexedAttrAndFileName[attrs[i].name]) == ixFHMap.end()) {
+                    IXFileHandle fh;
+                    ret = ix.openFile(indexedAttrAndFileName[attrs[i].name], fh);
+                    if(ret) return ret;
+                    ixFHMap[indexedAttrAndFileName[attrs[i].name]] = fh;
+                }
+                ret = ix.insertEntry(ixFHMap[indexedAttrAndFileName[attrs[i].name]], attrs[i], (uint8_t *)data + dataPos, rid);
                 if(ret) return ret;
             }
             switch (attrs[i].type) {
@@ -431,27 +438,33 @@ namespace PeterDB {
 
         int32_t dataPos = ceil(attrs.size() / 8.0);
         for(int i = 0; i < attrs.size(); i++) {
+            if(RecordHelper::isAttrNull(data, i)) {
+                continue;
+            }
             if(indexedAttrAndFileName.find(attrs[i].name) != indexedAttrAndFileName.end()) {
                 // delete entry from each index
-                IXFileHandle fh;
-                ret = ix.openFile(indexedAttrAndFileName[attrs[i].name], fh);
-                if(ret) return ret;
-                ret = ix.deleteEntry(fh, attrs[i], (uint8_t *)data + dataPos, rid);
-                if(ret) return ret;
-                switch (attrs[i].type) {
-                    case TypeInt:
-                        dataPos += sizeof(int32_t);
-                        break;
-                    case TypeReal:
-                        dataPos += sizeof(float);
-                        break;
-                    case TypeVarChar:
-                        int32_t tmpStrLen;
-                        memcpy(&tmpStrLen, (uint8_t *)data + dataPos, sizeof(int32_t));
-                        dataPos += sizeof(int32_t);
-                        dataPos += tmpStrLen;
-                        break;
+                if(ixFHMap.find(indexedAttrAndFileName[attrs[i].name]) == ixFHMap.end()) {
+                    IXFileHandle fh;
+                    ret = ix.openFile(indexedAttrAndFileName[attrs[i].name], fh);
+                    if(ret) return ret;
+                    ixFHMap[indexedAttrAndFileName[attrs[i].name]] = fh;
                 }
+                ret = ix.deleteEntry(ixFHMap[indexedAttrAndFileName[attrs[i].name]], attrs[i], (uint8_t *)data + dataPos, rid);
+                if(ret) return ret;
+            }
+            switch (attrs[i].type) {
+                case TypeInt:
+                    dataPos += sizeof(int32_t);
+                    break;
+                case TypeReal:
+                    dataPos += sizeof(float);
+                    break;
+                case TypeVarChar:
+                    int32_t tmpStrLen;
+                    memcpy(&tmpStrLen, (uint8_t *)data + dataPos, sizeof(int32_t));
+                    dataPos += sizeof(int32_t);
+                    dataPos += tmpStrLen;
+                    break;
             }
         }
 
@@ -466,7 +479,7 @@ namespace PeterDB {
         return 0;
     }
 
-    RC RelationManager::updateTuple(const std::string &tableName, const void *data, const RID &rid) {
+    RC RelationManager::updateTuple(const std::string &tableName, const void *newData, const RID &rid) {
         if(!isTableAccessible(tableName)) {
             return ERR_ACCESS_DENIED_SYS_TABLE;
         }
@@ -490,7 +503,84 @@ namespace PeterDB {
                 return ret;
             }
         }
-        ret = rbfm.updateRecord(tableFileHandle, attrs, data, rid);
+
+        // 1. Update tuple in index
+        IndexManager& ix = IndexManager::instance();
+        std::unordered_map<std::string, std::string> indexedAttrAndFileName;
+        ret = getIndexes(tableName, indexedAttrAndFileName);
+        if(ret) return ret;
+
+        uint8_t oldData[PAGE_SIZE] = {};
+        ret = rbfm.readRecord(tableFileHandle, attrs, rid, oldData);
+        if(ret) return ret;
+
+        // Delete and re-insert
+        int32_t dataPos = ceil(attrs.size() / 8.0);
+        for(int i = 0; i < attrs.size(); i++) {
+            if(RecordHelper::isAttrNull(oldData, i)) {
+                continue;
+            }
+            if(indexedAttrAndFileName.find(attrs[i].name) != indexedAttrAndFileName.end()) {
+                // delete old entry and insert new entry
+                if(ixFHMap.find(indexedAttrAndFileName[attrs[i].name]) == ixFHMap.end()) {
+                    IXFileHandle fh;
+                    ret = ix.openFile(indexedAttrAndFileName[attrs[i].name], fh);
+                    if(ret) return ret;
+                    ixFHMap[indexedAttrAndFileName[attrs[i].name]] = fh;
+                }
+                ret = ix.deleteEntry(ixFHMap[indexedAttrAndFileName[attrs[i].name]], attrs[i], (uint8_t *)oldData + dataPos, rid);
+                if(ret) return ret;
+            }
+            switch (attrs[i].type) {
+                case TypeInt:
+                    dataPos += sizeof(int32_t);
+                    break;
+                case TypeReal:
+                    dataPos += sizeof(float);
+                    break;
+                case TypeVarChar:
+                    int32_t tmpStrLen;
+                    memcpy(&tmpStrLen, (uint8_t *)oldData + dataPos, sizeof(int32_t));
+                    dataPos += sizeof(int32_t);
+                    dataPos += tmpStrLen;
+                    break;
+            }
+        }
+
+        dataPos = ceil(attrs.size() / 8.0);
+        for(int i = 0; i < attrs.size(); i++) {
+            if(RecordHelper::isAttrNull((uint8_t *)newData, i)) {
+                continue;
+            }
+            if(indexedAttrAndFileName.find(attrs[i].name) != indexedAttrAndFileName.end()) {
+                // insert entry into each index
+                if(ixFHMap.find(indexedAttrAndFileName[attrs[i].name]) == ixFHMap.end()) {
+                    IXFileHandle fh;
+                    ret = ix.openFile(indexedAttrAndFileName[attrs[i].name], fh);
+                    if(ret) return ret;
+                    ixFHMap[indexedAttrAndFileName[attrs[i].name]] = fh;
+                }
+                ret = ix.insertEntry(ixFHMap[indexedAttrAndFileName[attrs[i].name]], attrs[i], (uint8_t *)newData + dataPos, rid);
+                if(ret) return ret;
+            }
+            switch (attrs[i].type) {
+                case TypeInt:
+                    dataPos += sizeof(int32_t);
+                    break;
+                case TypeReal:
+                    dataPos += sizeof(float);
+                    break;
+                case TypeVarChar:
+                    int32_t tmpStrLen;
+                    memcpy(&tmpStrLen, (uint8_t *)newData + dataPos, sizeof(int32_t));
+                    dataPos += sizeof(int32_t);
+                    dataPos += tmpStrLen;
+                    break;
+            }
+        }
+
+        // 2. Update tuple in table
+        ret = rbfm.updateRecord(tableFileHandle, attrs, newData, rid);
         if(ret) {
             return ret;
         }
