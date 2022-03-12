@@ -288,6 +288,7 @@ namespace PeterDB {
         Attribute aggAttr;
         AggregateOp op;
         Attribute groupAttr;
+        bool isGroup = false;
 
         uint8_t readBuffer[PAGE_SIZE] = {};
 
@@ -295,7 +296,11 @@ namespace PeterDB {
         std::vector<float> result;
 
         std::unordered_map<int32_t, std::pair<int32_t, float>> intHash;
+        std::vector<std::pair<int32_t, float>> intResult;
         std::unordered_map<float, std::pair<int32_t, float>> floatHash;
+        std::vector<std::pair<float, float>> floatResult;
+        std::unordered_map<std::string, std::pair<int32_t, float>> strHash;
+        std::vector<std::pair<std::string, float>> strResult;
     public:
         // Mandatory
         // Basic aggregation

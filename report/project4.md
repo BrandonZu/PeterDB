@@ -65,7 +65,10 @@ Maintain a float variable and a counter
 
 - Describe how your group-based aggregation works. (If you have implemented this feature)
 
-
+Build in-memory hash table for int real and varchar group type.
+* For every tuple in outer table, get the group attribute and get the target froup
+* Update the float variable based on the aggregate operation and add the counter by one in the group
+* Calculate the final result using the float variable and counter for each group
 
 ### 9. Implementation Detail
 - Have you added your own module or source file (.cc or .h)?

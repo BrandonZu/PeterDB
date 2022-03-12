@@ -377,6 +377,7 @@ namespace PeterDB {
         this->input = input;
         this->aggAttr = aggAttr;
         this->op = op;
+        this->isGroup = false;
 
         std::vector<Attribute> attrs;
         input->getAttributes(attrs);
@@ -453,30 +454,231 @@ namespace PeterDB {
         this->aggAttr = aggAttr;
         this->op = op;
         this->groupAttr = groupAttr;
+        this->isGroup = true;
 
+        std::vector<Attribute> attrs;
+        input->getAttributes(attrs);
 
+        int32_t intAggKey, intGroupKey;
+        float floatAggKey, floatGroupKey;
+        std::string strGroupKey;
+        
+        while(input->getNextTuple(readBuffer) == 0) {
+            switch (groupAttr.type) {
+                case TypeInt:
+                    ApiDataHelper::getIntAttr(readBuffer, attrs, groupAttr.name, intGroupKey);
+                    if(intHash.find(intGroupKey) == intHash.end()) {
+                        intHash[intGroupKey].first = 0;
+                        switch (op) {
+                            case MAX: intHash[intGroupKey].second = LONG_MIN; break;
+                            case MIN: intHash[intGroupKey].second = LONG_MAX; break;
+                            case SUM:
+                            case AVG:
+                            case COUNT:
+                                intHash[intGroupKey].second = 0;
+                                break;
+                        }
+                    }
+                    intHash[intGroupKey].first++;
+                    break;
+                case TypeReal:
+                    ApiDataHelper::getFloatAttr(readBuffer, attrs, groupAttr.name, floatGroupKey);
+                    if(floatHash.find(floatGroupKey) == floatHash.end()) {
+                        floatHash[floatGroupKey].first = 0;
+                        switch (op) {
+                            case MAX: floatHash[floatGroupKey].second = LONG_MIN; break;
+                            case MIN: floatHash[floatGroupKey].second = LONG_MAX; break;
+                            case SUM:
+                            case AVG:
+                            case COUNT:
+                                floatHash[floatGroupKey].second = 0;
+                                break;
+                        }
+                    }
+                    floatHash[floatGroupKey].first++;
+                    break;
+                case TypeVarChar:
+                    ApiDataHelper::getStrAttr(readBuffer, attrs, groupAttr.name, strGroupKey);
+                    if(strHash.find(strGroupKey) == strHash.end()) {
+                        strHash[strGroupKey].first = 0;
+                        switch (op) {
+                            case MAX: strHash[strGroupKey].second = LONG_MIN; break;
+                            case MIN: strHash[strGroupKey].second = LONG_MAX; break;
+                            case SUM:
+                            case AVG:
+                            case COUNT:
+                                strHash[strGroupKey].second = 0;
+                                break;
+                        }
+                    }
+                    strHash[strGroupKey].first++;
+                    break;
+            }
+            switch (op) {
+                case MAX:
+                    if(aggAttr.type == TypeInt) {
+                        ApiDataHelper::getIntAttr(readBuffer, attrs, aggAttr.name, intAggKey);
+                        intHash[intGroupKey].second = std::max(intHash[intGroupKey].second, (float)intAggKey);
+                    }
+                    else if(aggAttr.type == TypeReal) {
+                        ApiDataHelper::getFloatAttr(readBuffer, attrs, aggAttr.name, floatAggKey);
+                        floatHash[floatGroupKey].second = std::max(floatHash[floatGroupKey].second, floatAggKey);
+                    }
+                    break;
+                case MIN:
+                    if(aggAttr.type == TypeInt) {
+                        ApiDataHelper::getIntAttr(readBuffer, attrs, aggAttr.name, intAggKey);
+                        intHash[intGroupKey].second = std::min(intHash[intGroupKey].second, (float)intAggKey);
+                    }
+                    else if(aggAttr.type == TypeReal) {
+                        ApiDataHelper::getFloatAttr(readBuffer, attrs, aggAttr.name, floatAggKey);
+                        floatHash[floatGroupKey].second = std::min(floatHash[floatGroupKey].second, floatAggKey);
+                    }
+                    break;
+                case SUM:
+                case AVG:
+                    if(aggAttr.type == TypeInt) {
+                        ApiDataHelper::getIntAttr(readBuffer, attrs, aggAttr.name, intAggKey);
+                        intHash[intGroupKey].second += intAggKey;
+                    }
+                    else if(aggAttr.type == TypeReal) {
+                        ApiDataHelper::getFloatAttr(readBuffer, attrs, aggAttr.name, floatAggKey);
+                        floatHash[floatGroupKey].second += floatAggKey;
+                    }
+                    break;
+                case COUNT:
+                    break;
+            }
+        }
+
+        switch (groupAttr.type) {
+            case TypeInt:
+                for(auto& p: intHash) {
+                    switch (op) {
+                        case MAX:
+                        case MIN:
+                        case SUM:
+                            intResult.push_back({p.first, p.second.second});
+                            break;
+                        case COUNT:
+                            intResult.push_back({p.first, p.second.first});
+                            break;
+                        case AVG:
+                            intResult.push_back({p.first, p.second.second / p.second.first});
+                            break;
+                    }
+                }
+                break;
+            case TypeReal:
+                for(auto& p: floatHash) {
+                    switch (op) {
+                        case MAX:
+                        case MIN:
+                        case SUM:
+                            floatResult.push_back({p.first, p.second.second});
+                            break;
+                        case COUNT:
+                            floatResult.push_back({p.first, p.second.first});
+                            break;
+                        case AVG:
+                            floatResult.push_back({p.first, p.second.second / p.second.first});
+                            break;
+                    }
+                }
+                break;
+            case TypeVarChar:
+                for(auto& p: strHash) {
+                    switch (op) {
+                        case MAX:
+                        case MIN:
+                        case SUM:
+                            strResult.push_back({p.first, p.second.second});
+                            break;
+                        case COUNT:
+                            strResult.push_back({p.first, p.second.first});
+                            break;
+                        case AVG:
+                            strResult.push_back({p.first, p.second.second / p.second.first});
+                            break;
+                    }
+                }
+                break;
+        }
     }
 
     Aggregate::~Aggregate() = default;
 
     RC Aggregate::getNextTuple(void *data) {
-        if(result_pos >= result.size()) {
-            return QE_EOF;
+        if(isGroup) {
+            int32_t pos = 0;
+            switch (groupAttr.type) {
+                case TypeInt:
+                    if (result_pos >= intResult.size()) {
+                        return QE_EOF;
+                    }
+
+                    *(uint8_t *) data = 0;
+                    pos = 1;
+                    *(int32_t *) ((uint8_t *) data + pos) = intResult[result_pos].first;
+                    pos += sizeof(int32_t);
+                    *(float *) ((uint8_t *) data + pos) = intResult[result_pos].second;
+                    break;
+                case TypeReal:
+                    if (result_pos >= floatResult.size()) {
+                        return QE_EOF;
+                    }
+
+                    *(uint8_t *) data = 0;
+                    pos = 1;
+                    *(float *) ((uint8_t *) data + pos) = floatResult[result_pos].first;
+                    pos += sizeof(float);
+                    *(float *) ((uint8_t *) data + pos) = floatResult[result_pos].second;
+                    break;
+                case TypeVarChar:
+                    if (result_pos >= floatResult.size()) {
+                        return QE_EOF;
+                    }
+
+                    *(uint8_t *) data = 0;
+                    pos = 1;
+                    *(int32_t *) ((uint8_t *) data + pos) = strResult[result_pos].first.size();
+                    pos += sizeof(int32_t);
+                    memcpy((uint8_t *) data + pos, strResult[result_pos].first.c_str(),
+                           strResult[result_pos].first.size());
+                    pos += strResult[result_pos].first.size();
+                    *(float *) ((uint8_t *) data + pos) = strResult[result_pos].second;
+                    break;
+            }
         }
-        *(uint8_t *)data = 0;
-        *(float *)((uint8_t *)data + 1) = result[result_pos];
+        else {
+            if(result_pos >= result.size()) {
+                return QE_EOF;
+            }
+            *(uint8_t *)data = 0;
+            *(float *)((uint8_t *)data + 1) = result[result_pos];
+        }
         result_pos++;
         return 0;
     }
 
     RC Aggregate::getAttributes(std::vector<Attribute> &attrs) const {
         std::string opName;
-        switch(this->op){
-            case MIN: opName = "MIN"; break;
-            case MAX: opName = "MAX"; break;
-            case COUNT: opName = "COUNT"; break;
-            case SUM: opName = "SUM"; break;
-            case AVG: opName = "AVG"; break;
+        switch (this->op) {
+            case MIN:
+                opName = "MIN";
+                break;
+            case MAX:
+                opName = "MAX";
+                break;
+            case COUNT:
+                opName = "COUNT";
+                break;
+            case SUM:
+                opName = "SUM";
+                break;
+            case AVG:
+                opName = "AVG";
+                break;
         }
 
         Attribute attr;
@@ -485,6 +687,9 @@ namespace PeterDB {
         attr.length = sizeof(float);
 
         attrs.clear();
+        if (isGroup) {
+            attrs.push_back(groupAttr);
+        }
         attrs.push_back(attr);
         return 0;
     }
