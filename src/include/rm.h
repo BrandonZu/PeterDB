@@ -152,8 +152,8 @@ namespace PeterDB {
         FileHandle tableFileHandle;
         IXFileHandle ixFileHandle;
 
-        std::vector<IXFileHandle> ixScanFHList;
-        std::unordered_map<std::string, IXFileHandle> ixFHMap;
+        std::vector<IXFileHandle*> ixScanFHList;
+        std::unordered_map<std::string, IXFileHandle*> ixFHMap;
     public:
         static RelationManager &instance();
 

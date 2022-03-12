@@ -12,10 +12,10 @@ namespace PeterDB {
 
     RelationManager::~RelationManager() {
         for(auto& fh: ixScanFHList) {
-            fh.close();
+            delete fh;
         }
         for(auto& p: ixFHMap) {
-            p.second.close();
+            delete p.second;
         }
         ixScanFHList.clear();
         ixFHMap.clear();
@@ -378,12 +378,12 @@ namespace PeterDB {
             if(indexedAttrAndFileName.find(attrs[i].name) != indexedAttrAndFileName.end()) {
                 // insert entry into each index
                 if(ixFHMap.find(indexedAttrAndFileName[attrs[i].name]) == ixFHMap.end()) {
-                    IXFileHandle fh;
-                    ret = ix.openFile(indexedAttrAndFileName[attrs[i].name], fh);
+                    IXFileHandle* fh = new IXFileHandle;
+                    ret = ix.openFile(indexedAttrAndFileName[attrs[i].name], *fh);
                     if(ret) return ret;
                     ixFHMap[indexedAttrAndFileName[attrs[i].name]] = fh;
                 }
-                ret = ix.insertEntry(ixFHMap[indexedAttrAndFileName[attrs[i].name]], attrs[i], (uint8_t *)data + dataPos, rid);
+                ret = ix.insertEntry(*ixFHMap[indexedAttrAndFileName[attrs[i].name]], attrs[i], (uint8_t *)data + dataPos, rid);
                 if(ret) return ret;
             }
             switch (attrs[i].type) {
@@ -450,12 +450,12 @@ namespace PeterDB {
             if(indexedAttrAndFileName.find(attrs[i].name) != indexedAttrAndFileName.end()) {
                 // delete entry from each index
                 if(ixFHMap.find(indexedAttrAndFileName[attrs[i].name]) == ixFHMap.end()) {
-                    IXFileHandle fh;
-                    ret = ix.openFile(indexedAttrAndFileName[attrs[i].name], fh);
+                    IXFileHandle* fh = new IXFileHandle;
+                    ret = ix.openFile(indexedAttrAndFileName[attrs[i].name], *fh);
                     if(ret) return ret;
                     ixFHMap[indexedAttrAndFileName[attrs[i].name]] = fh;
                 }
-                ret = ix.deleteEntry(ixFHMap[indexedAttrAndFileName[attrs[i].name]], attrs[i], (uint8_t *)data + dataPos, rid);
+                ret = ix.deleteEntry(*ixFHMap[indexedAttrAndFileName[attrs[i].name]], attrs[i], (uint8_t *)data + dataPos, rid);
                 if(ret) return ret;
             }
             switch (attrs[i].type) {
@@ -529,12 +529,12 @@ namespace PeterDB {
             if(indexedAttrAndFileName.find(attrs[i].name) != indexedAttrAndFileName.end()) {
                 // delete old entry and insert new entry
                 if(ixFHMap.find(indexedAttrAndFileName[attrs[i].name]) == ixFHMap.end()) {
-                    IXFileHandle fh;
-                    ret = ix.openFile(indexedAttrAndFileName[attrs[i].name], fh);
+                    IXFileHandle* fh = new IXFileHandle;
+                    ret = ix.openFile(indexedAttrAndFileName[attrs[i].name], *fh);
                     if(ret) return ret;
                     ixFHMap[indexedAttrAndFileName[attrs[i].name]] = fh;
                 }
-                ret = ix.deleteEntry(ixFHMap[indexedAttrAndFileName[attrs[i].name]], attrs[i], (uint8_t *)oldData + dataPos, rid);
+                ret = ix.deleteEntry(*ixFHMap[indexedAttrAndFileName[attrs[i].name]], attrs[i], (uint8_t *)oldData + dataPos, rid);
                 if(ret) return ret;
             }
             switch (attrs[i].type) {
@@ -561,12 +561,12 @@ namespace PeterDB {
             if(indexedAttrAndFileName.find(attrs[i].name) != indexedAttrAndFileName.end()) {
                 // insert entry into each index
                 if(ixFHMap.find(indexedAttrAndFileName[attrs[i].name]) == ixFHMap.end()) {
-                    IXFileHandle fh;
-                    ret = ix.openFile(indexedAttrAndFileName[attrs[i].name], fh);
+                    IXFileHandle* fh = new IXFileHandle;
+                    ret = ix.openFile(indexedAttrAndFileName[attrs[i].name], *fh);
                     if(ret) return ret;
                     ixFHMap[indexedAttrAndFileName[attrs[i].name]] = fh;
                 }
-                ret = ix.insertEntry(ixFHMap[indexedAttrAndFileName[attrs[i].name]], attrs[i], (uint8_t *)newData + dataPos, rid);
+                ret = ix.insertEntry(*ixFHMap[indexedAttrAndFileName[attrs[i].name]], attrs[i], (uint8_t *)newData + dataPos, rid);
                 if(ret) return ret;
             }
             switch (attrs[i].type) {
@@ -740,12 +740,12 @@ namespace PeterDB {
         }
         std::string ixFileName = indexedAttrAndFileName[attrName];
 
-        IXFileHandle ixScanFH;
-        ret = ix.openFile(ixFileName, ixScanFH);
+        IXFileHandle* ixScanFH = new IXFileHandle;
+        ret = ix.openFile(ixFileName, *ixScanFH);
         if(ret) return ret;
 
         ixScanFHList.push_back(ixScanFH);
-        ret = rm_IndexScanIterator.open(&ixScanFHList.back(), attrs[attr_pos], (uint8_t *)lowKey, (uint8_t *)highKey, lowKeyInclusive, highKeyInclusive);
+        ret = rm_IndexScanIterator.open(ixScanFH, attrs[attr_pos], (uint8_t *)lowKey, (uint8_t *)highKey, lowKeyInclusive, highKeyInclusive);
         if(ret) return ret;
 
         return 0;
