@@ -7,8 +7,8 @@
 #include <sys/resource.h>
 #include <sstream>
 #include <fstream>
-#include <dirent.h>
 #include <random>
+#include <dirent.h>
 
 #include "glog/logging.h"
 #include "gtest/gtest.h"

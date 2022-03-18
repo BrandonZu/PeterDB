@@ -17,8 +17,8 @@
             "input": "",
             "output": "",
             "comparison": "included",
-            "timeout": 0,
-            "points": 0.0
+            "timeout": 1,
+            "points": 4
         },
         {
             "name": "QE_Test.table_scan_with_int_filter",
@@ -27,8 +27,8 @@
             "input": "",
             "output": "",
             "comparison": "included",
-            "timeout": 0,
-            "points": 0.0
+            "timeout": 1,
+            "points": 4
         },
         {
             "name": "QE_Test.table_scan_with_varchar_filter",
@@ -37,8 +37,8 @@
             "input": "",
             "output": "",
             "comparison": "included",
-            "timeout": 0,
-            "points": 0.0
+            "timeout": 1,
+            "points": 4
         },
         {
             "name": "QE_Test.index_scan_with_real_filter",
@@ -47,8 +47,8 @@
             "input": "",
             "output": "",
             "comparison": "included",
-            "timeout": 0,
-            "points": 0.0
+            "timeout": 1,
+            "points": 4
         },
         {
             "name": "QE_Test.table_scan_with_project",
@@ -57,8 +57,8 @@
             "input": "",
             "output": "",
             "comparison": "included",
-            "timeout": 0,
-            "points": 0.0
+            "timeout": 1,
+            "points": 4
         },
         {
             "name": "QE_Test.bnljoin",
@@ -67,8 +67,8 @@
             "input": "",
             "output": "",
             "comparison": "included",
-            "timeout": 0,
-            "points": 0.0
+            "timeout": 1,
+            "points": 5
         },
         {
             "name": "QE_Test.bnljoin_with_filter",
@@ -77,8 +77,8 @@
             "input": "",
             "output": "",
             "comparison": "included",
-            "timeout": 0,
-            "points": 0.0
+            "timeout": 1,
+            "points": 5
         },
         {
             "name": "QE_Test.inljoin",
@@ -87,8 +87,8 @@
             "input": "",
             "output": "",
             "comparison": "included",
-            "timeout": 0,
-            "points": 0.0
+            "timeout": 1,
+            "points": 5
         },
         {
             "name": "QE_Test.inljoin_with_filter_and_project",
@@ -97,8 +97,8 @@
             "input": "",
             "output": "",
             "comparison": "included",
-            "timeout": 0,
-            "points": 0.0
+            "timeout": 1,
+            "points": 5
         },
         {
             "name": "QE_Test.table_scan_with_max_aggregation",
@@ -107,8 +107,8 @@
             "input": "",
             "output": "",
             "comparison": "included",
-            "timeout": 0,
-            "points": 0.0
+            "timeout": 1,
+            "points": 5
         },
         {
             "name": "QE_Test.index_scan_with_avg_aggregation",
@@ -117,8 +117,8 @@
             "input": "",
             "output": "",
             "comparison": "included",
-            "timeout": 0,
-            "points": 0.0
+            "timeout": 1,
+            "points": 5
         },
         {
             "name": "QE_Test.ghjoin_on_int",
@@ -127,8 +127,8 @@
             "input": "",
             "output": "",
             "comparison": "included",
-            "timeout": 0,
-            "points": 0.0
+            "timeout": 3,
+            "points": 4
         },
         {
             "name": "QE_Test.ghjoin_on_real",
@@ -137,8 +137,8 @@
             "input": "",
             "output": "",
             "comparison": "included",
-            "timeout": 0,
-            "points": 0.0
+            "timeout": 3,
+            "points": 4
         },
         {
             "name": "QE_Test.table_scan_with_group_min_aggregation",
@@ -147,8 +147,8 @@
             "input": "",
             "output": "",
             "comparison": "included",
-            "timeout": 0,
-            "points": 0.0
+            "timeout": 1,
+            "points": 2
         },
         {
             "name": "QE_Test.table_scan_with_group_sum_aggregation",
@@ -157,8 +157,108 @@
             "input": "",
             "output": "",
             "comparison": "included",
-            "timeout": 0,
-            "points": 0.0
+            "timeout": 1,
+            "points": 2
+        },
+        {
+            "name": "QE_Private_Test.scan_with_update_and_delete",
+            "setup": "",
+            "run": "cd cmake-build-debug && CTEST_OUTPUT_ON_FAILURE=1 ctest . -R ^QE_Private_Test.scan_with_update_and_delete$",
+            "input": "",
+            "output": "",
+            "comparison": "included",
+            "timeout": 1,
+            "points": 5
+        },
+        {
+            "name": "QE_Private_Test.scan_with_update_to_null",
+            "setup": "",
+            "run": "cd cmake-build-debug && CTEST_OUTPUT_ON_FAILURE=1 ctest . -R ^QE_Private_Test.scan_with_update_to_null$",
+            "input": "",
+            "output": "",
+            "comparison": "included",
+            "timeout": 1,
+            "points": 5
+        },
+        {
+            "name": "QE_Private_Test.index_scan_with_range_real_cond_on_same_attr",
+            "setup": "",
+            "run": "cd cmake-build-debug && CTEST_OUTPUT_ON_FAILURE=1 ctest . -R ^QE_Private_Test.index_scan_with_range_real_cond_on_same_attr$",
+            "input": "",
+            "output": "",
+            "comparison": "included",
+            "timeout": 3,
+            "points": 5
+        },
+        {
+            "name": "QE_Private_Test.table_scan_with_range_int_cond_on_different_attr",
+            "setup": "",
+            "run": "cd cmake-build-debug && CTEST_OUTPUT_ON_FAILURE=1 ctest . -R ^QE_Private_Test.table_scan_with_range_int_cond_on_different_attr$",
+            "input": "",
+            "output": "",
+            "comparison": "included",
+            "timeout": 3,
+            "points": 5
+        },
+        {
+            "name": "QE_Private_Test.large_bnljoin_with_filter",
+            "setup": "",
+            "run": "cd cmake-build-debug && CTEST_OUTPUT_ON_FAILURE=1 ctest . -R ^QE_Private_Test.large_bnljoin_with_filter$",
+            "input": "",
+            "output": "",
+            "comparison": "included",
+            "timeout": 3,
+            "points": 5
+        },
+        {
+            "name": "QE_Private_Test.deep_bnljoin",
+            "setup": "",
+            "run": "cd cmake-build-debug && CTEST_OUTPUT_ON_FAILURE=1 ctest . -R ^QE_Private_Test.deep_bnljoin$",
+            "input": "",
+            "output": "",
+            "comparison": "included",
+            "timeout": 1,
+            "points": 5
+        },
+        {
+            "name": "QE_Private_Test.deep_inljoin",
+            "setup": "",
+            "run": "cd cmake-build-debug && CTEST_OUTPUT_ON_FAILURE=1 ctest . -R ^QE_Private_Test.deep_inljoin$",
+            "input": "",
+            "output": "",
+            "comparison": "included",
+            "timeout": 1,
+            "points": 5
+        },
+        {
+            "name": "QE_Private_Test.inljoin_bnljoin_with_project",
+            "setup": "",
+            "run": "cd cmake-build-debug && CTEST_OUTPUT_ON_FAILURE=1 ctest . -R ^QE_Private_Test.inljoin_bnljoin_with_project$",
+            "input": "",
+            "output": "",
+            "comparison": "included",
+            "timeout": 1,
+            "points": 5
+        },
+        {
+            "name": "QE_Private_Test.ghjoin_on_varchar",
+            "setup": "",
+            "run": "cd cmake-build-debug && CTEST_OUTPUT_ON_FAILURE=1 ctest . -R ^QE_Private_Test.ghjoin_on_varchar$",
+            "input": "",
+            "output": "",
+            "comparison": "included",
+            "timeout": 3,
+            "points": 2
+        },
+        {
+            "name": "QE_Private_Test.index_scan_with_group_count_aggregation",
+            "setup": "",
+            "run": "cd cmake-build-debug && CTEST_OUTPUT_ON_FAILURE=1 ctest . -R ^QE_Private_Test.index_scan_with_group_count_aggregation",
+            "input": "",
+            "output": "",
+            "comparison": "included",
+            "timeout": 3,
+            "points": 1
         }
     ]
 }
