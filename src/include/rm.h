@@ -19,6 +19,7 @@ namespace PeterDB {
         const int32_t CATALOG_TABLES_FILENAME_LEN = 50;
         const int32_t CATALOG_TABLES_ATTR_NUM = 4;
         const int32_t CATALOG_TABLES_ATTR_NULL = -1;
+        const int32_t CATALOG_TABLES_VERSION_INIT = 0;
 
         const std::string CATALOG_COLUMNS_TABLEID = "table-id";
         const std::string CATALOG_COLUMNS_COLUMNNAME = "column-name";
@@ -29,6 +30,7 @@ namespace PeterDB {
         const int32_t CATALOG_COLUMNS_COLUMNNAME_LEN = 50;
         const int32_t CATALOG_COLUMNS_ATTR_NUM = 6;
         const int32_t CATALOG_COLUMNS_ATTR_NULL = -1;
+        const int32_t CATALOG_COLUMNS_VERSION_INIT = 0;
 
         const std::string CATALOG_INDEXES_TABLEID = "table-id";
         const std::string CATALOG_INDEXES_ATTRNAME = "attribute-name";
@@ -68,9 +70,10 @@ namespace PeterDB {
         int32_t tableID;
         std::string tableName;
         std::string fileName;
+        int32_t tableVersion;
 
         CatalogTablesRecord();
-        CatalogTablesRecord(int32_t id, const std::string& name, const std::string& file);
+        CatalogTablesRecord(int32_t id, const std::string& name, const std::string& file, int32_t version);
         CatalogTablesRecord(uint8_t* apiData, const std::vector<std::string>& attrNames);
 
         ~CatalogTablesRecord();
@@ -86,9 +89,10 @@ namespace PeterDB {
         int32_t columnType;
         int32_t columnLen;
         int32_t columnPos;
+        int32_t columnVersion;
 
         CatalogColumnsRecord();
-        CatalogColumnsRecord(int32_t id, const std::string& name, int32_t type, int32_t length, int32_t pos);
+        CatalogColumnsRecord(int32_t id, const std::string& name, int32_t type, int32_t length, int32_t pos, int32_t version);
         CatalogColumnsRecord(uint8_t* apiData, const std::vector<std::string>& attrNames);
 
         ~CatalogColumnsRecord();

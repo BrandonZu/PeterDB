@@ -4,17 +4,18 @@ using namespace PeterDB::RM;
 
 namespace PeterDB {
     CatalogColumnsRecord::CatalogColumnsRecord() {
-        tableID = columnType = columnLen = columnPos = CATALOG_COLUMNS_ATTR_NULL;
+        tableID = columnType = columnLen = columnPos = columnVersion = CATALOG_COLUMNS_ATTR_NULL;
     }
 
     CatalogColumnsRecord::~CatalogColumnsRecord() = default;
 
-    CatalogColumnsRecord::CatalogColumnsRecord(int32_t id, const std::string& name, int32_t type, int32_t length, int32_t pos) {
+    CatalogColumnsRecord::CatalogColumnsRecord(int32_t id, const std::string& name, int32_t type, int32_t length, int32_t pos, int32_t version) {
         tableID = id;
         columnName = name;
         columnType = type;
         columnLen = length;
         columnPos = pos;
+        columnVersion = version;
     }
 
     CatalogColumnsRecord::CatalogColumnsRecord(uint8_t* apiData, const std::vector<std::string>& attrNames) {
@@ -70,6 +71,14 @@ namespace PeterDB {
         else {
             columnPos = CATALOG_COLUMNS_ATTR_NULL;
         }
+        // Column Version
+        if(attrSet.find(CATALOG_COLUMNS_COLUMNVERSION) != attrSet.end()) {
+            memcpy(&columnVersion, apiData + apiDataPos, sizeof(columnVersion));
+            apiDataPos += sizeof(columnVersion);
+        }
+        else {
+            columnVersion = CATALOG_COLUMNS_ATTR_NULL;
+        }
         return 0;
     }
 
@@ -99,6 +108,9 @@ namespace PeterDB {
         // Attr Pos
         memcpy(apiData + apiDataPos, &columnPos, sizeof(columnPos));
         apiDataPos += sizeof(columnPos);
+        // Col Version
+        memcpy(apiData + apiDataPos, &columnVersion, sizeof(columnVersion));
+        apiDataPos += sizeof(columnVersion);
         return 0;
     }
 

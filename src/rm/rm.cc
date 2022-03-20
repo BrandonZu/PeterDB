@@ -793,7 +793,7 @@ namespace PeterDB {
         uint8_t data[PAGE_SIZE];
         bzero(data, PAGE_SIZE);
         // Insert one table record into TABLES catalog
-        CatalogTablesRecord tablesRecord(tableID, tableName, tableName);
+        CatalogTablesRecord tablesRecord(tableID, tableName, tableName, CATALOG_TABLES_VERSION_INIT);
         tablesRecord.getRecordAPIFormat(data);
         ret = rbfm.insertRecord(catalogTablesFH, catalogTablesSchema, data, rid);
         if(ret) {
@@ -802,7 +802,7 @@ namespace PeterDB {
         }
         // Insert all column records into COLUMNS catalog
         for(int32_t i = 0; i < schema.size(); i++) {       // Column position starts from 1
-            CatalogColumnsRecord columnsRecord(tableID, schema[i].name, schema[i].type, schema[i].length, i + 1);
+            CatalogColumnsRecord columnsRecord(tableID, schema[i].name, schema[i].type, schema[i].length, i + 1, CATALOG_COLUMNS_VERSION_INIT);
             columnsRecord.getRecordAPIFormat(data);
             ret = rbfm.insertRecord(catalogColumnsFH, catalogColumnsSchema, data, rid);
             if(ret) {
