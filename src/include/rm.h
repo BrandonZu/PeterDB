@@ -14,9 +14,10 @@ namespace PeterDB {
         const std::string CATALOG_TABLES_TABLEID = "table-id";
         const std::string CATALOG_TABLES_TABLENAME = "table-name";
         const std::string CATALOG_TABLES_FILENAME = "file-name";
+        const std::string CATALOG_TABLES_TABLEVERSION = "table-version";
         const int32_t CATALOG_TABLES_TABLENAME_LEN = 50;
         const int32_t CATALOG_TABLES_FILENAME_LEN = 50;
-        const int32_t CATALOG_TABLES_ATTR_NUM = 3;
+        const int32_t CATALOG_TABLES_ATTR_NUM = 4;
         const int32_t CATALOG_TABLES_ATTR_NULL = -1;
 
         const std::string CATALOG_COLUMNS_TABLEID = "table-id";
@@ -24,8 +25,9 @@ namespace PeterDB {
         const std::string CATALOG_COLUMNS_COLUMNTYPE = "column-type";
         const std::string CATALOG_COLUMNS_COLUMNLENGTH = "column-length";
         const std::string CATALOG_COLUMNS_COLUMNPOS = "column-position";
+        const std::string CATALOG_COLUMNS_COLUMNVERSION = "column-version";
         const int32_t CATALOG_COLUMNS_COLUMNNAME_LEN = 50;
-        const int32_t CATALOG_COLUMNS_ATTR_NUM = 5;
+        const int32_t CATALOG_COLUMNS_ATTR_NUM = 6;
         const int32_t CATALOG_COLUMNS_ATTR_NULL = -1;
 
         const std::string CATALOG_INDEXES_TABLEID = "table-id";
@@ -43,7 +45,8 @@ namespace PeterDB {
         const std::vector<Attribute> catalogTablesSchema = std::vector<Attribute>{
                 Attribute{CATALOG_TABLES_TABLEID, TypeInt, sizeof(int32_t)},
                 Attribute{CATALOG_TABLES_TABLENAME, TypeVarChar, CATALOG_TABLES_TABLENAME_LEN},
-                Attribute{CATALOG_TABLES_FILENAME, TypeVarChar, CATALOG_TABLES_FILENAME_LEN}
+                Attribute{CATALOG_TABLES_FILENAME, TypeVarChar, CATALOG_TABLES_FILENAME_LEN},
+                Attribute{CATALOG_TABLES_TABLEVERSION, TypeInt, sizeof(int32_t)}
         };
         const std::vector<Attribute> catalogColumnsSchema = std::vector<Attribute>{
                 Attribute{CATALOG_COLUMNS_TABLEID, TypeInt, sizeof(int32_t)},
@@ -51,6 +54,7 @@ namespace PeterDB {
                 Attribute{CATALOG_COLUMNS_COLUMNTYPE, TypeInt, sizeof(int32_t)},
                 Attribute{CATALOG_COLUMNS_COLUMNLENGTH, TypeInt, sizeof(int32_t)},
                 Attribute{CATALOG_COLUMNS_COLUMNPOS, TypeInt, sizeof(int32_t)},
+                Attribute{CATALOG_COLUMNS_COLUMNVERSION, TypeInt, sizeof(int32_t)}
         };
         const std::vector<Attribute> catalogIndexesSchema = std::vector<Attribute>{
                 Attribute{CATALOG_INDEXES_TABLEID, TypeInt, sizeof(int32_t)},

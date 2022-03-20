@@ -2,24 +2,28 @@
 
 namespace PeterDB {
     // Record Format
-    // Mask(2) | AttrNum(2) | Directory:Attr End Postions, 2 * AttrNum | Attr1(2) | Attr2(2) | Attr3(2) | ... | AttrN(2) |
+    // Mask(1) | Version(1) | AttrNum(2) | Directory:Attr End Postions, 2 * AttrNum | Attr1(2) | Attr2(2) | Attr3(2) | ... | AttrN(2) |
     RC RecordHelper::APIFormatToRecordByteSeq(uint8_t* apiData, const std::vector<Attribute> &attrs,
                                               uint8_t* byteSeq, int16_t& recordLen) {
-        // 0. Write Mask: 0x00 Record; 0x01 Pointer
-        int16_t mask = RECORD_MASK_REALRECORD;
+        // 0. Write Mask: 0x0 Record; 0x1 Pointer
+        int8_t mask = RECORD_MASK_REALRECORD;
         memcpy(byteSeq, &mask, RECORD_MASK_LEN);
 
-        // 1. Write Attribute Number
-        int16_t attrNum = attrs.size();
-        memcpy(byteSeq + RECORD_MASK_LEN, &attrNum, RECORD_ATTRNUM_LEN);
+        // 1. Write Version: 0x0 default
+        int8_t version = RECORD_VERSION_INITIAL;
+        memcpy(byteSeq + RECORD_MASK_LEN, &version, RECORD_VERSION_LEN);
 
-        // 2. Write Directory
+        // 2. Write Attribute Number
+        int16_t attrNum = attrs.size();
+        memcpy(byteSeq + RECORD_MASK_LEN + RECORD_VERSION_LEN, &attrNum, RECORD_ATTRNUM_LEN);
+
+        // 3. Write Directory
         int16_t dictOffset = RECORD_DICT_BEGIN, dictLen = attrNum * RECORD_DICT_SLOT_LEN;
         int16_t valOffset = dictOffset + dictLen;
         int16_t dictPos = dictOffset, valPos = valOffset;
         int16_t rawDataPos = ceil(attrNum / 8.0);
 
-        // Fill each attribute's dict slot
+        // 4. Fill each attribute's dict slot
         for(int16_t i = 0; i < attrNum; i++, dictPos += RECORD_DICT_SLOT_LEN) {
             if(isAttrNull(apiData, i)) {
                 int16_t attrEndPos = RECORD_ATTR_NULL_ENDPOS;
@@ -75,11 +79,8 @@ namespace PeterDB {
 
         // 2. Write Attr Values
         int16_t apiDataPos = nullByteNum;
-
-        int16_t attrDictPos = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN;
-
         // Last Not Null Attr's End Pos - Initial Value: attrValOffset
-        for(int16_t i = 0; i < selectedAttrNum; i++, attrDictPos += RECORD_DICT_SLOT_LEN) {
+        for(int16_t i = 0; i < selectedAttrNum; i++) {
             int16_t attrIndex = selectedAttrIndex[i];
             int16_t attrEndPos = getAttrEndPos(byteSeq, attrIndex);
             int16_t attrBeginPos = getAttrBeginPos(byteSeq, attrIndex);
@@ -131,7 +132,7 @@ namespace PeterDB {
 
     int16_t RecordHelper::getRecordAttrNum(uint8_t* byteSeq) {
         int16_t attrNum;
-        memcpy(&attrNum, byteSeq + RECORD_MASK_LEN, RECORD_ATTRNUM_LEN);
+        memcpy(&attrNum, byteSeq + RECORD_MASK_LEN + RECORD_VERSION_LEN, RECORD_ATTRNUM_LEN);
         return attrNum;
     }
 
@@ -149,13 +150,13 @@ namespace PeterDB {
             }
         }
         if(prevOffset == -1) {
-            prevOffset = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN + getRecordAttrNum(byteSeq) * RECORD_DICT_SLOT_LEN;
+            prevOffset = RECORD_DICT_BEGIN + getRecordAttrNum(byteSeq) * RECORD_DICT_SLOT_LEN;
         }
         return prevOffset;
     }
 
     int16_t RecordHelper::getAttrEndPos(uint8_t* byteSeq, int16_t attrIndex) {
-        int16_t dictOffset = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN + attrIndex * RECORD_DICT_SLOT_LEN;
+        int16_t dictOffset = RECORD_DICT_BEGIN + attrIndex * RECORD_DICT_SLOT_LEN;
         int16_t attrEndPos;
         memcpy(&attrEndPos, byteSeq + dictOffset, RECORD_DICT_SLOT_LEN);
         return attrEndPos;

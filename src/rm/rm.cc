@@ -671,9 +671,6 @@ namespace PeterDB {
                              const void *value,
                              const std::vector<std::string> &attributeNames,
                              RM_ScanIterator &rm_ScanIterator) {
-        if(!isTableAccessible(tableName)) {
-            return ERR_ACCESS_DENIED_SYS_TABLE;
-        }
         if(!isTableNameValid(tableName)) {
             return ERR_TABLE_NAME_INVALID;
         }
@@ -751,7 +748,19 @@ namespace PeterDB {
         return 0;
     }
 
-    // Extra credit work
+    RC RelationManager::addAttribute(const std::string &tableName, const Attribute &attr) {
+        if(!isTableAccessible(tableName)) {
+            return ERR_ACCESS_DENIED_SYS_TABLE;
+        }
+        if(!isTableNameValid(tableName)) {
+            return ERR_TABLE_NAME_INVALID;
+        }
+        RC ret = 0;
+
+
+        return 0;
+    }
+
     RC RelationManager::dropAttribute(const std::string &tableName, const std::string &attributeName) {
         if(!isTableAccessible(tableName)) {
             return ERR_ACCESS_DENIED_SYS_TABLE;
@@ -762,17 +771,6 @@ namespace PeterDB {
         RC ret = 0;
 
         return 0;
-    }
-
-    // Extra credit work
-    RC RelationManager::addAttribute(const std::string &tableName, const Attribute &attr) {
-        if(!isTableAccessible(tableName)) {
-            return ERR_ACCESS_DENIED_SYS_TABLE;
-        }
-        if(!isTableNameValid(tableName)) {
-            return ERR_TABLE_NAME_INVALID;
-        }
-        return -1;
     }
 
     RC RelationManager::insertTableColIntoCatalog(const std::string& tableName, std::vector<Attribute> schema) {

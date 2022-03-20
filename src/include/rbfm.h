@@ -54,18 +54,20 @@ namespace PeterDB {
     const int16_t APIRECORD_STRLEN_LEN = 4;
 
     // Constant values for Record format
-    const uint16_t RECORD_MASK_REALRECORD = 0;
-    const uint16_t RECORD_MASK_PTRRECORD = 1;
+    const int8_t RECORD_MASK_REALRECORD = 0;
+    const int8_t RECORD_MASK_PTRRECORD = 1;
+    const int8_t RECORD_VERSION_INITIAL = 0;
     const int16_t RECORD_ATTR_NULL_ENDPOS = -1;
 
-    const int16_t RECORD_MASK_LEN = 2;
+    const int16_t RECORD_MASK_LEN = 1;
+    const int16_t RECORD_VERSION_LEN = 1;
     const int16_t RECORD_ATTRNUM_LEN = 2;
-    const int16_t RECORD_DICT_BEGIN = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN;
+    const int16_t RECORD_DICT_BEGIN = RECORD_MASK_LEN + RECORD_VERSION_LEN + RECORD_ATTRNUM_LEN;
     const int16_t RECORD_DICT_SLOT_LEN = 2;
 
     const int16_t PTRRECORD_PAGE_INDEX_LEN = 4;
     const int16_t PTRRECORD_SLOT_INDEX_LEN = 2;
-    const int16_t RECORD_MIN_LEN = RECORD_MASK_LEN + PTRRECORD_PAGE_INDEX_LEN + PTRRECORD_SLOT_INDEX_LEN;
+    const int16_t RECORD_MIN_LEN = RECORD_MASK_LEN + RECORD_VERSION_LEN + PTRRECORD_PAGE_INDEX_LEN + PTRRECORD_SLOT_INDEX_LEN;
 
     // Constant values for Page format
     const int16_t PAGE_FREEBYTE_PTR_LEN = 2;
@@ -256,8 +258,11 @@ namespace PeterDB {
         int16_t getRecordLen(int16_t slotIndex);
         void setRecordLen(int16_t slotIndex, int16_t recordLen);
 
-        int16_t getRecordMask(int16_t slotIndex);
-        void setRecordMask(int16_t slotIndex, int16_t recordMask);
+        int8_t getRecordMask(int16_t slotIndex);
+        void setRecordMask(int16_t slotIndex, int8_t recordMask);
+
+        int8_t getRecordVersion(int16_t slotIndex);
+        void setRecordVersion(int16_t slotIndex, int8_t recordVersion);
 
         int16_t getRecordAttrNum(int16_t slotIndex);
         void setRecordAttrNum(int16_t slotIndex, int16_t attrNum);

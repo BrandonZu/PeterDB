@@ -37,7 +37,7 @@ namespace PeterDB {
         }
 
         int16_t recordOffset = getRecordOffset(curSlotNum);
-        int16_t mask;
+        int8_t mask;
         memcpy(&mask, data + recordOffset, RECORD_MASK_LEN);
         if(mask != RECORD_MASK_PTRRECORD) {
             LOG(ERROR) << "Record is not a pointer!" << std::endl;
@@ -199,7 +199,7 @@ namespace PeterDB {
 
     // Record Pointer Format
     // | Mask | Page Index | SlotIndex|
-    // | 2 |   4   | 2 |
+    // | 1 |   4   |  2  |
     RC RecordPageHandle::setRecordPointToNewRecord(int16_t curSlotIndex, const RID& newRecordPos) {
         int16_t recordOffset = getRecordOffset(curSlotIndex);
         int16_t oldRecordLen = getRecordLen(curSlotIndex);
@@ -344,26 +344,35 @@ namespace PeterDB {
         memcpy(data + getSlotOffset(slotIndex) + PAGE_SLOT_RECORD_PTR_LEN, &recordLen, PAGE_SLOT_RECORD_LEN_LEN);
     }
 
-    int16_t RecordPageHandle::getRecordMask(int16_t slotIndex) {
-        int16_t mask;
+    int8_t RecordPageHandle::getRecordMask(int16_t slotIndex) {
+        int8_t mask;
         memcpy(&mask, data + getRecordOffset(slotIndex), RECORD_MASK_LEN);
         return mask;
     }
-    void RecordPageHandle::setRecordMask(int16_t slotIndex, int16_t mask) {
+    void RecordPageHandle::setRecordMask(int16_t slotIndex, int8_t mask) {
         memcpy(data + getRecordOffset(slotIndex), &mask, RECORD_MASK_LEN);
+    }
+
+    int8_t RecordPageHandle::getRecordVersion(int16_t slotIndex) {
+        int8_t version;
+        memcpy(&version, data + getRecordOffset(slotIndex) + RECORD_MASK_LEN, RECORD_VERSION_LEN);
+        return version;
+    }
+    void RecordPageHandle::setRecordVersion(int16_t slotIndex, int8_t recordVersion) {
+        memcpy(data + getRecordOffset(slotIndex) + RECORD_MASK_LEN, &recordVersion, RECORD_VERSION_LEN);
     }
 
     int16_t RecordPageHandle::getRecordAttrNum(int16_t slotIndex) {
         int16_t attrNum;
-        memcpy(&attrNum, data + getRecordOffset(slotIndex) + RECORD_MASK_LEN, RECORD_ATTRNUM_LEN);
+        memcpy(&attrNum, data + getRecordOffset(slotIndex) + RECORD_MASK_LEN + RECORD_VERSION_LEN, RECORD_ATTRNUM_LEN);
         return attrNum;
     }
     void RecordPageHandle::setRecordAttrNum(int16_t slotIndex, int16_t attrNum) {
-        memcpy(data + getRecordOffset(slotIndex) + RECORD_MASK_LEN, &attrNum, RECORD_ATTRNUM_LEN);
+        memcpy(data + getRecordOffset(slotIndex) + RECORD_MASK_LEN + RECORD_VERSION_LEN, &attrNum, RECORD_ATTRNUM_LEN);
     }
 
     bool RecordPageHandle::isRecordPointer(int16_t slotNum) {
-        int16_t mask = getRecordMask(slotNum);
+        int8_t mask = getRecordMask(slotNum);
         return mask == RECORD_MASK_PTRRECORD;
     }
 
@@ -389,14 +398,14 @@ namespace PeterDB {
             }
         }
         if(prevOffset == -1) {
-            prevOffset = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN + getRecordAttrNum(slotIndex) * RECORD_DICT_SLOT_LEN;
+            prevOffset = RECORD_DICT_BEGIN + getRecordAttrNum(slotIndex) * RECORD_DICT_SLOT_LEN;
         }
         return prevOffset;
     }
 
     int16_t RecordPageHandle::getAttrEndPos(int16_t slotIndex, int16_t attrIndex) {
         int16_t recordOffset = getRecordOffset(slotIndex);
-        int16_t dictOffset = RECORD_MASK_LEN + RECORD_ATTRNUM_LEN + attrIndex * RECORD_DICT_SLOT_LEN;
+        int16_t dictOffset = RECORD_DICT_BEGIN + attrIndex * RECORD_DICT_SLOT_LEN;
         int16_t attrEndPos;
         memcpy(&attrEndPos, data + recordOffset + dictOffset, RECORD_DICT_SLOT_LEN);
         return attrEndPos;
