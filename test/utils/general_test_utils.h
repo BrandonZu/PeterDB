@@ -8,7 +8,6 @@
 #include <sstream>
 #include <fstream>
 #include <random>
-#include <dirent.h>
 
 #include "glog/logging.h"
 #include "gtest/gtest.h"
@@ -214,44 +213,11 @@ namespace PeterDBTesting {
 
     // This code is required for testing to measure the memory usage of your code.
     // If you can't compile the codebase because of this function, you can safely comment this function or remove it.
-    // void memProfile() {
-    //     int who = RUSAGE_SELF;
-    //     struct rusage usage{};
-    //     getrusage(who, &usage);
-    //     std::cout << usage.ru_maxrss << "KB" << std::endl;
-    // }
-
-    std::vector<std::string> split(std::string str, const std::string &token) {
-        std::vector<std::string> result;
-        while (!str.empty()) {
-            int index = str.find(token);
-            if (index != std::string::npos) {
-                result.push_back(str.substr(0, index));
-                str = str.substr(index + token.size());
-                if (str.empty())result.emplace_back(str);
-            } else {
-                result.push_back(str);
-                str = "";
-            }
-        }
-        return result;
-    }
-
-    std::vector<std::string> glob(const std::string &suffix) {
-        std::vector<std::string> files;
-        DIR *dpdf;
-        struct dirent *epdf;
-
-        dpdf = opendir("./");
-        if (dpdf != nullptr) {
-            while ((epdf = readdir(dpdf))) {
-                if (strstr(epdf->d_name, suffix.c_str())) {
-                    files.emplace_back(epdf->d_name);
-                }
-            }
-        }
-        closedir(dpdf);
-        return files;
+    void memProfile() {
+        int who = RUSAGE_SELF;
+        struct rusage usage{};
+        getrusage(who, &usage);
+        std::cout << usage.ru_maxrss << "KB" << std::endl;
     }
 
 } // namespace PeterDBTesting

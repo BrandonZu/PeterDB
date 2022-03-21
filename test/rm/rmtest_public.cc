@@ -821,7 +821,7 @@ namespace PeterDBTesting {
 
         ASSERT_TRUE(std::includes(actualAttrs.begin(), actualAttrs.end(),
                                   expectedAttrs.begin(), expectedAttrs.end()))
-                                    << "Tables table's schema is not correct.";
+                                  << "Tables table's schema is not correct.";
 
         PeterDB::RID rid;
         bufSize = 1000;
