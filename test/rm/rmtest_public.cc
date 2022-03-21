@@ -821,7 +821,7 @@ namespace PeterDBTesting {
 
         ASSERT_TRUE(std::includes(actualAttrs.begin(), actualAttrs.end(),
                                   expectedAttrs.begin(), expectedAttrs.end()))
-                                  << "Tables table's schema is not correct.";
+                                    << "Tables table's schema is not correct.";
 
         PeterDB::RID rid;
         bufSize = 1000;
@@ -899,7 +899,7 @@ namespace PeterDBTesting {
         checkCatalog("table-id: x, column-name: table-id, column-type: 0, column-length: 4, column-position: 1");
         checkCatalog("table-id: x, column-name: table-name, column-type: 2, column-length: 50, column-position: 2");
         checkCatalog("table-id: x, column-name: file-name, column-type: 2, column-length: 50, column-position: 3");
-        rmsi.getNextTuple(rid, outBuffer);
+
         // Check Columns table
         checkCatalog("table-id: x, column-name: table-id, column-type: 0, column-length: 4, column-position: 1");
         checkCatalog(
