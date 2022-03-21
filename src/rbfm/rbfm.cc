@@ -32,6 +32,11 @@ namespace PeterDB {
 
     RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                             const void *data, RID &rid) {
+        return insertRecord(fileHandle, recordDescriptor, data, RECORD_VERSION_INITIAL, rid);
+    }
+
+    RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
+                                            const void *data, const int8_t version, RID &rid) {
         RC ret = 0;
         if(!fileHandle.isOpen()) {
             LOG(ERROR) << "FileHandle NOT bound to a file! @ RecordBasedFileManager::insertRecord" << std::endl;
@@ -41,7 +46,7 @@ namespace PeterDB {
         // 1. Transform Record to Byte Sequence
         int16_t recordLen = 0;
         uint8_t buffer[PAGE_SIZE] = {};
-        ret = RecordHelper::APIFormatToRecordByteSeq((uint8_t *) data, recordDescriptor, buffer, recordLen);
+        ret = RecordHelper::APIFormatToRecordByteSeq(version, (uint8_t *)data, recordDescriptor, buffer, recordLen);
         if(ret) {
             LOG(ERROR) << "Fail to Transform Record to Byte Seq @ RecordBasedFileManager::insertRecord" << std::endl;
             return ret;
@@ -69,6 +74,11 @@ namespace PeterDB {
 
     RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                                           const RID &rid, void *data) {
+        return readRecord(fileHandle, recordDescriptor, recordDescriptor, rid, data);
+    }
+
+    RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
+                  const std::vector<Attribute> &selected, const RID &rid, void *data) {
         RC ret = 0;
         if(!fileHandle.isOpen()) {
             LOG(ERROR) << "FileHandle NOT bound to a file! @ RecordBasedFileManager::readRecord" << std::endl;
@@ -111,15 +121,52 @@ namespace PeterDB {
 
         // 3. Transform Record Byte Seq to api format
         // Select all attributes
-        std::vector<uint32_t> selectedAttrIndex(recordDescriptor.size());
-        for(uint32_t i = 0; i < recordDescriptor.size(); i++) {
-            selectedAttrIndex[i] = i;
+        std::vector<uint32_t> selectedAttrIndex;
+        for(auto& attr: selected) {
+            uint32_t index;
+            for(index = 0; index < recordDescriptor.size(); index++) {
+                if(recordDescriptor[index].name == attr.name)
+                    break;
+            }
+            selectedAttrIndex.push_back(index);
         }
         ret = RecordHelper::recordByteSeqToAPIFormat(recordBuffer, recordDescriptor, selectedAttrIndex, (uint8_t *) data);
         if(ret) {
             LOG(ERROR) << "Fail to transform Record to Raw Data @ RecordBasedFileManager::readRecord" << std::endl;
             return ret;
         }
+        return 0;
+    }
+
+    RC RecordBasedFileManager::readRecordVersion(FileHandle &fileHandle, const RID &rid, int8_t& version) {
+        if(!fileHandle.isOpen()) {
+            return ERR_FILE_NOT_OPEN;
+        }
+        if(rid.pageNum >= fileHandle.getNumberOfPages()) {
+            return ERR_PAGE_NOT_EXIST;
+        }
+
+        // 1. Follow the pointer to find the real record
+        int curPageIndex = rid.pageNum;
+        int16_t curSlotIndex = rid.slotNum;
+        while(curPageIndex < fileHandle.getNumberOfPages()) {
+            RecordPageHandle curPageHandle(fileHandle, curPageIndex);
+            if(!curPageHandle.isRecordReadable(curSlotIndex)) {
+                return ERR_SLOT_NOT_EXIST_OR_DELETED;
+            }
+
+            if(!curPageHandle.isRecordPointer(curSlotIndex)) {
+                break;
+            }
+            curPageHandle.getRecordPointerTarget(curSlotIndex, curPageIndex, curSlotIndex);
+        }
+        if(curPageIndex >= fileHandle.getNumberOfPages()) {
+            return ERR_RECORD_NOT_FOUND;
+        }
+
+        // 2. Read Record Version
+        RecordPageHandle pageHandle(fileHandle, curPageIndex);
+        version = pageHandle.getRecordVersion(curSlotIndex);
         return 0;
     }
 

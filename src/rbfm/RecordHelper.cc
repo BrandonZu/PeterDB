@@ -5,12 +5,16 @@ namespace PeterDB {
     // Mask(1) | Version(1) | AttrNum(2) | Directory:Attr End Postions, 2 * AttrNum | Attr1(2) | Attr2(2) | Attr3(2) | ... | AttrN(2) |
     RC RecordHelper::APIFormatToRecordByteSeq(uint8_t* apiData, const std::vector<Attribute> &attrs,
                                               uint8_t* byteSeq, int16_t& recordLen) {
+        return APIFormatToRecordByteSeq(RECORD_VERSION_INITIAL, apiData, attrs, byteSeq, recordLen);
+    }
+
+    RC RecordHelper::APIFormatToRecordByteSeq(int8_t version, uint8_t * apiData, const std::vector<Attribute> &attrs,
+                                              uint8_t* byteSeq, int16_t& recordLen) {
         // 0. Write Mask: 0x0 Record; 0x1 Pointer
         int8_t mask = RECORD_MASK_REALRECORD;
         memcpy(byteSeq, &mask, RECORD_MASK_LEN);
 
-        // 1. Write Version: 0x0 default
-        int8_t version = RECORD_VERSION_INITIAL;
+        // 1. Write Version
         memcpy(byteSeq + RECORD_MASK_LEN, &version, RECORD_VERSION_LEN);
 
         // 2. Write Attribute Number

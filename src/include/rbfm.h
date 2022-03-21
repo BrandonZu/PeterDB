@@ -149,10 +149,14 @@ namespace PeterDB {
         // Insert a record into a file
         RC insertRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor, const void *data,
                         RID &rid);
-
+        RC insertRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
+                        const void *data, const int8_t version, RID &rid);
         // Read a record identified by the given rid.
         RC
         readRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor, const RID &rid, void *data);
+        RC readRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
+                      const std::vector<Attribute> &selected, const RID &rid, void *data);
+        RC readRecordVersion(FileHandle &fileHandle, const RID &rid, int8_t& version);
 
         // Print the record that is passed to this utility method.
         // This method will be mainly used for debugging/testing.
@@ -280,7 +284,8 @@ namespace PeterDB {
     // Based on Record Format
     class RecordHelper {
     public:
-        static RC APIFormatToRecordByteSeq(uint8_t * apiData, const std::vector<Attribute> &attrs, uint8_t* byteSeq, int16_t & recordLen);
+        static RC APIFormatToRecordByteSeq(uint8_t * apiData, const std::vector<Attribute> &attrs, uint8_t* byteSeq, int16_t& recordLen);
+        static RC APIFormatToRecordByteSeq(int8_t version, uint8_t * apiData, const std::vector<Attribute> &attrs, uint8_t* byteSeq, int16_t& recordLen);
         static RC recordByteSeqToAPIFormat(uint8_t byteSeq[], const std::vector<Attribute> &recordDescriptor, std::vector<uint32_t> &selectedAttrIndex, uint8_t* apiData);
 
         static bool isAttrNull(uint8_t* data, uint32_t index);

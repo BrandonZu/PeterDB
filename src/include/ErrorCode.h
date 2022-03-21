@@ -50,8 +50,8 @@ namespace PeterDB {
 
     const int32_t ERR_TABLE_NAME_INVALID = 300;
     const int32_t ERR_TABLE_NOT_EXIST = 301;
-    const int32_t ERR_OPEN_TABLES_CATALOG = 302;
-    const int32_t ERR_OPEN_COLUMNS_CATALOG = 303;
+    const int32_t ERR_COL_NOT_EXIST = 302;
+    const int32_t ERR_VERSION_NOT_EXIST = 303;
     const int32_t ERR_CATALOG_NOT_OPEN = 304;
     const int32_t ERR_DELETE_METADATA = 305;
     const int32_t ERR_GET_METADATA = 306;

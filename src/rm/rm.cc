@@ -314,7 +314,7 @@ namespace PeterDB {
 
         RBFM_ScanIterator colIter;
         std::vector<std::string> colAttrName = {
-                CATALOG_COLUMNS_COLUMNNAME, CATALOG_COLUMNS_COLUMNTYPE, CATALOG_COLUMNS_COLUMNLENGTH
+                CATALOG_COLUMNS_COLUMNNAME, CATALOG_COLUMNS_COLUMNTYPE, CATALOG_COLUMNS_COLUMNLENGTH, CATALOG_COLUMNS_COLUMNVERSION
         };
         ret = rbfm.scan(catalogColumnsFH, catalogColumnsSchema, CATALOG_COLUMNS_TABLEID,
                         EQ_OP, &tablesRecord.tableID, colAttrName, colIter);
@@ -325,7 +325,9 @@ namespace PeterDB {
         uint8_t apiData[PAGE_SIZE];
         while(colIter.getNextRecord(curRID, apiData) == 0) {
             CatalogColumnsRecord curCol(apiData, colAttrName);
-            attrs.push_back(curCol.getAttribute());
+            if(curCol.columnVersion == tablesRecord.tableVersion) {
+                attrs.push_back(curCol.getAttribute());
+            }
         }
 
         return 0;
@@ -341,6 +343,7 @@ namespace PeterDB {
 
         RC ret = 0;
         std::vector<Attribute> attrs;
+        CatalogTablesRecord tableRecord;
         RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
         if(!tableFileHandle.isOpen() || tableFileHandle.fileName != tableName) {
             tableFileHandle.close();
@@ -356,7 +359,10 @@ namespace PeterDB {
             LOG(ERROR) << "Fail to get meta data @ RelationManager::insertTuple" << std::endl;
             return ERR_GET_METADATA;
         }
-        ret = rbfm.insertRecord(tableFileHandle, attrs, data, rid);
+        ret = getTableMetaData(tableName, tableRecord);
+        if(ret) return ret;
+
+        ret = rbfm.insertRecord(tableFileHandle, attrs, data, (int8_t)tableRecord.tableVersion, rid);
         if(ret) {
             return ret;
         }
@@ -602,13 +608,53 @@ namespace PeterDB {
 
         RC ret = 0;
         RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
-        std::vector<Attribute> attrs;
-        ret = getAttributes(tableName, attrs);
+        ret = openCatalog();
         if(ret) {
-            LOG(ERROR) << "Fail to get meta data @ RelationManager::readTuple" << std::endl;
-            return ERR_GET_METADATA;
+            return ERR_CATALOG_NOT_OPEN;
         }
 
+        // 1. Get all versions of schema
+        std::unordered_map<int32_t, std::vector<Attribute>> originAttrVersionMap;
+        std::unordered_map<int32_t, std::vector<Attribute>> projAttrVersionMap;
+
+        CatalogTablesRecord tableRecord;
+        ret = getTableMetaData(tableName, tableRecord);
+        if(ret) return ret;
+
+        RBFM_ScanIterator colIter;
+        std::vector<std::string> colAttrName = {
+                CATALOG_COLUMNS_COLUMNNAME, CATALOG_COLUMNS_COLUMNTYPE, CATALOG_COLUMNS_COLUMNLENGTH, CATALOG_COLUMNS_COLUMNVERSION
+        };
+        ret = rbfm.scan(catalogColumnsFH, catalogColumnsSchema, CATALOG_COLUMNS_TABLEID,
+                        EQ_OP, &tableRecord.tableID, colAttrName, colIter);
+        if(ret) {
+            return ret;
+        }
+        RID curRID;
+        uint8_t apiData[PAGE_SIZE];
+        while(colIter.getNextRecord(curRID, apiData) == 0) {
+            CatalogColumnsRecord curCol(apiData, colAttrName);
+            originAttrVersionMap[curCol.columnVersion].push_back(curCol.getAttribute());
+        }
+
+        std::vector<Attribute> curAttr = originAttrVersionMap[tableRecord.tableVersion];
+        projAttrVersionMap[tableRecord.tableVersion] = originAttrVersionMap[tableRecord.tableVersion];
+        for(int32_t v = tableRecord.tableVersion - 1; v >= 0; v--) {
+            for(auto& attr: originAttrVersionMap[v]) {
+                uint32_t index;
+                for(index = 0; index < curAttr.size(); index++) {
+                    if (curAttr[index].name == attr.name) {
+                        break;
+                    }
+                }
+                if(index < curAttr.size()) {
+                    projAttrVersionMap[v].push_back(attr);
+                }
+            }
+            curAttr = projAttrVersionMap[v];
+        }
+
+        // 2. Read record and select certain attributes
         if(!tableFileHandle.isOpen() || tableFileHandle.fileName != tableName) {
             tableFileHandle.close();
             ret = rbfm.openFile(tableName, tableFileHandle);
@@ -616,10 +662,18 @@ namespace PeterDB {
                 return ret;
             }
         }
-        ret = rbfm.readRecord(tableFileHandle, attrs, rid, data);
+        int8_t recordVersion;
+        ret = rbfm.readRecordVersion(tableFileHandle, rid, recordVersion);
+        if(ret) return ret;
+        if(originAttrVersionMap.find(recordVersion) == originAttrVersionMap.end()) {
+            return ERR_VERSION_NOT_EXIST;
+        }
+        ret = rbfm.readRecord(tableFileHandle, originAttrVersionMap[recordVersion],
+                              projAttrVersionMap[recordVersion], rid, data);
         if(ret) {
             return ret;
         }
+
         tableFileHandle.flushMetadata();
 
         return 0;
@@ -756,12 +810,67 @@ namespace PeterDB {
             return ERR_TABLE_NAME_INVALID;
         }
         RC ret = 0;
+        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
+        ret = openCatalog();
+        if(ret) {
+            return ERR_CATALOG_NOT_OPEN;
+        }
 
+        uint8_t apiData[PAGE_SIZE] = {};
+        // 1. Get table record in TABLES and update the version number
+        RID rid;
+        CatalogTablesRecord tableRecord;
+        ret = getTableMetaDataAndRID(tableName, tableRecord, rid);
+        if(ret) {
+            return ret;
+        }
+        tableRecord.tableVersion++;    // Add table version by one
+        tableRecord.getRecordAPIFormat(apiData);
+        ret = rbfm.updateRecord(catalogTablesFH, catalogTablesSchema, apiData, rid);
+        if(ret) {
+            return ret;
+        }
+
+        // 2. Insert updated records and the new column record into COLUMNS
+        RBFM_ScanIterator colIter;
+        std::vector<std::string> colAttrName = {
+                CATALOG_COLUMNS_TABLEID, CATALOG_COLUMNS_COLUMNNAME, CATALOG_COLUMNS_COLUMNTYPE,
+                CATALOG_COLUMNS_COLUMNLENGTH, CATALOG_COLUMNS_COLUMNPOS, CATALOG_COLUMNS_COLUMNVERSION
+        };
+        ret = rbfm.scan(catalogColumnsFH, catalogColumnsSchema, CATALOG_COLUMNS_TABLEID,
+                        EQ_OP, &tableRecord.tableID, colAttrName, colIter);
+        if(ret) {
+            return ret;
+        }
+
+        RID curRID;
+        CatalogColumnsRecord prevCol;
+        // Insert updated column records
+        while(colIter.getNextRecord(curRID, apiData) == 0) {
+            CatalogColumnsRecord curCol(apiData, colAttrName);
+            if(curCol.columnVersion == tableRecord.tableVersion - 1) {
+                curCol.columnVersion++;
+                curCol.getRecordAPIFormat(apiData);
+                ret = rbfm.insertRecord(catalogColumnsFH, catalogColumnsSchema, apiData, curRID);
+                if(ret) {
+                    return ret;
+                }
+                prevCol = curCol;
+            }
+        }
+        // Insert new column record
+        CatalogColumnsRecord newCol(prevCol.tableID, attr.name, attr.type, attr.length,
+                                    prevCol.columnPos + 1, prevCol.columnVersion);
+        newCol.getRecordAPIFormat(apiData);
+        ret = rbfm.insertRecord(catalogColumnsFH, catalogColumnsSchema, apiData, curRID);
+        if(ret) {
+            return ret;
+        }
 
         return 0;
     }
 
-    RC RelationManager::dropAttribute(const std::string &tableName, const std::string &attributeName) {
+    RC RelationManager::dropAttribute(const std::string &tableName, const std::string &attrToDeleteName) {
         if(!isTableAccessible(tableName)) {
             return ERR_ACCESS_DENIED_SYS_TABLE;
         }
@@ -769,6 +878,74 @@ namespace PeterDB {
             return ERR_TABLE_NAME_INVALID;
         }
         RC ret = 0;
+
+        RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
+        ret = openCatalog();
+        if(ret) {
+            return ERR_CATALOG_NOT_OPEN;
+        }
+
+        uint8_t apiData[PAGE_SIZE] = {};
+        // 0. Check if this attribute exists
+        RID rid;
+        CatalogTablesRecord tableRecord;
+        ret = getTableMetaDataAndRID(tableName, tableRecord, rid);
+        if(ret) {
+            return ret;
+        }
+
+        bool attrExist = false;
+        RBFM_ScanIterator colIter;
+        std::vector<std::string> colAttrName = {
+                CATALOG_COLUMNS_TABLEID, CATALOG_COLUMNS_COLUMNNAME, CATALOG_COLUMNS_COLUMNTYPE,
+                CATALOG_COLUMNS_COLUMNLENGTH, CATALOG_COLUMNS_COLUMNPOS, CATALOG_COLUMNS_COLUMNVERSION
+        };
+        ret = rbfm.scan(catalogColumnsFH, catalogColumnsSchema, CATALOG_COLUMNS_TABLEID,
+                        EQ_OP, &tableRecord.tableID, colAttrName, colIter);
+        if(ret) {
+            return ret;
+        }
+
+        RID curRID;
+        while(colIter.getNextRecord(curRID, apiData) == 0) {
+            CatalogColumnsRecord curCol(apiData, colAttrName);
+            if(curCol.columnName == attrToDeleteName && curCol.columnVersion == tableRecord.tableVersion) {
+                attrExist = true;
+                break;
+            }
+        }
+        if(!attrExist) {
+            return ERR_COL_NOT_EXIST;
+        }
+
+        // 1. Update table record in TABLES
+        tableRecord.tableVersion++;    // Add table version by one
+        tableRecord.getRecordAPIFormat(apiData);
+        ret = rbfm.updateRecord(catalogTablesFH, catalogTablesSchema, apiData, rid);
+        if(ret) {
+            return ret;
+        }
+
+        // 2. Insert updated records and the new column record into COLUMNS
+        colIter.close();
+        ret = rbfm.scan(catalogColumnsFH, catalogColumnsSchema, CATALOG_COLUMNS_TABLEID,
+                        EQ_OP, &tableRecord.tableID, colAttrName, colIter);
+        if(ret) {
+            return ret;
+        }
+
+        // Insert updated column records
+        while(colIter.getNextRecord(curRID, apiData) == 0) {
+            CatalogColumnsRecord curCol(apiData, colAttrName);
+            if(curCol.columnVersion == tableRecord.tableVersion - 1 && curCol.columnName != attrToDeleteName) {
+                curCol.columnVersion++;
+                curCol.getRecordAPIFormat(apiData);
+                ret = rbfm.insertRecord(catalogColumnsFH, catalogColumnsSchema, apiData, curRID);
+                if(ret) {
+                    return ret;
+                }
+            }
+        }
 
         return 0;
     }
@@ -1005,6 +1182,11 @@ namespace PeterDB {
     }
 
     RC RelationManager::getTableMetaData(const std::string& tableName, CatalogTablesRecord& tableRecord) {
+        RID recordRID;
+        return getTableMetaDataAndRID(tableName, tableRecord, recordRID);
+    }
+
+    RC RelationManager::getTableMetaDataAndRID(const std::string& tableName, CatalogTablesRecord& tableRecord, RID& rid) {
         RC ret = 0;
         RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
 
@@ -1015,7 +1197,7 @@ namespace PeterDB {
         memcpy(tableNameStr, &tableNameLen, sizeof(tableNameLen));
         memcpy(tableNameStr + sizeof(tableNameLen), tableName.c_str(), tableName.size());
         std::vector<std::string> attrNames = {
-                CATALOG_TABLES_TABLEID, CATALOG_TABLES_TABLENAME, CATALOG_TABLES_FILENAME
+                CATALOG_TABLES_TABLEID, CATALOG_TABLES_TABLENAME, CATALOG_TABLES_FILENAME, CATALOG_TABLES_TABLEVERSION
         };
 
         ret = rbfm.scan(catalogTablesFH, catalogTablesSchema, tableNameCondition,
@@ -1025,10 +1207,9 @@ namespace PeterDB {
             return ret;
         }
 
-        RID recordRID;
         uint8_t apiData[PAGE_SIZE];
         bool isRecordExist = false;
-        while(tableScanIter.getNextRecord(recordRID, apiData) == 0) {
+        while(tableScanIter.getNextRecord(rid, apiData) == 0) {
             CatalogTablesRecord curRecord(apiData, attrNames);
             if(curRecord.tableName == tableName) {
                 tableRecord = curRecord;

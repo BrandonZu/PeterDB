@@ -201,7 +201,7 @@ namespace PeterDB {
         // Extra credit work (10 points)
         RC addAttribute(const std::string &tableName, const Attribute &attr);
 
-        RC dropAttribute(const std::string &tableName, const std::string &attributeName);
+        RC dropAttribute(const std::string &tableName, const std::string &attrToDeleteName);
 
         // QE IX related
         RC createIndex(const std::string &tableName, const std::string &attrName);
@@ -228,6 +228,7 @@ namespace PeterDB {
         RC openCatalog();
 
         RC getTableMetaData(const std::string& tableName, CatalogTablesRecord& tableRecord);
+        RC getTableMetaDataAndRID(const std::string& tableName, CatalogTablesRecord& tableRecord, RID& rid);
         RC getIndexes(const std::string& tableName, std::unordered_map<std::string, std::string>& indexedAttrAndFileName);
 
         bool isTableAccessible(const std::string& tableName);
