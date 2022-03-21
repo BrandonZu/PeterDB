@@ -701,10 +701,6 @@ namespace PeterDB {
 
     RC RelationManager::readAttribute(const std::string &tableName, const RID &rid, const std::string &attributeName,
                                       void *data) {
-        if(!isTableNameValid(tableName)) {
-            return ERR_TABLE_NAME_INVALID;
-        }
-
         RC ret = 0;
         RecordBasedFileManager& rbfm = RecordBasedFileManager::instance();
         std::vector<Attribute> attrs;
@@ -714,19 +710,25 @@ namespace PeterDB {
             return ERR_GET_METADATA;
         }
 
-        if(!tableFileHandle.isOpen() || tableFileHandle.fileName != tableName) {
-            tableFileHandle.close();
-            ret = rbfm.openFile(tableName, tableFileHandle);
-            if(ret) {
-                return ret;
+        uint8_t recordApiData[PAGE_SIZE] = {};
+        ret = readTuple(tableName, rid, recordApiData);
+        if(ret) return ret;
+
+        uint32_t attrIndex;
+        for(attrIndex = 0; attrIndex < attrs.size(); attrIndex++) {
+            if(attrs[attrIndex].name == attributeName) {
+                break;
             }
         }
-        ret = rbfm.readAttribute(tableFileHandle, attrs, rid, attributeName, data);
-        if(ret) {
-            return ret;
+        if(attrIndex >= attrs.size()) {
+            return ERR_ATTR_NOT_EXIST;
         }
-        tableFileHandle.flushMetadata();
 
+        std::vector<uint32_t> selectedAttrIndex = {attrIndex};
+        uint8_t byteSeq[PAGE_SIZE] = {};
+        int16_t recordLen;
+        RecordHelper::APIFormatToRecordByteSeq(recordApiData, attrs, byteSeq, recordLen);
+        RecordHelper::recordByteSeqToAPIFormat(byteSeq, attrs, selectedAttrIndex, (uint8_t*)data);
         return 0;
     }
 
