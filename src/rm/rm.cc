@@ -44,16 +44,54 @@ namespace PeterDB {
             return ret;
         }
 
-        ret = insertTableColIntoCatalog(catalogTablesName, catalogTablesSchema);
+
+        openCatalog();
+        // Insert TABLES record
+        int32_t tableID;
+        RID rid;
+        ret = getNewTableID(catalogTablesName, tableID);
         if(ret) {
-            LOG(ERROR) << "Fail to insert TABLES metadata into catalog @ RelationManager::createCatalog" << std::endl;
             return ret;
         }
+
+        uint8_t data[PAGE_SIZE];
+        bzero(data, PAGE_SIZE);
+        // Insert one table record into TABLES catalog
+        CatalogTablesRecord tablesRecord(tableID, catalogTablesName, catalogTablesName, CATALOG_TABLES_VERSION_INIT);
+        tablesRecord.getRecordAPIFormat(data);
+        ret = rbfm.insertRecord(catalogTablesFH, catalogTablesSchema, data, rid);
+        if(ret) {
+            return ret;
+        }
+        // Insert all column records into COLUMNS catalog
+        for(int32_t i = 0; i < catalogTablesSchema.size() - 1; i++) {       // Column position starts from 1
+            CatalogColumnsRecord columnsRecord(tableID, catalogTablesSchema[i].name, catalogTablesSchema[i].type, catalogTablesSchema[i].length, i + 1, CATALOG_COLUMNS_VERSION_INIT);
+            columnsRecord.getRecordAPIFormat(data);
+            ret = rbfm.insertRecord(catalogColumnsFH, catalogColumnsSchema, data, rid);
+            if(ret) {
+                return ret;
+            }
+        }
+
+//        ret = insertTableColIntoCatalog(catalogTablesName, catalogTablesSchema);
+//        if(ret) {
+//            LOG(ERROR) << "Fail to insert TABLES metadata into catalog @ RelationManager::createCatalog" << std::endl;
+//            return ret;
+//        }
         ret = insertTableColIntoCatalog(catalogColumnsName, catalogColumnsSchema);
         if(ret) {
             LOG(ERROR) << "Fail to insert COLUMNS metadata into catalog @ RelationManager::createCatalog" << std::endl;
             return ret;
         }
+
+        // Insert TABLES last record
+        CatalogColumnsRecord columnsRecord(tableID, catalogTablesSchema.back().name, catalogTablesSchema.back().type, catalogTablesSchema.back().length,  catalogTablesSchema.size(), CATALOG_COLUMNS_VERSION_INIT);
+        columnsRecord.getRecordAPIFormat(data);
+        ret = rbfm.insertRecord(catalogColumnsFH, catalogColumnsSchema, data, rid);
+        if(ret) {
+            return ret;
+        }
+
         ret = insertTableColIntoCatalog(catalogIndexesName, catalogIndexesSchema);
         if(ret) {
             LOG(ERROR) << "Fail to insert INDEXES metadata into catalog @ RelationManager::createCatalog" << std::endl;
