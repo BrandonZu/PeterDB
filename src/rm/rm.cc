@@ -612,15 +612,33 @@ namespace PeterDB {
         if(ret) {
             return ERR_CATALOG_NOT_OPEN;
         }
+        if(!tableFileHandle.isOpen() || tableFileHandle.fileName != tableName) {
+            tableFileHandle.close();
+            ret = rbfm.openFile(tableName, tableFileHandle);
+            if(ret) {
+                return ret;
+            }
+        }
 
-        // 1. Get all versions of schema
-        std::unordered_map<int32_t, std::vector<Attribute>> originAttrVersionMap;
-        std::unordered_map<int32_t, std::vector<Attribute>> projAttrVersionMap;
-
+        // 0. Get table version and record version
         CatalogTablesRecord tableRecord;
         ret = getTableMetaData(tableName, tableRecord);
         if(ret) return ret;
 
+        int8_t recordVersion;
+        ret = rbfm.readRecordVersion(tableFileHandle, rid, recordVersion);
+        if(ret) return ret;
+
+        if(tableRecord.tableVersion == recordVersion) {
+            std::vector<Attribute> attrs;
+            ret = getAttributes(tableName, attrs);
+            if(ret) return ret;
+            return rbfm.readRecord(tableFileHandle, attrs, rid, data);
+        }
+
+        // 1. Get all versions of schema
+        std::unordered_map<int32_t, std::vector<Attribute>> originAttrVersionMap;
+        std::unordered_map<int32_t, std::vector<Attribute>> projAttrVersionMap;
         RBFM_ScanIterator colIter;
         std::vector<std::string> colAttrName = {
                 CATALOG_COLUMNS_COLUMNNAME, CATALOG_COLUMNS_COLUMNTYPE, CATALOG_COLUMNS_COLUMNLENGTH, CATALOG_COLUMNS_COLUMNVERSION
@@ -637,42 +655,35 @@ namespace PeterDB {
             originAttrVersionMap[curCol.columnVersion].push_back(curCol.getAttribute());
         }
 
-        std::vector<Attribute> curAttr = originAttrVersionMap[tableRecord.tableVersion];
         projAttrVersionMap[tableRecord.tableVersion] = originAttrVersionMap[tableRecord.tableVersion];
         for(int32_t v = tableRecord.tableVersion - 1; v >= 0; v--) {
             for(auto& attr: originAttrVersionMap[v]) {
                 uint32_t index;
-                for(index = 0; index < curAttr.size(); index++) {
-                    if (curAttr[index].name == attr.name) {
+                for(index = 0; index < projAttrVersionMap[v + 1].size(); index++) {
+                    if (projAttrVersionMap[v + 1][index].name == attr.name) {
                         break;
                     }
                 }
-                if(index < curAttr.size()) {
+                if(index < projAttrVersionMap[v + 1].size()) {
                     projAttrVersionMap[v].push_back(attr);
                 }
             }
-            curAttr = projAttrVersionMap[v];
         }
 
         // 2. Read record and select certain attributes
-        if(!tableFileHandle.isOpen() || tableFileHandle.fileName != tableName) {
-            tableFileHandle.close();
-            ret = rbfm.openFile(tableName, tableFileHandle);
-            if(ret) {
-                return ret;
-            }
-        }
-        int8_t recordVersion;
-        ret = rbfm.readRecordVersion(tableFileHandle, rid, recordVersion);
-        if(ret) return ret;
         if(originAttrVersionMap.find(recordVersion) == originAttrVersionMap.end()) {
             return ERR_VERSION_NOT_EXIST;
         }
         ret = rbfm.readRecord(tableFileHandle, originAttrVersionMap[recordVersion],
-                              projAttrVersionMap[recordVersion], rid, data);
+                              projAttrVersionMap[recordVersion], rid, apiData);
         if(ret) {
             return ret;
         }
+
+        // 3. Construct Api format based on current format
+        ret = rbfm.transformSchema(projAttrVersionMap[recordVersion], apiData,
+                                   projAttrVersionMap[tableRecord.tableVersion], (uint8_t *)data);
+        if(ret) return ret;
 
         tableFileHandle.flushMetadata();
 

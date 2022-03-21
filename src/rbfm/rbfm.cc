@@ -110,10 +110,10 @@ namespace PeterDB {
 
         // 2. Read Record Byte Seq
         RecordPageHandle pageHandle(fileHandle, curPageIndex);
-        uint8_t recordBuffer[PAGE_SIZE] = {};
+        uint8_t byteSeq[PAGE_SIZE] = {};
         int16_t recordLen = 0;
 
-        ret = pageHandle.getRecordByteSeq(curSlotIndex, recordBuffer, recordLen);
+        ret = pageHandle.getRecordByteSeq(curSlotIndex, byteSeq, recordLen);
         if(ret) {
             LOG(ERROR) << "Fail to Get Record Byte Seq @ RecordBasedFileManager::readRecord" << std::endl;
             return ret;
@@ -130,10 +130,60 @@ namespace PeterDB {
             }
             selectedAttrIndex.push_back(index);
         }
-        ret = RecordHelper::recordByteSeqToAPIFormat(recordBuffer, recordDescriptor, selectedAttrIndex, (uint8_t *) data);
+        ret = RecordHelper::recordByteSeqToAPIFormat(byteSeq, recordDescriptor, selectedAttrIndex, (uint8_t *) data);
         if(ret) {
             LOG(ERROR) << "Fail to transform Record to Raw Data @ RecordBasedFileManager::readRecord" << std::endl;
             return ret;
+        }
+        return 0;
+    }
+
+    RC RecordBasedFileManager::transformSchema(const std::vector<Attribute>& originSche, uint8_t* originData,
+                                               const std::vector<Attribute>& newSche, uint8_t* newData) {
+        RC ret = 0;
+        int16_t newDataNullByteLen = ceil(newSche.size() / 8.0);
+        bzero(newData, newDataNullByteLen);
+        int16_t originPos = ceil(originSche.size() / 8.0);
+        int16_t newPos = newDataNullByteLen;
+        for(int16_t i = 0; i < newSche.size(); i++) {
+            int16_t oldIndex;
+            for(oldIndex = 0; oldIndex < originSche.size(); oldIndex++) {
+                if(originSche[oldIndex].name == newSche[i].name && originSche[oldIndex].type == newSche[i].type) {
+                    break;
+                }
+            }
+            if(oldIndex >= originSche.size()) {
+                RecordHelper::setAttrNull(newData, i);
+                continue;
+            }
+
+            if(RecordHelper::isAttrNull(originData, oldIndex)) {
+                RecordHelper::setAttrNull(newData, i);
+                continue;
+            }
+
+            switch (newSche[i].type) {
+                case TypeInt:
+                    memcpy(newData + newPos, originData + originPos, sizeof(int32_t));
+                    originPos += sizeof(int32_t);
+                    newPos += sizeof(int32_t);
+                    break;
+                case TypeReal:
+                    memcpy(newData + newPos, originData + originPos, sizeof(float));
+                    originPos += sizeof(float);
+                    newPos += sizeof(float);
+                    break;
+                case TypeVarChar:
+                    int32_t strLen;
+                    memcpy(&strLen, originData + originPos, sizeof(int32_t));
+                    memcpy(newData + newPos, originData + originPos, sizeof(int32_t));
+                    originPos += sizeof(int32_t);
+                    newPos += sizeof(int32_t);
+                    memcpy(newData + newPos, originData + originPos, strLen);
+                    originPos += strLen;
+                    newPos += strLen;
+                    break;
+            }
         }
         return 0;
     }

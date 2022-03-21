@@ -156,6 +156,8 @@ namespace PeterDB {
         readRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor, const RID &rid, void *data);
         RC readRecord(FileHandle &fileHandle, const std::vector<Attribute> &recordDescriptor,
                       const std::vector<Attribute> &selected, const RID &rid, void *data);
+        RC transformSchema(const std::vector<Attribute>& originSche, uint8_t* originData,
+                           const std::vector<Attribute>& newSche, uint8_t* newData);
         RC readRecordVersion(FileHandle &fileHandle, const RID &rid, int8_t& version);
 
         // Print the record that is passed to this utility method.
